@@ -8,7 +8,7 @@ export function AuthLayout() {
           <div className="hidden lg:block">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
               <span className="size-1.5 rounded-full bg-amber-300" />
-              Castro de Oliveira Advocacia
+              Lima, Lopes & Diógenes Advocacia
             </div>
             <h1 className="mt-5 text-3xl font-semibold tracking-tight">CRM Jurídico</h1>
             <p className="mt-3 max-w-md text-sm text-white/70">

@@ -65,13 +65,12 @@ export function PublicNavbar() {
           <div className="grid size-10 place-items-center overflow-hidden rounded-xl border border-black/10 bg-white">
             <img
               src="/brand/logo.jpg"
-              alt="Castro de Oliveira Advocacia"
+              alt="Lima, Lopes & Diógenes Advocacia"
               className="h-full w-full object-cover"
-              loading="eager"
             />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight text-neutral-950">Castro de Oliveira</div>
+            <div className="text-sm font-semibold tracking-tight text-neutral-950">Lima, Lopes & Diógenes</div>
             <div className="text-xs text-neutral-600">Advocacia</div>
           </div>
         </Link>

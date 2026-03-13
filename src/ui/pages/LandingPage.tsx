@@ -15,70 +15,58 @@ function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; 
 
 const areas = [
   {
-    title: 'Cível',
-    items: ['Contratos', 'Responsabilidade civil', 'Cobranças e acordos'],
+    title: 'Direito Civil e Contratos',
+    items: ['Elaboração e Revisão de Contratos', 'Responsabilidade Civil', 'Recuperação de Crédito e Execuções'],
   },
   {
-    title: 'Criminal',
-    items: ['Orientação e acompanhamento', 'Defesa técnica', 'Atuação em fases investigatórias e processuais'],
+    title: 'Direito Empresarial',
+    items: ['Societário e M&A', 'Blindagem Patrimonial', 'Compliance e LGPD'],
   },
   {
-    title: 'Empresarial',
-    items: ['Apoio a rotinas empresariais', 'Contratos e negociações', 'Prevenção de riscos'],
+    title: 'Direito Trabalhista Patronal',
+    items: ['Auditoria e Prevenção de Passivos', 'Defesa em Reclamações Trabalhistas', 'Negociações Coletivas'],
   },
   {
-    title: 'Família',
-    items: ['Divórcio e dissolução', 'Guarda e convivência', 'Pensão e alimentos'],
+    title: 'Direito Imobiliário',
+    items: ['Due Diligence Imobiliária', 'Regularização de Imóveis', 'Usucapião e Desapropriação'],
   },
   {
-    title: 'Trabalhista',
-    items: ['Orientação em relações de trabalho', 'Acordos e tratativas', 'Acompanhamento de demandas'],
+    title: 'Direito Tributário',
+    items: ['Planejamento Tributário', 'Defesas Fiscais e Administrativas', 'Recuperação de Tributos'],
   },
 ];
 
 const team = [
   {
-    name: 'Letícia Oliveira',
-    role: 'Advogada',
-    oab: 'OAB/PA 28811',
-    bio: 'Atuação com foco em orientação jurídica, análise técnica e acompanhamento responsável de demandas cíveis e familiares.',
+    name: 'Dr. Lima',
+    role: 'Sócio Fundador',
+    oab: 'OAB/PA',
+    bio: 'Especialista em Direito Empresarial com ampla atuação em M&A e estruturação societária.',
   },
   {
-    name: 'Zuleide Castro',
-    role: 'Advogada',
-    bio: 'Atendimento humanizado e condução estratégica de casos, com comunicação clara e organização de informações do cliente.',
+    name: 'Dra. Lopes',
+    role: 'Sócia Diretora',
+    oab: 'OAB/PA',
+    bio: 'Foco em resolução de conflitos complexos, contencioso cível e contratos de alto valor agregado.',
   },
   {
-    name: 'Victor',
-    role: 'Controller Jurídico',
-    bio: 'Gestão interna, padronização de rotinas e apoio à organização de documentos, prazos e atendimentos do escritório.',
-  },
-  {
-    name: 'Olga',
-    role: 'Assessora Jurídica',
-    bio: 'Apoio operacional e jurídico: triagem de informações, preparação de documentos e suporte ao fluxo de atendimento.',
-  },
-  {
-    name: 'Maria',
-    role: 'Assessora Jurídica',
-    bio: 'Suporte ao time jurídico, organização de demandas e acompanhamento de atividades para manter o atendimento ágil e preciso.',
+    name: 'Dr. Diógenes',
+    role: 'Sócio Diretor',
+    oab: 'OAB/PA',
+    bio: 'Mestre em Direito Tributário. Lidera a área fiscal com estratégias focadas em redução de passivo.',
   },
 ];
 
 const address = {
-  line1: 'Avenida Tupinambá, 19 — Galeria Parque 610, Sala 01',
-  line2: 'Bairro Parque dos Carajás, Parauapebas — Pará, CEP 68515-000',
+  line1: 'Avenida Principal, 1000 — Edifício Corporate, Sala 501',
+  line2: 'Belém — Pará, CEP 66000-000',
 };
 
-const mapsUrl =
-  'https://www.google.com/maps/search/?api=1&query=' +
-  encodeURIComponent(
-    'Avenida Tupinambá, 19 Galeria parque 610 Sala 01 Bairro Parque dos Carajás, Parauapebas - Pará 68515-000'
-  );
+const mapsUrl = 'https://www.google.com/maps';
 
-const whatsappE164 = '5591983485747';
-const whatsappDisplay = '(91) 98348-5747';
-const cityDisplay = 'Parauapebas — Pará';
+const whatsappE164 = '5591000000000';
+const whatsappDisplay = '(91) 0000-0000';
+const cityDisplay = 'Belém — PA';
 
 const testimonials = [
   { name: 'Ricardo P.', initials: 'RP', text: 'Profissionalismo impecável. Conduziram meu caso com total transparência e resolveram em tempo recorde. Recomendo de olhos fechados.', rating: 5 },
@@ -103,21 +91,21 @@ export function LandingPage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-50"></span>
                 <span className="relative inline-flex size-2 rounded-full bg-gold"></span>
               </span>
-              {cityDisplay}
+              Belém — Pará
             </div>
 
             <h1 className="mt-8 text-5xl font-light leading-[1.1] tracking-tight text-neutral-900 md:text-7xl font-serif">
-              Castro de Oliveira
-              <span className="block mt-2 font-medium text-transparent bg-clip-text bg-gradient-to-r from-gold to-[rgba(180,145,45,1)]">Advocacia</span>
+              Lima, Lopes & Diógenes
+              <span className="block mt-2 font-medium text-transparent bg-clip-text bg-gradient-to-r from-gold to-[rgba(180,145,45,1)]">Advogados Associados</span>
             </h1>
 
             <p className="mt-6 max-w-lg text-lg font-light leading-relaxed text-neutral-600">
-              Atendimento jurídico com padrão premium. Unimos o rigor técnico da advocacia à tecnologia para garantir clareza, organização e excelência.
+              Excelência jurídica, inovação e resultados. Um escritório focado na resolução inteligente e estratégica de conflitos complexos.
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row items-center">
-              <a href={`https://wa.me/${whatsappE164}`} target="_blank" rel="noreferrer" className="w-full sm:w-auto">
-                <ShimmerButton className="w-full sm:w-auto !px-8 !py-3.5 !text-base shadow-xl shadow-gold/20 hover:scale-105 transition-transform duration-300">Falar no WhatsApp</ShimmerButton>
+              <a href="https://wa.me/5591000000000" target="_blank" rel="noreferrer" className="w-full sm:w-auto">
+                <ShimmerButton className="w-full sm:w-auto !px-8 !py-3.5 !text-base shadow-xl shadow-gold/20 hover:scale-105 transition-transform duration-300">Falar com Especialista</ShimmerButton>
               </a>
               <Link
                 to="/app"
@@ -150,7 +138,7 @@ export function LandingPage() {
             <div className="relative overflow-hidden rounded-[32px] border border-white/50 bg-white/80 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] backdrop-blur-xl">
               <div className="mb-8 flex flex-col items-center justify-center space-y-4">
                 <div className="grid size-20 place-items-center rounded-2xl bg-gradient-to-br from-gold/20 to-gold/5 text-3xl font-serif text-gold shadow-inner border border-gold/10">
-                  CO
+                  LLD
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-serif text-neutral-900">Portal do Cliente</div>
@@ -218,7 +206,7 @@ export function LandingPage() {
                 Princípios e<br/>Compromisso Ético
               </h2>
               <p className="mt-6 text-base text-neutral-600 leading-relaxed">
-                O Castro de Oliveira Advocacia foi fundado com o propósito de oferecer uma advocacia organizada, ágil e absolutamente transparente. 
+                Lima, Lopes & Diógenes Advocacia foi fundado com o propósito de oferecer uma advocacia organizada, ágil e absolutamente transparente. 
                 Rejeitamos promessas irreais de resultado; focamos no estudo profundo de cada caso e na comunicação assertiva.
               </p>
 
