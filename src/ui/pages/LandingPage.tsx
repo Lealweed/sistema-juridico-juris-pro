@@ -59,14 +59,14 @@ const team = [
 ];
 
 const address = {
-  line1: 'Avenida Principal, 1000 — Edifício Corporate, Sala 501',
-  line2: 'Belém — Pará, CEP 66000-000',
+  line1: 'Rua 06, Número 44 - Cidade Nova',
+  line2: 'Parauapebas - PA, 68515-000',
 };
 
 const mapsUrl = 'https://www.google.com/maps';
 
-const whatsappE164 = '5591000000000';
-const whatsappDisplay = '(91) 0000-0000';
+const whatsappE164 = '5594984233181';
+const whatsappDisplay = '(94) 98423-3181';
 
 const testimonials = [
   { name: 'Ricardo P.', initials: 'RP', text: 'Profissionalismo impecável. Conduziram meu caso com total transparência e resolveram em tempo recorde. Recomendo de olhos fechados.', rating: 5 },
