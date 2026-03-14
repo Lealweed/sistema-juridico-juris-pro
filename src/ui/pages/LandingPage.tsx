@@ -104,7 +104,7 @@ export function LandingPage() {
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row items-center">
-              <a href="https://wa.me/5591000000000" target="_blank" rel="noreferrer" className="w-full sm:w-auto">
+              <a href="https://wa.me/5594984233181" target="_blank" rel="noreferrer" className="w-full sm:w-auto">
                 <ShimmerButton className="w-full sm:w-auto !px-8 !py-3.5 !text-base shadow-xl shadow-gold/20 hover:scale-105 transition-transform duration-300">Falar com Especialista</ShimmerButton>
               </a>
               <Link
