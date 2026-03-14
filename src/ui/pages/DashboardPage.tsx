@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, DollarSign, Clock } from 'lucide-react';
+import { Briefcase, DollarSign, Clock, AlertTriangle, CheckCircle2, CalendarDays, Users, Filter } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -110,6 +110,7 @@ export function DashboardPage() {
   const [teamProfiles, setTeamProfiles] = useState<ProfileLite[]>([]);
   const [myTasksLite, setMyTasksLite] = useState<TeamTaskRow[]>([]);
   const [trend, setTrend] = useState<{ day: string; criadas: number; concluidas: number }[]>([]);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'overdue' | 'today' | 'upcoming' | 'paused'>('all');
 
   const todayStr = useMemo(() => toDateStr(new Date()), []);
 
@@ -376,13 +377,67 @@ export function DashboardPage() {
     { label: 'Agenda hoje', value: kpis.agendaToday, to: '/app/agenda', tone: 'text-white', chip: 'Compromissos' },
   ] as const;
 
+  const filteredTasks = useMemo(() => {
+    if (taskFilter === 'all') return tasks;
+    const now = Date.now();
+    return tasks.filter((t) => {
+      if (taskFilter === 'paused') return t.status_v2 === 'paused';
+      if (!t.due_at) return false;
+      const diffH = (new Date(t.due_at).getTime() - now) / 36e5;
+      if (taskFilter === 'overdue') return diffH < 0;
+      if (taskFilter === 'today') return diffH >= 0 && diffH <= 24;
+      if (taskFilter === 'upcoming') return diffH > 24 && diffH <= 48;
+      return true;
+    });
+  }, [tasks, taskFilter]);
+
+  const taskSections = useMemo(() => {
+    const now = Date.now();
+    const overdue: TaskRow[] = [];
+    const today: TaskRow[] = [];
+    const upcoming: TaskRow[] = [];
+    const noDue: TaskRow[] = [];
+
+    for (const t of tasks) {
+      if (!t.due_at) { noDue.push(t); continue; }
+      const diffH = (new Date(t.due_at).getTime() - now) / 36e5;
+      if (diffH < 0) overdue.push(t);
+      else if (diffH <= 24) today.push(t);
+      else upcoming.push(t);
+    }
+    return { overdue, today, upcoming, noDue };
+  }, [tasks]);
+
+  const agendaGrouped = useMemo(() => {
+    const groups = new Map<string, AgendaItem[]>();
+    for (const a of agenda) {
+      const dateKey = a.kind === 'deadline'
+        ? (a.due_date || 'Sem data')
+        : (a.starts_at ? toDateStr(new Date(a.starts_at)) : 'Sem data');
+      const items = groups.get(dateKey) || [];
+      items.push(a);
+      groups.set(dateKey, items);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [agenda]);
+
+  const teamWorkload = useMemo(() => {
+    if (role !== 'admin' || !teamStats) return [];
+    return teamStats.rows.map((r) => ({
+      name: r.label.length > 12 ? r.label.slice(0, 12) + '…' : r.label,
+      abertas: r.total - r.overdue - r.due48,
+      criticas: r.due48,
+      atrasadas: r.overdue,
+    }));
+  }, [role, teamStats]);
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(600px_200px_at_0%_0%,rgba(251,191,36,0.15),transparent_60%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">Castro de Oliveira Adv</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">Lima, Lopes &amp; Diógenes</p>
             <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Dashboard executivo</h1>
             <p className="mt-1 text-sm text-white/60">Visão geral de clientes, casos, agenda e tarefas em tempo real.</p>
           </div>
@@ -751,6 +806,81 @@ export function DashboardPage() {
               </div>
             </div>
           </Card>
+
+          {/* Quick stats */}
+          <div className="grid gap-3 sm:grid-cols-4">
+            {[
+              { label: 'Atrasadas', value: taskSections.overdue.length, color: 'text-red-300', icon: AlertTriangle },
+              { label: 'Hoje', value: taskSections.today.length, color: 'text-amber-300', icon: Clock },
+              { label: 'Próximas', value: taskSections.upcoming.length, color: 'text-sky-300', icon: CalendarDays },
+              { label: 'Sem prazo', value: taskSections.noDue.length, color: 'text-white/60', icon: Filter },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                <s.icon size={16} className={s.color} />
+                <div>
+                  <div className={`text-xl font-bold ${s.color}`}>{loading ? '—' : s.value}</div>
+                  <div className="text-xs text-white/60">{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              ['all', 'Todas'],
+              ['overdue', 'Atrasadas'],
+              ['today', 'Hoje'],
+              ['upcoming', 'Próximas 48h'],
+              ['paused', 'Pausadas'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTaskFilter(key)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                  taskFilter === key
+                    ? 'border-amber-400/40 bg-amber-400/15 text-amber-200'
+                    : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white/80'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Task list */}
+          <div className="grid gap-2">
+            {loading && <div className="text-sm text-white/70">Carregando…</div>}
+            {!loading && filteredTasks.length === 0 && <div className="text-sm text-white/60">Nenhuma tarefa nesta categoria.</div>}
+            {filteredTasks.map((t) => {
+              const due = dueKind(t.due_at);
+              return (
+                <Link
+                  key={t.id}
+                  to={`/app/tarefas/${t.id}`}
+                  className="group rounded-xl border border-white/10 bg-gradient-to-r from-white/5 to-transparent p-4 transition-all hover:border-white/20 hover:from-white/10"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {due?.label === 'Atrasada' && <AlertTriangle size={14} className="text-red-400" />}
+                      {due?.label === 'Hoje' && <Clock size={14} className="text-amber-400" />}
+                      <div className="text-sm font-semibold text-white group-hover:text-amber-100">{t.title}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {due && <span className={due.cls}>{due.label}</span>}
+                      <span className={badgeStatus(t.status_v2)}>{t.status_v2}</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/60">
+                    <span>Prazo: <span className="text-white/80">{t.due_at ? fmtShort(t.due_at) : '—'}</span></span>
+                    <span>Prioridade: <span className="text-white/80">{t.priority}</span></span>
+                    {t.client?.[0] && <span>Cliente: <span className="text-white/80">{t.client[0].name}</span></span>}
+                    {t.case?.[0] && <span>Caso: <span className="text-white/80">{t.case[0].title}</span></span>}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </TabsContent>
 
         <TabsContent value="agenda" className="mt-4 space-y-4">
@@ -758,23 +888,200 @@ export function DashboardPage() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-white">Agenda</div>
-                <div className="text-xs text-white/60">Compromissos e prazos.</div>
+                <div className="text-xs text-white/60">Compromissos e prazos próximos.</div>
               </div>
               <Link to="/app/agenda" className="btn-primary !rounded-lg !px-3 !py-1.5 !text-xs">Abrir agenda</Link>
             </div>
           </Card>
+
+          {/* Summary badges */}
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <CalendarDays size={14} className="text-amber-300" />
+              <span className="text-xs text-white/80">
+                <span className="font-semibold text-white">{agenda.filter((a) => a.kind === 'deadline').length}</span> prazos
+              </span>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <Clock size={14} className="text-sky-300" />
+              <span className="text-xs text-white/80">
+                <span className="font-semibold text-white">{agenda.filter((a) => a.kind === 'commitment').length}</span> compromissos
+              </span>
+            </div>
+          </div>
+
+          {/* Grouped by date */}
+          {loading && <div className="text-sm text-white/70">Carregando…</div>}
+          {!loading && agenda.length === 0 && (
+            <Card>
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <CalendarDays size={32} className="text-white/20" />
+                <div className="text-sm text-white/60">Nenhum item agendado.</div>
+                <Link to="/app/agenda" className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs mt-2">Criar compromisso</Link>
+              </div>
+            </Card>
+          )}
+          {agendaGrouped.map(([dateKey, items]) => {
+            const isToday = dateKey === todayStr;
+            const displayDate = dateKey === 'Sem data' ? dateKey : new Date(dateKey + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+            return (
+              <div key={dateKey}>
+                <div className={`mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${isToday ? 'text-amber-300' : 'text-white/50'}`}>
+                  {isToday && <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />}
+                  {displayDate}
+                  {isToday && <span className="text-[10px] normal-case tracking-normal text-amber-200/70">(hoje)</span>}
+                </div>
+                <div className="grid gap-2">
+                  {items.map((a) => (
+                    <Link
+                      key={a.id}
+                      to="/app/agenda"
+                      className="group rounded-xl border border-white/10 bg-gradient-to-r from-white/5 to-transparent p-4 transition-all hover:border-white/20 hover:from-white/10"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {a.kind === 'deadline'
+                            ? <AlertTriangle size={14} className="text-amber-400" />
+                            : <CalendarDays size={14} className="text-sky-400" />
+                          }
+                          <div className="text-sm font-semibold text-white group-hover:text-amber-100">{a.title}</div>
+                        </div>
+                        <span className={a.kind === 'deadline' ? 'badge badge-gold' : 'badge'}>
+                          {a.kind === 'deadline' ? 'Prazo' : 'Compromisso'}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-white/60">
+                        {a.kind === 'deadline'
+                          ? `Data limite: ${a.due_date || '—'}`
+                          : `Início: ${fmtShort(a.starts_at)}`
+                        }
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </TabsContent>
 
         <TabsContent value="equipe" className="mt-4 space-y-4">
           {role === 'admin' ? (
-            <Card>
-              <div className="text-sm font-semibold text-white">Equipe (admin)</div>
-              <div className="mt-1 text-xs text-white/60">Use o bloco de gestão no Insights.</div>
-            </Card>
+            <>
+              <Card>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-white">Gestão de Equipe</div>
+                    <div className="text-xs text-white/60">Carga de trabalho e produtividade por membro.</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-white/80">
+                      <Users size={12} className="text-sky-300" />
+                      Membros: <span className="text-sky-200">{teamProfiles.length}</span>
+                    </div>
+                    {teamStats && (
+                      <>
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 font-semibold text-amber-200">
+                          Críticas (48h): {teamStats.due48All}
+                        </div>
+                        <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-1.5 font-semibold text-red-200">
+                          Atrasadas: {teamStats.overdueAll}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Workload chart */}
+              {teamWorkload.length > 0 && (
+                <Card className="border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
+                  <div className="text-sm font-semibold text-white">Distribuição de carga</div>
+                  <div className="text-xs text-white/60">Tarefas por responsável (abertas vs críticas vs atrasadas).</div>
+                  <div className="mt-4 h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={teamWorkload} layout="vertical">
+                        <XAxis type="number" stroke="rgba(255,255,255,0.3)" fontSize={12} />
+                        <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.5)" fontSize={11} width={90} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="abertas" stackId="a" fill="#93c5fd" name="Abertas" />
+                        <Bar dataKey="criticas" stackId="a" fill="#fbbf24" name="Críticas (48h)" />
+                        <Bar dataKey="atrasadas" stackId="a" fill="#f87171" name="Atrasadas" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              )}
+
+              {/* Team member cards */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {teamStats?.rows.map((r) => {
+                  const pct = r.total > 0 ? Math.round(((r.total - r.overdue) / r.total) * 100) : 100;
+                  const urgency = r.overdue > 0 ? 'border-red-400/30' : r.due48 > 0 ? 'border-amber-400/30' : 'border-white/10';
+                  return (
+                    <div
+                      key={r.userId}
+                      className={`rounded-xl border ${urgency} bg-gradient-to-br from-white/10 to-white/5 p-4 transition-all`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white">
+                          {r.label.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-white">{r.label}</div>
+                          <div className="text-xs text-white/50">{r.total} tarefa{r.total !== 1 ? 's' : ''} aberta{r.total !== 1 ? 's' : ''}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        {r.overdue > 0 && (
+                          <span className="badge border-red-400/30 bg-red-400/10 text-red-200">
+                            {r.overdue} atrasada{r.overdue !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {r.due48 > 0 && (
+                          <span className="badge badge-gold">
+                            {r.due48} crítica{r.due48 !== 1 ? 's' : ''} (48h)
+                          </span>
+                        )}
+                        {r.overdue === 0 && r.due48 === 0 && (
+                          <span className="badge border-green-400/30 bg-green-400/10 text-green-200">
+                            <CheckCircle2 size={10} className="mr-1 inline" />Em dia
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-[10px] text-white/50">
+                          <span>Saúde</span>
+                          <span className={pct >= 80 ? 'text-green-300' : pct >= 50 ? 'text-amber-300' : 'text-red-300'}>{pct}%</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className={`h-full rounded-full transition-all ${pct >= 80 ? 'bg-green-400' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {teamStats?.rows.length === 0 && (
+                <Card>
+                  <div className="flex flex-col items-center gap-2 py-6 text-center">
+                    <Users size={32} className="text-white/20" />
+                    <div className="text-sm text-white/60">Nenhum membro com tarefas pendentes.</div>
+                  </div>
+                </Card>
+              )}
+            </>
           ) : (
             <Card>
-              <div className="text-sm font-semibold text-white">Equipe</div>
-              <div className="mt-1 text-xs text-white/60">Disponível para admin.</div>
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <Users size={36} className="text-white/20" />
+                <div className="text-sm font-semibold text-white">Equipe</div>
+                <div className="text-xs text-white/60">O painel de gestão de equipe está disponível para administradores.</div>
+              </div>
             </Card>
           )}
         </TabsContent>
