@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { ShimmerButton } from '@/ui/primitives/ShimmerButton';
+import { LeadForm } from '@/ui/widgets/LeadForm';
 
 function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; desc: string }) {
   return (
@@ -323,6 +324,25 @@ export function LandingPage() {
               <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"></path><polygon points="9 9 9 14 14 9 9 9"></polygon></svg>
               Avaliar no Google
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* FORMULÁRIO DE CONTATO INTELIGENTE */}
+      <section className="bg-neutral-50 py-20 md:py-32" id="lead-form">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="text-xs font-bold uppercase tracking-[0.3em] text-gold">Atendimento Personalizado</div>
+            <div className="mx-auto mt-4 h-px w-12 bg-gradient-to-r from-transparent via-gold to-transparent opacity-50" />
+            <h2 className="mt-6 text-3xl font-light tracking-tight text-neutral-900 md:text-5xl font-serif">
+              Conte seu caso para nossa equipe
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-neutral-600 md:text-lg">
+              Preencha o formulário abaixo e nossa equipe jurídica entrará em contato pelo WhatsApp para uma análise inicial gratuita.
+            </p>
+          </div>
+          <div className="mt-12">
+            <LeadForm />
           </div>
         </div>
       </section>
