@@ -18,5 +18,5 @@ export async function loadCasesLite(): Promise<CaseLite[]> {
     .limit(300);
 
   if (error) throw new Error(error.message);
-  return (data || []) as any;
+  return (data || []) as CaseLite[];
 }

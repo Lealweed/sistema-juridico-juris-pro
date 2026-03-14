@@ -6,6 +6,10 @@ export default {
     content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
   	extend: {
+  		fontFamily: {
+  			serif: ['"Playfair Display"', 'Georgia', 'serif'],
+  			sans: ['Inter', 'system-ui', 'sans-serif'],
+  		},
   		maxWidth: {
   			container: '1280px'
   		},
@@ -15,7 +19,9 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
-        amber: colors.indigo, // Remap amber (gold) to indigo (Trust Blue) globally
+  			'brand-gold': '#D4AF37',
+  			'brand-gold-dark': '#C9A227',
+  			'brand-black': '#0A0A0A',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

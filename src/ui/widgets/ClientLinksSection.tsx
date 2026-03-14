@@ -177,7 +177,7 @@ export function ClientLinksSection({ clientId }: { clientId: string }) {
 
             <label className="text-sm text-white/80">
               Tipo
-              <select className="input" value={relationType} onChange={(e) => setRelationType(e.target.value as any)}>
+              <select className="input" value={relationType} onChange={(e) => setRelationType(e.target.value as (typeof RELATION_TYPES)[number]['id'])}>
                 {RELATION_TYPES.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}
@@ -213,7 +213,7 @@ export function ClientLinksSection({ clientId }: { clientId: string }) {
           <div className="divide-y divide-white/10">
             {links.map((l) => {
               const other = clientById.get(l.otherClientId);
-              const rt = RELATION_TYPES.find((x) => x.id === (l.relation_type as any))?.label || l.relation_type;
+              const rt = RELATION_TYPES.find((x) => x.id === l.relation_type)?.label || l.relation_type;
               const dirLabel = l.direction === 'from' ? '→' : '←';
 
               return (

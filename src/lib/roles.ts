@@ -26,7 +26,7 @@ export async function getMyOfficeRole() {
       .maybeSingle();
 
     if (!error) {
-      const live = normalizeRole((data as any)?.role || '');
+      const live = normalizeRole(data?.role || '');
       if (live) return live;
     }
   } catch {

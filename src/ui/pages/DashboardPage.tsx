@@ -173,10 +173,10 @@ export function DashboardPage() {
                 .neq('status_v2', 'cancelled')
                 .order('due_at', { ascending: true, nullsFirst: false })
                 .limit(1200)
-            : Promise.resolve({ data: [], error: null } as any),
+            : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
           roleNow === 'admin'
             ? sb.from('user_profiles').select('user_id,display_name,email').order('created_at', { ascending: false }).limit(500)
-            : Promise.resolve({ data: [], error: null } as any),
+            : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
 
           // --- Executive cards ---
           sb.from('cases').select('id', { count: 'exact', head: true }).ilike('status', 'triagem'),
@@ -188,13 +188,13 @@ export function DashboardPage() {
         try {
           const createdMap = new Map<string, number>();
           for (const d of days) createdMap.set(d, 0);
-          for (const r of (created14.data || []) as any[]) {
+          for (const r of (created14.data || []) as { created_at: string }[]) {
             const d = toDateStr(new Date(r.created_at));
             createdMap.set(d, (createdMap.get(d) || 0) + 1);
           }
           const doneMap = new Map<string, number>();
           for (const d of days) doneMap.set(d, 0);
-          for (const r of (done14.data || []) as any[]) {
+          for (const r of (done14.data || []) as { done_at: string }[]) {
             const d = toDateStr(new Date(r.done_at));
             doneMap.set(d, (doneMap.get(d) || 0) + 1);
           }
@@ -578,7 +578,7 @@ export function DashboardPage() {
               <PieChart>
                 <Pie data={chartBase.statusData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90} paddingAngle={3}>
                   {chartBase.statusData.map((e, idx) => (
-                    <Cell key={idx} fill={(e as any).color} />
+                    <Cell key={idx} fill={e.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -604,7 +604,7 @@ export function DashboardPage() {
                 <Tooltip />
                 <Bar dataKey="value">
                   {chartBase.riskData.map((e, idx) => (
-                    <Cell key={idx} fill={(e as any).color} />
+                    <Cell key={idx} fill={e.color} />
                   ))}
                 </Bar>
               </BarChart>

@@ -90,7 +90,7 @@ export function CasesPage() {
       ]);
 
       if (qErr) throw new Error(qErr.message);
-      setRows((casesData || []) as any);
+      setRows((casesData || []) as CaseRow[]);
       setClients(clientsLite);
       setLoading(false);
     } catch (err: any) {
@@ -149,7 +149,7 @@ export function CasesPage() {
         client_id: primaryClientId,
         process_number: newProcessNumber.trim() || null,
         area: newArea.trim() || null,
-      } as any).select('id').single();
+      }).select('id').single();
 
       if (iErr) throw new Error(iErr.message);
 
@@ -158,7 +158,7 @@ export function CasesPage() {
           case_id: createdCase.id,
           client_id: cid
         }));
-        await sb.from('case_clients').insert(caseClients as any);
+        await sb.from('case_clients').insert(caseClients);
       }
 
       setCreateOpen(false);

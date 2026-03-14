@@ -42,13 +42,13 @@ export async function acceptOfficeInvite(inviteId: string) {
 
   if (invErr) throw new Error(invErr.message);
   if (!inv) throw new Error('Convite não encontrado.');
-  if ((inv as any).revoked_at) throw new Error('Convite revogado.');
-  if ((inv as any).accepted_at) throw new Error('Convite já aceito.');
+  if (inv.revoked_at) throw new Error('Convite revogado.');
+  if (inv.accepted_at) throw new Error('Convite já aceito.');
 
   // Join office (idempotent: if already member, continue)
   const { error: mErr } = await sb
     .from('office_members')
-    .insert({ office_id: (inv as any).office_id, user_id: user.id, role: (inv as any).role } as any);
+    .insert({ office_id: inv.office_id, user_id: user.id, role: inv.role });
 
   if (mErr && !String(mErr.message || '').toLowerCase().includes('duplicate')) {
     throw new Error(mErr.message);
@@ -57,7 +57,7 @@ export async function acceptOfficeInvite(inviteId: string) {
   // Mark invite as accepted (even if membership already existed)
   const { error: upErr } = await sb
     .from('office_invites')
-    .update({ accepted_at: new Date().toISOString(), accepted_by_user_id: user.id } as any)
+    .update({ accepted_at: new Date().toISOString(), accepted_by_user_id: user.id })
     .eq('id', inviteId)
     .is('accepted_at', null);
 
@@ -78,7 +78,7 @@ export async function createOfficeInvite(args: { officeId: string; email: string
     email,
     role: args.role,
     created_by_user_id: user.id,
-  } as any);
+  });
 
   if (error) throw new Error(error.message);
   return { ok: true };
@@ -90,7 +90,7 @@ export async function revokeOfficeInvite(inviteId: string, officeId: string) {
 
   const { error } = await sb
     .from('office_invites')
-    .update({ revoked_at: new Date().toISOString(), revoked_by_user_id: user.id } as any)
+    .update({ revoked_at: new Date().toISOString(), revoked_by_user_id: user.id })
     .eq('id', inviteId)
     .eq('office_id', officeId);
 

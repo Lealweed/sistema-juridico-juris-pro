@@ -60,8 +60,8 @@ export function LeadForm() {
 
   if (success) {
     return (
-      <div className="mx-auto max-w-xl rounded-2xl border border-gold/20 bg-gold/5 p-8 text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-gold/10 text-gold">
+      <div className="mx-auto max-w-xl rounded-2xl border border-brand-gold/20 bg-brand-gold/5 p-8 text-center">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-brand-gold/10 text-brand-gold">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" />
           </svg>
@@ -73,7 +73,7 @@ export function LeadForm() {
         <button
           type="button"
           onClick={() => setSuccess(false)}
-          className="mt-6 text-sm font-semibold text-gold hover:text-gold/80 transition-colors"
+          className="mt-6 text-sm font-semibold text-brand-gold hover:text-brand-gold-dark transition-colors"
         >
           Enviar outra mensagem
         </button>
@@ -94,7 +94,7 @@ export function LeadForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Seu nome completo"
-          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all focus:border-gold focus:ring-2 focus:ring-gold/20"
+          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20"
         />
       </div>
 
@@ -109,7 +109,7 @@ export function LeadForm() {
           value={whatsapp}
           onChange={(e) => setWhatsapp(e.target.value)}
           placeholder="(00) 00000-0000"
-          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all focus:border-gold focus:ring-2 focus:ring-gold/20"
+          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20"
         />
       </div>
 
@@ -122,7 +122,7 @@ export function LeadForm() {
           id="lead-area"
           value={area}
           onChange={(e) => setArea(e.target.value)}
-          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition-all focus:border-gold focus:ring-2 focus:ring-gold/20"
+          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition-all focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20"
         >
           <option value="">Selecione uma área...</option>
           {areaOptions.map((opt) => (
@@ -142,7 +142,7 @@ export function LeadForm() {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Descreva brevemente a situação para que possamos direcionar ao especialista adequado..."
           rows={4}
-          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all focus:border-gold focus:ring-2 focus:ring-gold/20 resize-none"
+          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-all focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 resize-none"
         />
       </div>
 
@@ -157,7 +157,7 @@ export function LeadForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-xl bg-gradient-to-r from-gold to-[rgba(180,145,45,1)] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-gold/20 transition-all hover:shadow-xl hover:shadow-gold/30 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-gradient-to-r from-brand-gold to-brand-gold-dark px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-gold/20 transition-all hover:shadow-xl hover:shadow-brand-gold/30 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? (
           <span className="inline-flex items-center gap-2">

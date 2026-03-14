@@ -80,7 +80,7 @@ export function PublicationsPage() {
   async function markAsRead(id: string) {
     try {
       const sb = requireSupabase();
-      const { error } = await sb.from('publications').update({ is_read: true } as any).eq('id', id);
+      const { error } = await sb.from('publications').update({ is_read: true }).eq('id', id);
       if (error) throw new Error(error.message);
       
       setRows(prev => prev.map(r => r.id === id ? { ...r, is_read: true } : r));

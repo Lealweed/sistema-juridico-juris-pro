@@ -213,12 +213,12 @@ export function ClientsPage() {
 
         const up = await sb.storage
           .from('client_avatars')
-          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type || undefined } as any);
+          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type || undefined });
         if (up.error) throw new Error(up.error.message);
 
         const { error: uErr } = await sb
           .from('clients')
-          .update({ avatar_path: path, avatar_updated_at: new Date().toISOString() } as any)
+          .update({ avatar_path: path, avatar_updated_at: new Date().toISOString() })
           .eq('id', created.id);
         if (uErr) throw new Error(uErr.message);
       }
@@ -263,7 +263,7 @@ export function ClientsPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="text-sm text-white/80">
                 Tipo
-                <select className="input" value={personType} onChange={(e) => setPersonType(e.target.value as any)}>
+                <select className="input" value={personType} onChange={(e) => setPersonType(e.target.value as 'pf' | 'pj')}>
                   <option value="pf">Pessoa Física (CPF)</option>
                   <option value="pj">Pessoa Jurídica (CNPJ)</option>
                 </select>
@@ -361,7 +361,7 @@ export function ClientsPage() {
 
               <label className="text-sm text-white/80">
                 Origem do cadastro
-                <select className="input" value={newSourceChannel} onChange={(e) => setNewSourceChannel(e.target.value as any)}>
+                <select className="input" value={newSourceChannel} onChange={(e) => setNewSourceChannel(e.target.value as 'advogado' | 'recepcao' | 'web' | 'indicacao' | 'outro')}>
                   <option value="advogado">Advogado</option>
                   <option value="recepcao">Recepção</option>
                   <option value="web">Web</option>

@@ -366,7 +366,7 @@ export function FinancePage() {
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
           <div className="text-[11px] text-white/60">Status</div>
-          <select className="select !mt-1" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+          <select className="select !mt-1" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'planned' | 'paid')}>
             <option value="all">Todos</option>
             <option value="planned">Previsto</option>
             <option value="paid">Pago</option>
@@ -423,14 +423,14 @@ export function FinancePage() {
             <div className="grid gap-3 md:grid-cols-3">
               <label className="text-sm text-white/80">
                 Tipo
-                <select className="select" value={type} onChange={(e) => setType(e.target.value as any)}>
+                <select className="select" value={type} onChange={(e) => setType(e.target.value as 'income' | 'expense')}>
                   <option value="income">Receita</option>
                   <option value="expense">Despesa</option>
                 </select>
               </label>
               <label className="text-sm text-white/80">
                 Status
-                <select className="select" value={status} onChange={(e) => setStatus(e.target.value as any)}>
+                <select className="select" value={status} onChange={(e) => setStatus(e.target.value as 'planned' | 'paid')}>
                   <option value="planned">Previsto</option>
                   <option value="paid">Pago</option>
                 </select>

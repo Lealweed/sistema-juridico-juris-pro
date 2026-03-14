@@ -84,8 +84,8 @@ export function SettingsPage() {
       setMeId(user.id);
 
       // load invites even when office query fails
-      const myInvites = await listMyOfficeInvites().catch(() => [] as any);
-      setInvites((myInvites || []) as any);
+      const myInvites = await listMyOfficeInvites().catch(() => [] as OfficeInviteRow[]);
+      setInvites((myInvites || []) as OfficeInviteRow[]);
 
       // Find my office by membership
       const { data: myMembership, error: memErr } = await sb
@@ -106,7 +106,7 @@ export function SettingsPage() {
         }
         throw new Error(memErr.message);
       }
-      const officeId = (myMembership as any)?.office_id as string | undefined;
+      const officeId = myMembership?.office_id as string | undefined;
 
       if (!officeId) {
         setOffice(null);
@@ -124,7 +124,7 @@ export function SettingsPage() {
       if (msErr) {
         if (isOfficeMembersPolicyError(msErr.message || '')) {
           setPolicyBlocked(true);
-          setOffice((officeRow || null) as any);
+          setOffice((officeRow || null) as Office | null);
           setMembers([]);
           setLoading(false);
           return;
@@ -132,7 +132,7 @@ export function SettingsPage() {
         throw new Error(msErr.message);
       }
 
-      const members = (ms || []) as any[];
+      const members = (ms || []) as OfficeMemberRow[];
       const userIds = Array.from(new Set(members.map((m) => m.user_id).filter(Boolean)));
 
       // Avoid PostgREST relationship cache errors by fetching profiles separately.
@@ -142,12 +142,12 @@ export function SettingsPage() {
         profMap = new Map((profs || []).map((p: any) => [p.user_id, p]));
       }
 
-      setOffice((officeRow || null) as any);
+      setOffice((officeRow || null) as Office | null);
       setMembers(
         members.map((m) => ({
           ...m,
           profile: m.user_id && profMap.get(m.user_id) ? profMap.get(m.user_id) : null,
-        })) as any,
+        })) as OfficeMemberRow[],
       );
       setLoading(false);
     } catch (e: any) {
@@ -182,10 +182,10 @@ export function SettingsPage() {
         .maybeSingle();
 
       if (pErr) throw new Error(pErr.message);
-      const userId = (prof as any)?.user_id as string | undefined;
+      const userId = prof?.user_id as string | undefined;
       if (!userId) throw new Error('Usuário não encontrado.');
 
-      const { error: iErr } = await sb.from('office_members').insert({ office_id: office.id, user_id: userId, role: addRole } as any);
+      const { error: iErr } = await sb.from('office_members').insert({ office_id: office.id, user_id: userId, role: addRole });
       if (iErr) throw new Error(iErr.message);
 
       setAddEmail('');
@@ -241,7 +241,7 @@ export function SettingsPage() {
     try {
       const sb = requireSupabase();
       await getAuthedUser();
-      const { error: uErr } = await sb.from('office_members').update({ role } as any).eq('id', memberId);
+      const { error: uErr } = await sb.from('office_members').update({ role }).eq('id', memberId);
       if (uErr) throw new Error(uErr.message);
       await load();
     } catch (e: any) {
@@ -358,7 +358,7 @@ export function SettingsPage() {
 
                   <label className="text-sm text-white/80">
                     Papel
-                    <select className="select" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as any)}>
+                    <select className="select" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'member' | 'admin' | 'finance' | 'staff')}>
                       <option value="member">Membro</option>
                       <option value="staff">Operacional</option>
                       <option value="finance">Financeiro</option>
@@ -386,7 +386,7 @@ export function SettingsPage() {
 
                   <label className="text-sm text-white/80">
                     Papel
-                    <select className="select" value={addRole} onChange={(e) => setAddRole(e.target.value as any)}>
+                    <select className="select" value={addRole} onChange={(e) => setAddRole(e.target.value as 'member' | 'admin' | 'finance' | 'staff')}>
                       <option value="member">Membro</option>
                       <option value="staff">Operacional</option>
                       <option value="finance">Financeiro</option>

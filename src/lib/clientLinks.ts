@@ -22,7 +22,7 @@ export async function listClientLinksByClient(clientId: string): Promise<ClientL
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data || []) as any;
+  return (data || []) as ClientLinkRow[];
 }
 
 export async function createClientLink(args: {
@@ -42,7 +42,7 @@ export async function createClientLink(args: {
     relation_type: args.relationType,
     notes: args.notes ?? null,
     created_by_user_id: user.id,
-  } as any);
+  });
 
   if (error) throw new Error(error.message);
 }

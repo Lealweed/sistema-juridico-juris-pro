@@ -12,7 +12,7 @@ export async function fetchDatajudLastMovement(processNumber: string): Promise<D
   const token = sessionData.session?.access_token;
   if (!token) throw new Error('Sessão inválida. Faça login novamente.');
 
-  const url = `${(sb as any).supabaseUrl}/functions/v1/datajud-last-movement`;
+  const url = `${(sb as Record<string, unknown>).supabaseUrl}/functions/v1/datajud-last-movement`;
 
   const resp = await fetch(url, {
     method: 'POST',

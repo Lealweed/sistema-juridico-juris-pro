@@ -83,7 +83,7 @@ export function TaskDetailsPage() {
         p_task_id: row.id,
         p_user_id: addPartUserId,
         p_role: addPartRole || 'assignee',
-      } as any);
+      });
 
       if (error) throw new Error(error.message);
 
@@ -114,7 +114,7 @@ export function TaskDetailsPage() {
       const { error } = await sb.rpc('delegate_task', {
         p_task_id: row.id,
         p_assigned_to_user_id: delegateTo,
-      } as any);
+      });
 
       if (error) throw new Error(error.message);
 
@@ -147,7 +147,7 @@ export function TaskDetailsPage() {
         .maybeSingle();
 
       if (qErr) throw new Error(qErr.message);
-      const t = (data as any) || null;
+      const t = data || null;
       setRow(t);
 
       const r = await getMyOfficeRole().catch(() => '');
@@ -166,7 +166,7 @@ export function TaskDetailsPage() {
         .order('created_at', { ascending: true });
       if (pErr) throw new Error(pErr.message);
 
-      const list = (ps || []) as any[];
+      const list = (ps || []) as Participant[];
       const userIds = Array.from(new Set(list.map((p) => p.user_id).filter(Boolean)));
 
       let profMap = new Map<string, any>();
@@ -179,7 +179,7 @@ export function TaskDetailsPage() {
         list.map((p) => ({
           ...p,
           profile: profMap.get(p.user_id) ? { email: profMap.get(p.user_id).email ?? null, display_name: profMap.get(p.user_id).display_name ?? null } : null,
-        })) as any,
+        })) as Participant[],
       );
 
       setLoading(false);
@@ -404,7 +404,7 @@ export function TaskDetailsPage() {
                     const { error: rErr } = await sb.rpc('task_mark_my_part_done', {
                       p_task_id: row.id,
                       p_notes: myNotes.trim() || null,
-                    } as any);
+                    });
                     if (rErr) throw new Error(rErr.message);
                     setSavingPart(false);
                     await load();

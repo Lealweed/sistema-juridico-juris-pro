@@ -6,6 +6,7 @@ import { RequireRole } from '@/auth/RequireRole';
 import { AuthLayout } from '@/ui/layouts/AuthLayout';
 import { AppLayout } from '@/ui/layouts/AppLayout';
 import { PublicLayout } from '@/ui/layouts/PublicLayout';
+import { ErrorBoundary } from '@/ui/primitives/ErrorBoundary';
 
 const LandingPage = lazy(() => import('@/ui/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const HelixDemoPage = lazy(() => import('@/ui/pages/HelixDemoPage').then((m) => ({ default: m.HelixDemoPage })));
@@ -38,6 +39,7 @@ const AuditPage = lazy(() => import('@/ui/pages/AuditPage').then((m) => ({ defau
 
 export function AppRouter() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <Suspense
         fallback={
@@ -97,5 +99,6 @@ export function AppRouter() {
         </Routes>
       </Suspense>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }

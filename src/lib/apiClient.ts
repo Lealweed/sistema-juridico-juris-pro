@@ -61,7 +61,7 @@ async function refreshAccessToken() {
   });
 
   if (!res.ok) return null;
-  const json = (await res.json().catch(() => null)) as any;
+  const json = (await res.json().catch(() => null)) as { accessToken?: string; refreshToken?: string } | null;
   if (!json?.accessToken || !json?.refreshToken) return null;
 
   setTokens({ accessToken: json.accessToken, refreshToken: json.refreshToken });

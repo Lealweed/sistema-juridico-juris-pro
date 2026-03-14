@@ -59,7 +59,7 @@ export function LoginPage() {
     const json = (await res.json().catch(() => null)) as LoginResponse | { message?: string } | null;
 
     if (!res.ok) {
-      const msg = (json as any)?.message || 'Falha no login.';
+      const msg = (json as { message?: string })?.message || 'Falha no login.';
       throw new Error(Array.isArray(msg) ? msg.join(', ') : msg);
     }
 
@@ -114,7 +114,7 @@ export function LoginPage() {
 
           // Keep Supabase session in sync for role-based guards/pages that still depend on it.
           if (env.supabaseUrl && env.supabaseAnonKey) {
-            await signInWithPassword(email, password).catch(() => ({ error: null } as any));
+            await signInWithPassword(email, password).catch(() => ({ error: null }));
           }
 
           nav('/app');

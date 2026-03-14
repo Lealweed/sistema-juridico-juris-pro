@@ -262,7 +262,7 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar documento..."
           />
-          <select className="select w-44 !mt-0 !text-sm" value={type} onChange={(e) => setType(e.target.value as any)}>
+          <select className="select w-44 !mt-0 !text-sm" value={type} onChange={(e) => setType(e.target.value as 'all' | 'pdf' | 'image' | 'doc' | 'other')}>
             <option value="all">Tipos</option>
             <option value="pdf">PDF</option>
             <option value="doc">Word / Textos</option>

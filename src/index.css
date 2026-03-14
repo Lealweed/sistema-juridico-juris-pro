@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  /* Modern Trust Blue accent */
-  --accent: 37 99 235; /* blue-600 */
-  --accent-2: 59 130 246; /* blue-500 */
-  --accent-soft: 30 58 138; /* blue-900 */
+  /* Brand Gold accent */
+  --accent: 212 175 55; /* brand-gold */
+  --accent-2: 201 162 39; /* brand-gold-dark */
+  --accent-soft: 120 100 30; /* gold deep */
 }
 
 @layer components {
@@ -66,15 +66,15 @@ body {
   color-scheme: dark;
 }
 
-/* Public site background (ivory + subtle blue glow)
+/* Public site background (warm ivory + subtle gold glow)
    IMPORTANT: use background-color + background-image (avoid `background:` shorthand)
    so we don't accidentally reset Tailwind background colors. */
 .app-bg {
-  background-color: #f8fafc;
+  background-color: #faf9f6;
   background-image:
-    radial-gradient(900px 500px at 15% 0%, rgba(37, 99, 235, 0.12), transparent 55%),
-    radial-gradient(900px 500px at 90% 10%, rgba(37, 99, 235, 0.08), transparent 55%),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.01));
+    radial-gradient(900px 500px at 15% 0%, rgba(212, 175, 55, 0.06), transparent 55%),
+    radial-gradient(900px 500px at 90% 10%, rgba(212, 175, 55, 0.04), transparent 55%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.005));
 }
 
 /* Internal app background (dark navy) */
@@ -86,17 +86,17 @@ body {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
 }
 
-/* Legacy utilities kept for compatibility (now mapped to blue) */
+/* Brand gold utilities */
 .text-gold {
-  color: rgb(96, 165, 250); /* blue-400 */
+  color: #D4AF37;
 }
 
 .bg-gold {
-  background-color: rgb(37, 99, 235); /* blue-600 */
+  background-color: #D4AF37;
 }
 
 .border-gold {
-  border-color: rgba(37, 99, 235, 0.45);
+  border-color: rgba(212, 175, 55, 0.45);
 }
 
 @layer base {

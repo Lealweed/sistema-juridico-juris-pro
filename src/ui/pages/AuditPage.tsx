@@ -137,7 +137,7 @@ export function AuditPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <label className="block text-xs uppercase text-white/50 mb-1">Módulo / Tabela</label>
-              <select className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" value={table} onChange={(e) => setTable(e.target.value as any)}>
+              <select className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" value={table} onChange={(e) => setTable(e.target.value as TableName)}>
                 <option value="all">Ver Todos</option>
                 <option value="cases">Casos & Processos</option>
                 <option value="finance_transactions">Financeiro</option>
@@ -150,7 +150,7 @@ export function AuditPage() {
 
             <div>
               <label className="block text-xs uppercase text-white/50 mb-1">Tipo de Ação</label>
-              <select className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" value={action} onChange={(e) => setAction(e.target.value as any)}>
+              <select className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" value={action} onChange={(e) => setAction(e.target.value as ActionName)}>
                 <option value="all">Todas as ações</option>
                 <option value="insert">Criação / Inserção</option>
                 <option value="update">Edição / Atualização</option>

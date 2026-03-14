@@ -207,7 +207,7 @@ export function AgendaPage() {
         .limit(500);
 
       if (selectedAgendaIds.length) {
-        q = q.in('agenda_id', selectedAgendaIds as any);
+        q = q.in('agenda_id', selectedAgendaIds);
       }
 
       if (r === 'admin' && responsibleFilter !== 'all') {
@@ -333,7 +333,7 @@ export function AgendaPage() {
             });
 
             // 2) escritório (número fixo)
-            const officePhone = (settings as any).office_whatsapp;
+            const officePhone = settings.office_whatsapp;
             if (officePhone) {
               inserts.push({
                 office_id: created.office_id,
@@ -348,7 +348,7 @@ export function AgendaPage() {
               });
             }
 
-            await sb.from('agenda_reminders').insert(inserts as any);
+            await sb.from('agenda_reminders').insert(inserts);
           }
         } catch {
           // ignore auto reminder failures
@@ -392,7 +392,7 @@ export function AgendaPage() {
         .limit(200);
 
       if (error) throw new Error(error.message);
-      setReminders((data as any) ?? []);
+      setReminders(data ?? []);
 
       // Defaults for new reminder
       setRemSendAt('');
@@ -489,7 +489,7 @@ export function AgendaPage() {
       const { error } = await sb.rpc('delegate_agenda_item', {
         p_agenda_item_id: item.id,
         p_responsible_user_id: toUserId,
-      } as any);
+      });
 
       if (error) throw new Error(error.message);
       setDelegatingItemId(null);
@@ -796,7 +796,7 @@ export function AgendaPage() {
             <div className="grid gap-3 md:grid-cols-3">
               <label className="text-sm text-white/80">
                 Tipo
-                <select className="select" value={kind} onChange={(e) => setKind(e.target.value as any)}>
+                <select className="select" value={kind} onChange={(e) => setKind(e.target.value as 'commitment' | 'deadline')}>
                   <option value="commitment">Compromisso</option>
                   <option value="deadline">Prazo</option>
                 </select>
@@ -1105,7 +1105,7 @@ export function AgendaPage() {
 
               <label className="text-sm text-white/80">
                 Destino
-                <select className="select" value={remTarget} onChange={(e) => setRemTarget(e.target.value as any)}>
+                <select className="select" value={remTarget} onChange={(e) => setRemTarget(e.target.value as 'responsible' | 'custom')}>
                   <option value="responsible">Responsável</option>
                   <option value="custom">Número</option>
                 </select>

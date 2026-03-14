@@ -136,9 +136,9 @@ export function TasksPage() {
         .upsert(
           {
             user_id: user.id,
-            email: (user as any)?.email || null,
-            display_name: (user as any)?.user_metadata?.full_name || (user as any)?.user_metadata?.name || null,
-          } as any,
+            email: user?.email || null,
+            display_name: user?.user_metadata?.full_name || user?.user_metadata?.name || null,
+          },
           { onConflict: 'user_id' },
         )
         .select('user_id')
@@ -223,11 +223,11 @@ export function TasksPage() {
   const stats = useMemo(() => {
     const openish = rows.filter((r) => r.status_v2 !== 'done' && r.status_v2 !== 'cancelled');
     const overdue = openish.filter((r) => {
-      const b = dueBadge(r as any);
+      const b = dueBadge(r);
       return b?.label === 'Atrasada';
     });
     const due48 = openish.filter((r) => {
-      const b = dueBadge(r as any);
+      const b = dueBadge(r);
       return b?.label === 'Vence hoje' || b?.label === 'Vence em 48h';
     });
 
@@ -236,7 +236,7 @@ export function TasksPage() {
       const key = r.assigned_to_user_id || '—';
       const cur = byAssignee.get(key) || { total: 0, overdue: 0, due48: 0 };
       cur.total += 1;
-      const b = dueBadge(r as any);
+      const b = dueBadge(r);
       if (b?.label === 'Atrasada') cur.overdue += 1;
       if (b?.label === 'Vence hoje' || b?.label === 'Vence em 48h') cur.due48 += 1;
       byAssignee.set(key, cur);
@@ -280,13 +280,13 @@ export function TasksPage() {
 
       const { data: inserted, error: iErr } = await sb
         .from('tasks')
-        .insert(payload as any)
+        .insert(payload)
         .select('id,office_id,assigned_to_user_id');
       if (iErr) throw new Error(iErr.message);
 
       // Optional: add team participants (admin)
       if (isAdmin) {
-        const insertedRows = (inserted || []) as any[];
+        const insertedRows = (inserted || []) as { id: string; office_id: string; assigned_to_user_id: string }[];
 
         // Ensure assigned user is also a participant for each created task
         for (const tr of insertedRows) {
@@ -295,7 +295,7 @@ export function TasksPage() {
               p_task_id: tr.id,
               p_user_id: tr.assigned_to_user_id,
               p_role: 'assignee',
-            } as any);
+            });
           }
         }
 
@@ -307,7 +307,7 @@ export function TasksPage() {
                 p_task_id: tr.id,
                 p_user_id: uid,
                 p_role: role,
-              } as any);
+              });
             }
           }
         }
@@ -337,7 +337,7 @@ export function TasksPage() {
   async function updateTask(id: string, patch: Partial<TaskRow>) {
     const sb = requireSupabase();
     await getAuthedUser();
-    const { error: uErr } = await sb.from('tasks').update(patch as any).eq('id', id);
+    const { error: uErr } = await sb.from('tasks').update(patch).eq('id', id);
     if (uErr) throw new Error(uErr.message);
   }
 
@@ -348,7 +348,7 @@ export function TasksPage() {
         status_v2: 'done',
         done_at: new Date().toISOString(),
         completed_by_user_id: user.id,
-      } as any);
+      });
       await load();
     } catch (err: any) {
       setError(err?.message || 'Falha ao concluir tarefa.');
@@ -364,7 +364,7 @@ export function TasksPage() {
         status_v2: 'paused',
         paused_at: new Date().toISOString(),
         pause_reason: reason.trim(),
-      } as any);
+      });
       await load();
     } catch (err: any) {
       setError(err?.message || 'Falha ao pausar tarefa.');
@@ -380,7 +380,7 @@ export function TasksPage() {
         status_v2: 'cancelled',
         cancelled_at: new Date().toISOString(),
         cancel_reason: reason.trim(),
-      } as any);
+      });
       await load();
     } catch (err: any) {
       setError(err?.message || 'Falha ao cancelar tarefa.');
@@ -389,7 +389,7 @@ export function TasksPage() {
 
   async function startTask(t: TaskRow) {
     try {
-      await updateTask(t.id, { status_v2: 'in_progress' } as any);
+      await updateTask(t.id, { status_v2: 'in_progress' });
       await load();
     } catch (err: any) {
       setError(err?.message || 'Falha ao iniciar tarefa.');
@@ -409,7 +409,7 @@ export function TasksPage() {
       const { error } = await sb.rpc('delegate_task', {
         p_task_id: t.id,
         p_assigned_to_user_id: toUserId,
-      } as any);
+      });
 
       if (error) throw new Error(error.message);
 
@@ -432,7 +432,7 @@ export function TasksPage() {
         cancel_reason: null,
         paused_at: null,
         pause_reason: null,
-      } as any);
+      });
       await load();
     } catch (err: any) {
       setError(err?.message || 'Falha ao reabrir tarefa.');
@@ -519,7 +519,7 @@ export function TasksPage() {
               </label>
               <label className="text-sm text-white/80">
                 Prioridade
-                <select className="select" value={priority} onChange={(e) => setPriority(e.target.value as any)}>
+                <select className="select" value={priority} onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high')}>
                   <option value="low">Baixa</option>
                   <option value="medium">Média</option>
                   <option value="high">Alta</option>

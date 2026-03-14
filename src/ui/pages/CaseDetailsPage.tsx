@@ -87,7 +87,7 @@ export function CaseDetailsPage() {
         .maybeSingle();
 
       if (qErr) throw new Error(qErr.message);
-      const r = (data as any) || null;
+      const r = data || null;
       setRow(r);
 
       setTitle(r?.title || '');
@@ -113,9 +113,9 @@ export function CaseDetailsPage() {
         const ids = Array.from(new Set((ms || []).map((m: any) => m.user_id).filter(Boolean)));
         if (ids.length) {
           const { data: profs } = await sb.from('user_profiles').select('user_id,email,display_name').in('user_id', ids).limit(500);
-          const sorted = (profs || []) as any[];
+          const sorted = (profs || []) as { user_id: string; display_name: string | null; email: string | null }[];
           sorted.sort((a, b) => String(a.display_name || a.email || '').localeCompare(String(b.display_name || b.email || '')));
-          setOfficeMembers(sorted as any);
+          setOfficeMembers(sorted);
         }
       }
 
@@ -158,7 +158,7 @@ export function CaseDetailsPage() {
           claim_value: claim,
           distributed_at: distributedAt || null,
           responsible_user_id: responsibleUserId || null,
-        } as any)
+        })
         .eq('id', caseId);
 
       if (uErr) throw new Error(uErr.message);

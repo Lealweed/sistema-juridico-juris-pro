@@ -15,7 +15,7 @@ export async function getOfficeSettings(officeId: string): Promise<OfficeSetting
 
   // ensure row exists
   try {
-    await sb.rpc('ensure_office_settings', { p_office_id: officeId } as any);
+    await sb.rpc('ensure_office_settings', { p_office_id: officeId });
   } catch {
     // ignore
   }
@@ -38,7 +38,7 @@ export async function getOfficeSettings(officeId: string): Promise<OfficeSetting
     };
   }
 
-  return data as any;
+  return data as OfficeSettings;
 }
 
 export async function updateOfficeSettings(
@@ -50,7 +50,7 @@ export async function updateOfficeSettings(
 
   const { error } = await sb
     .from('office_settings')
-    .upsert({ office_id: officeId, ...patch, updated_at: new Date().toISOString() } as any, { onConflict: 'office_id' })
+    .upsert({ office_id: officeId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'office_id' })
     .select('office_id')
     .maybeSingle();
 

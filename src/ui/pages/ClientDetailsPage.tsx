@@ -81,7 +81,7 @@ export function ClientDetailsPage() {
         if (c2.error) throw new Error(c2.error.message);
 
         if (!alive) return;
-        const client = (c1.data as any) || null;
+        const client = c1.data || null;
         setRow(client);
         setName(client?.name || '');
         setPhone(client?.phone || '');
@@ -97,7 +97,7 @@ export function ClientDetailsPage() {
             .eq('user_id', client.user_id)
             .maybeSingle();
           if (!p.error && p.data) {
-            setCreatedByLabel((p.data as any).display_name || (p.data as any).email || (p.data as any).user_id || client.user_id);
+            setCreatedByLabel(p.data.display_name || p.data.email || p.data.user_id || client.user_id);
           } else {
             setCreatedByLabel(client.user_id);
           }
@@ -132,7 +132,7 @@ export function ClientDetailsPage() {
           whatsapp: whatsapp.trim() || null,
           email: email.trim() || null,
           notes: notes.trim() || null,
-        } as any)
+        })
         .eq('id', clientId);
       if (updateErr) throw new Error(updateErr.message);
       

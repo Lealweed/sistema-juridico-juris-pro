@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 
-import { ShimmerButton } from '@/ui/primitives/ShimmerButton';
 import { LeadForm } from '@/ui/widgets/LeadForm';
 
 function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; desc: string }) {
@@ -81,87 +80,101 @@ export function LandingPage() {
   return (
     <div>
       {/* HERO */}
-      <section className="relative mx-auto max-w-7xl px-4 pb-16 pt-20 md:pb-32 md:pt-32">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.08),transparent_50%)]" />
-        
-        <div className="grid gap-16 md:grid-cols-2 md:items-center">
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-3 rounded-full border border-gold/20 bg-gold/5 px-4 py-1.5 text-xs font-medium text-neutral-800 shadow-sm backdrop-blur-sm">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-50"></span>
-                <span className="relative inline-flex size-2 rounded-full bg-gold"></span>
-              </span>
-              Belém — Pará
-            </div>
+      <section className="relative overflow-hidden bg-brand-black">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(212,175,55,0.12),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(212,175,55,0.06),transparent_60%)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-gold/30 to-transparent" />
 
-            <h1 className="mt-8 text-5xl font-light leading-[1.1] tracking-tight text-neutral-900 md:text-7xl font-serif">
-              Lima, Lopes & Diógenes
-              <span className="block mt-2 font-medium text-transparent bg-clip-text bg-gradient-to-r from-gold to-[rgba(180,145,45,1)]">Advogados Associados</span>
-            </h1>
-
-            <p className="mt-6 max-w-lg text-lg font-light leading-relaxed text-neutral-600">
-              Excelência jurídica, inovação e resultados. Um escritório focado na resolução inteligente e estratégica de conflitos complexos.
-            </p>
-
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row items-center">
-              <a href="https://wa.me/5594984233181" target="_blank" rel="noreferrer" className="w-full sm:w-auto">
-                <ShimmerButton className="w-full sm:w-auto !px-8 !py-3.5 !text-base shadow-xl shadow-gold/20 hover:scale-105 transition-transform duration-300">Falar com Especialista</ShimmerButton>
-              </a>
-              <Link
-                to="/app"
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-8 py-3.5 text-sm font-medium text-neutral-800 transition-all hover:border-gold hover:bg-neutral-50 sm:w-auto shadow-sm"
-              >
-                Acesso Restrito
-                <span className="text-gold transition-transform group-hover:translate-x-1">→</span>
-              </Link>
-            </div>
-
-            <div className="mt-14 grid grid-cols-3 gap-6 border-t border-neutral-200/60 pt-8">
-              <div>
-                <div className="text-xl font-light text-neutral-900 font-serif">100%</div>
-                <div className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">Sigilo Absoluto</div>
+        <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-24 md:pb-36 md:pt-40">
+          <div className="grid gap-16 md:grid-cols-2 md:items-center">
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-3 rounded-full border border-brand-gold/20 bg-brand-gold/5 px-4 py-1.5 text-xs font-medium text-brand-gold/90 backdrop-blur-sm">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-gold opacity-50"></span>
+                  <span className="relative inline-flex size-2 rounded-full bg-brand-gold"></span>
+                </span>
+                Belém — Pará
               </div>
-              <div>
-                <div className="text-xl font-light text-neutral-900 font-serif">24/7</div>
-                <div className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">Portal Exclusivo</div>
-              </div>
-              <div>
-                <div className="text-xl font-light text-neutral-900 font-serif">Ágil</div>
-                <div className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">Gestão de Prazos</div>
-              </div>
-            </div>
-          </div>
 
-          <div className="relative lg:ml-auto w-full max-w-lg">
-            <div className="absolute -inset-10 rounded-[40px] bg-[radial-gradient(circle_at_50%_50%,rgba(212,175,55,0.15),transparent_60%)] blur-3xl" />
+              <h1 className="mt-8 text-5xl font-light leading-[1.1] tracking-tight text-white md:text-7xl font-serif">
+                Lima, Lopes &<br />Diógenes
+                <span className="mt-3 block text-3xl font-medium text-brand-gold md:text-4xl">Advogados Associados</span>
+              </h1>
 
-            <div className="relative overflow-hidden rounded-[32px] border border-white/50 bg-white/80 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-              <div className="mb-8 flex flex-col items-center justify-center space-y-4">
-                <div className="grid size-20 place-items-center rounded-2xl bg-gradient-to-br from-gold/20 to-gold/5 text-3xl font-serif text-gold shadow-inner border border-gold/10">
-                  LLD
+              <div className="mt-6 h-px w-16 bg-gradient-to-r from-brand-gold to-transparent" />
+
+              <p className="mt-6 max-w-lg text-xl font-light leading-relaxed text-neutral-400 font-serif italic">
+                Inteligência Estratégica. Resolução Resoluta.
+              </p>
+
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-neutral-500">
+                Excelência jurídica, inovação e resultados. Um escritório focado na resolução inteligente e estratégica de conflitos complexos.
+              </p>
+
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row items-center">
+                <a href={`https://wa.me/${whatsappE164}`} target="_blank" rel="noreferrer" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-brand-gold px-8 py-4 text-sm font-bold text-brand-black shadow-lg shadow-brand-gold/20 transition-all hover:bg-brand-gold-dark hover:shadow-xl hover:shadow-brand-gold/30 hover:scale-[1.02]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Fale com a Equipe
+                  </button>
+                </a>
+                <Link
+                  to="/login"
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-brand-gold/30 bg-transparent px-8 py-4 text-sm font-semibold text-brand-gold transition-all hover:bg-brand-gold/10 hover:border-brand-gold/50 sm:w-auto"
+                >
+                  Acessar Portal
+                  <span className="transition-transform group-hover:translate-x-1">→</span>
+                </Link>
+              </div>
+
+              <div className="mt-14 grid grid-cols-3 gap-6 border-t border-white/10 pt-8">
+                <div>
+                  <div className="text-xl font-light text-brand-gold font-serif">100%</div>
+                  <div className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">Sigilo Absoluto</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-lg font-serif text-neutral-900">Portal do Cliente</div>
-                  <div className="text-xs tracking-widest uppercase text-gold mt-1">Ambiente Seguro</div>
+                <div>
+                  <div className="text-xl font-light text-brand-gold font-serif">24/7</div>
+                  <div className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">Portal Exclusivo</div>
+                </div>
+                <div>
+                  <div className="text-xl font-light text-brand-gold font-serif">Ágil</div>
+                  <div className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">Gestão de Prazos</div>
                 </div>
               </div>
+            </div>
 
-              <div className="grid gap-4">
-                {[
-                  { title: 'Acompanhamento processual', desc: 'Acesso em tempo real aos andamentos' },
-                  { title: 'Smart Drive Privado', desc: 'Envio seguro de documentos e provas' },
-                  { title: 'Comunicação Oficial', desc: 'Histórico de atividades e prazos do caso' },
-                ].map((item, i) => (
-                  <div key={i} className="group rounded-2xl border border-neutral-100 bg-white/60 p-4 transition-all hover:border-gold/30 hover:bg-white hover:shadow-md hover:shadow-gold/5">
-                    <div className="flex items-center gap-3">
-                      <div className="size-2 rounded-full bg-gold/50 group-hover:bg-gold transition-colors" />
-                      <div>
-                        <div className="text-sm font-medium text-neutral-900">{item.title}</div>
-                        <div className="text-xs text-neutral-500 mt-0.5">{item.desc}</div>
+            <div className="relative lg:ml-auto w-full max-w-lg">
+              <div className="absolute -inset-10 rounded-[40px] bg-[radial-gradient(circle_at_50%_50%,rgba(212,175,55,0.12),transparent_60%)] blur-3xl" />
+
+              <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+                <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+                  <div className="grid size-20 place-items-center rounded-2xl bg-gradient-to-br from-brand-gold/20 to-brand-gold/5 text-3xl font-serif text-brand-gold shadow-inner border border-brand-gold/10">
+                    LLD
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-serif text-white">Portal do Cliente</div>
+                    <div className="text-xs tracking-widest uppercase text-brand-gold mt-1">Ambiente Seguro</div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {[
+                    { title: 'Acompanhamento processual', desc: 'Acesso em tempo real aos andamentos' },
+                    { title: 'Smart Drive Privado', desc: 'Envio seguro de documentos e provas' },
+                    { title: 'Comunicação Oficial', desc: 'Histórico de atividades e prazos do caso' },
+                  ].map((item, i) => (
+                    <div key={i} className="group rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-brand-gold/30 hover:bg-white/10 hover:shadow-md hover:shadow-brand-gold/5">
+                      <div className="flex items-center gap-3">
+                        <div className="size-2 rounded-full bg-brand-gold/50 group-hover:bg-brand-gold transition-colors" />
+                        <div>
+                          <div className="text-sm font-medium text-white">{item.title}</div>
+                          <div className="text-xs text-neutral-500 mt-0.5">{item.desc}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -391,8 +404,8 @@ export function LandingPage() {
                 </p>
 
                 <Link
-                  to="/app"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-sm font-bold text-neutral-900 transition-all hover:bg-gold hover:text-white group"
+                  to="/login"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-gold px-8 py-4 text-sm font-bold text-brand-black transition-all hover:bg-brand-gold-dark hover:shadow-lg hover:shadow-brand-gold/20 group"
                 >
                   Entrar no Portal
                   <span className="transition-transform group-hover:translate-x-1">→</span>

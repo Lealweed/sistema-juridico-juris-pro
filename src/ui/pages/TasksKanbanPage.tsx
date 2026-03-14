@@ -168,9 +168,9 @@ export function TasksKanbanPage() {
           .upsert(
             {
               user_id: user.id,
-              email: (user as any)?.email || null,
-              display_name: (user as any)?.user_metadata?.full_name || (user as any)?.user_metadata?.name || null,
-            } as any,
+              email: user?.email || null,
+              display_name: user?.user_metadata?.full_name || user?.user_metadata?.name || null,
+            },
             { onConflict: 'user_id' },
           )
           .select('user_id')
@@ -250,7 +250,7 @@ export function TasksKanbanPage() {
       if (diffH < 0) overdue += 1;
       else if (diffH <= 48) due48 += 1;
 
-      const s = slaBadge(t as any);
+      const s = slaBadge(t);
       if (s?.label === 'SLA em risco') slaAtRisk += 1;
       if (s?.label === 'SLA violado') slaViolated += 1;
     }
@@ -330,7 +330,7 @@ export function TasksKanbanPage() {
       if (uErr) throw new Error(uErr.message);
 
       // optimistic update
-      setRows((prev) => prev.map((t) => (t.id === task.id ? ({ ...t, ...patch } as any) : t)));
+      setRows((prev) => prev.map((t) => (t.id === task.id ? ({ ...t, ...patch } as TaskRow) : t)));
       setBusyId(null);
     } catch (e: any) {
       setError(e?.message || 'Falha ao atualizar tarefa.');
@@ -341,7 +341,7 @@ export function TasksKanbanPage() {
   const activeTask = useMemo(() => (activeId ? rows.find((r) => r.id === activeId) || null : null), [activeId, rows]);
 
   function findContainer(id: string): TaskStatus | null {
-    if ((COLUMNS as any).some((c: any) => c.id === id)) return id as TaskStatus;
+    if (COLUMNS.some((c) => c.id === id)) return id as TaskStatus;
     const t = rows.find((r) => r.id === id);
     return (t?.status_v2 as TaskStatus) || null;
   }
@@ -414,7 +414,7 @@ export function TasksKanbanPage() {
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
           <div className="text-[11px] text-white/60">Prioridade</div>
-          <select className="select !mt-1 !w-full" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as any)}>
+          <select className="select !mt-1 !w-full" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as 'all' | 'low' | 'medium' | 'high')}>
             <option value="all">Todas</option>
             <option value="high">Alta</option>
             <option value="medium">Média</option>

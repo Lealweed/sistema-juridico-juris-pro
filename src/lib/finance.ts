@@ -73,7 +73,7 @@ export async function ensureCategory(type: 'income' | 'expense', name: string): 
 
   const { data, error } = await sb
     .from('finance_categories')
-    .upsert({ user_id: user.id, type, name: trimmed } as any, {
+    .upsert({ user_id: user.id, type, name: trimmed }, {
       onConflict: 'user_id,type,name',
     })
     .select('id')

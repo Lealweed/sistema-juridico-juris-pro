@@ -158,7 +158,7 @@ export function FinanceTxDetailsPage() {
 
             <label className="text-sm text-white/80">
               Tipo
-              <select className="select" value={kind} onChange={(e) => setKind(e.target.value as any)}>
+              <select className="select" value={kind} onChange={(e) => setKind(e.target.value as 'percent' | 'fixed')}>
                 <option value="percent">Percentual</option>
                 <option value="fixed">Fixo</option>
               </select>

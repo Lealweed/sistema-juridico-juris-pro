@@ -31,7 +31,7 @@ export async function listSplitsByTx(txId: string): Promise<SplitRow[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data || []) as any;
+  return (data || []) as SplitRow[];
 }
 
 export async function createSplit(payload: {
@@ -52,7 +52,7 @@ export async function createSplit(payload: {
     value: payload.value,
     amount_cents_override: payload.kind === 'fixed' ? payload.amount_cents_override || 0 : null,
     status: 'pending',
-  } as any);
+  });
 
   if (error) throw new Error(error.message);
 }
@@ -81,5 +81,5 @@ export async function listPendingSplits(): Promise<SplitRow[]> {
     .limit(500);
 
   if (error) throw new Error(error.message);
-  return (data || []) as any;
+  return (data || []) as SplitRow[];
 }

@@ -33,7 +33,7 @@ export async function createPartner(payload: { name: string; phone?: string | nu
     name: payload.name.trim(),
     phone: payload.phone?.trim() || null,
     email: payload.email?.trim() || null,
-  } as any);
+  });
 
   if (error) throw new Error(error.message);
 }

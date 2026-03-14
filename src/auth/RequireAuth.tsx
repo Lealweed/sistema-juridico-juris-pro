@@ -16,12 +16,13 @@ export function RequireAuth() {
       try {
         const sb = requireSupabase();
         const user = await getAuthedUser();
-        const email = (user as any)?.email || null;
-        const display = (user as any)?.user_metadata?.full_name || (user as any)?.user_metadata?.name || null;
+        const email = user.email || null;
+        const meta = user.user_metadata as Record<string, string> | undefined;
+        const display = meta?.full_name || meta?.name || null;
 
         await sb
           .from('user_profiles')
-          .upsert({ user_id: user.id, email, display_name: display } as any, { onConflict: 'user_id' });
+          .upsert({ user_id: user.id, email, display_name: display }, { onConflict: 'user_id' });
       } catch {
         // ignore
       }

@@ -37,7 +37,7 @@ export async function createAgenda(args: { officeId: string; name: string; color
     kind: args.kind || 'shared',
     owner_user_id: args.kind === 'personal' ? user.id : null,
     is_default: false,
-  } as any);
+  });
 
   if (error) throw new Error(error.message);
   return { ok: true };

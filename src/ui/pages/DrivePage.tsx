@@ -192,7 +192,7 @@ export function DrivePage() {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-sm text-white/80">
               Tipo do Arquivo
-              <select className="select !mt-1" value={upKind} onChange={e => setUpKind(e.target.value as any)}>
+              <select className="select !mt-1" value={upKind} onChange={e => setUpKind(e.target.value as 'personal' | 'template')}>
                 <option value="personal">Documento / Prova do Cliente</option>
                 <option value="template">Modelo Word para Geração (Contratos/Procurações)</option>
               </select>
@@ -264,7 +264,7 @@ export function DrivePage() {
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
           <div className="text-[11px] text-white/60">Tipo de Arquivo</div>
-          <select className="select !mt-1 !text-sm" value={type} onChange={(e) => setType(e.target.value as any)}>
+          <select className="select !mt-1 !text-sm" value={type} onChange={(e) => setType(e.target.value as 'all' | 'pdf' | 'image' | 'doc' | 'other')}>
             <option value="all">Todos os tipos</option>
             <option value="pdf">PDF</option>
             <option value="doc">Word / Textos</option>
@@ -273,7 +273,7 @@ export function DrivePage() {
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
           <div className="text-[11px] text-white/60">Visibilidade</div>
-          <select className="select !mt-1 !text-sm" value={visibility} onChange={(e) => setVisibility(e.target.value as any)}>
+          <select className="select !mt-1 !text-sm" value={visibility} onChange={(e) => setVisibility(e.target.value as 'all' | 'public' | 'private')}>
             <option value="all">Todos</option>
             <option value="public">No Portal do Cliente (Público)</option>
             <option value="private">Apenas Interno (Privado)</option>

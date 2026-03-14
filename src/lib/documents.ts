@@ -1,5 +1,14 @@
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
+/** Maximum upload size: 25 MB */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+function validateFileSize(file: File | Blob) {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error(`Arquivo excede o limite de 25 MB (${(file.size / 1024 / 1024).toFixed(1)} MB).`);
+  }
+}
+
 export type DocumentRow = {
   id: string;
   user_id: string | null;
@@ -49,6 +58,8 @@ export async function uploadClientDocument(args: {
 
   const path = `clients/${args.clientId}/${prefix}${casePart}/${docId}_${safeName}`;
 
+  validateFileSize(args.file);
+
   const { error: upErr } = await sb.storage.from('documents').upload(path, args.file, {
     upsert: false,
     contentType: args.file.type || undefined,
@@ -66,7 +77,7 @@ export async function uploadClientDocument(args: {
     mime_type: args.file.type || null,
     size_bytes: args.file.size || null,
     is_public: args.isPublic || false,
-  } as any);
+  });
 
   if (insErr) {
     // best-effort cleanup
@@ -83,7 +94,7 @@ export async function toggleDocumentVisibility(docId: string, isPublic: boolean)
 
   const { error } = await sb
     .from('documents')
-    .update({ is_public: isPublic } as any)
+    .update({ is_public: isPublic })
     .eq('id', docId);
 
   if (error) throw new Error(error.message);
@@ -128,6 +139,8 @@ export async function uploadTaskDocument(args: {
 
   const path = `clients/${args.clientId}/tasks/${args.taskId}${casePart}/${docId}_${safeName}`;
 
+  validateFileSize(args.file);
+
   const { error: upErr } = await sb.storage.from('documents').upload(path, args.file, {
     upsert: false,
     contentType: args.file.type || undefined,
@@ -145,7 +158,7 @@ export async function uploadTaskDocument(args: {
     file_path: path,
     mime_type: args.file.type || null,
     size_bytes: args.file.size || null,
-  } as any);
+  });
 
   if (insErr) {
     await sb.storage.from('documents').remove([path]).catch(() => null);
