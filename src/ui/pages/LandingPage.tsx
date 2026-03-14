@@ -36,25 +36,19 @@ const areas = [
   },
 ];
 
-const team = [
-  {
-    name: 'Dr. Lima',
-    role: 'Sócio Fundador',
-    oab: 'OAB/PA',
-    bio: 'Especialista em Direito Empresarial com ampla atuação em M&A e estruturação societária.',
-  },
-  {
-    name: 'Dra. Lopes',
-    role: 'Sócia Diretora',
-    oab: 'OAB/PA',
-    bio: 'Foco em resolução de conflitos complexos, contencioso cível e contratos de alto valor agregado.',
-  },
-  {
-    name: 'Dr. Diógenes',
-    role: 'Sócio Diretor',
-    oab: 'OAB/PA',
-    bio: 'Mestre em Direito Tributário. Lidera a área fiscal com estratégias focadas em redução de passivo.',
-  },
+const partners = [
+  { name: 'Dr. Nilton Lima da Silva', role: 'Sócio', oab: 'OAB/PA 40881' },
+  { name: 'Dra. Karolline Diógenes', role: 'Sócia', oab: 'OAB/PA 35857' },
+  { name: 'Dr. José Lopes da Silva Filho', role: 'Sócio', oab: 'OAB/PA 36029' },
+];
+
+const staff = [
+  { name: 'Jeffeson Barroso', role: 'Advogado Associado' },
+  { name: 'Kewilla', role: 'Advogada Associada' },
+  { name: 'Maria Eduarda', role: 'Secretária' },
+  { name: 'Iasmin Rocha', role: 'Secretária' },
+  { name: 'Mateus Diógenes', role: 'Estagiário' },
+  { name: 'Iago Costa', role: 'Assistente' },
 ];
 
 const address = {
@@ -269,31 +263,62 @@ export function LandingPage() {
           desc="Uma estrutura coesa e organizada para garantir que a estratégia e o andamento do seu caso fluam com perfeição."
         />
 
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {team.map((m) => {
-            const initials = m.name
-              .split(' ')
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((s) => s[0]!.toUpperCase())
-              .join('');
+        {/* Sócios */}
+        <div className="mt-16">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-brand-gold mb-8">Sócios</h3>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {partners.map((m) => {
+              const initials = m.name
+                .replace(/^(Dr\.|Dra\.)\s*/i, '')
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((s) => s[0]!.toUpperCase())
+                .join('');
 
-            return (
-              <div key={m.name} className="group rounded-3xl border border-neutral-100 bg-white p-6 transition-all hover:border-gold/20 hover:shadow-lg hover:shadow-neutral-900/5">
-                <div className="flex items-center gap-4 mb-5">
-                  <div className="grid size-14 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-lg font-serif text-gold group-hover:scale-105 transition-transform">
+              return (
+                <div key={m.name} className="group rounded-3xl border border-neutral-100 bg-white p-6 transition-all hover:border-gold/20 hover:shadow-lg hover:shadow-neutral-900/5">
+                  <div className="flex items-center gap-4">
+                    <div className="grid size-14 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-lg font-serif text-gold group-hover:scale-105 transition-transform">
+                      {initials}
+                    </div>
+                    <div>
+                      <div className="text-lg font-serif text-neutral-900">{m.name}</div>
+                      <div className="text-sm font-medium text-gold">{m.role}</div>
+                      <div className="text-xs text-neutral-400 mt-0.5">{m.oab}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Equipe */}
+        <div className="mt-12">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-brand-gold mb-8">Equipe</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {staff.map((m) => {
+              const initials = m.name
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((s) => s[0]!.toUpperCase())
+                .join('');
+
+              return (
+                <div key={m.name} className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4 transition-all hover:border-gold/20 hover:shadow-md">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-sm font-serif text-gold">
                     {initials}
                   </div>
                   <div>
-                    <div className="text-lg font-serif text-neutral-900">{m.name}</div>
-                    <div className="text-sm font-medium text-gold">{m.role}</div>
-                    {m.oab && <div className="text-xs text-neutral-400 mt-0.5">{m.oab}</div>}
+                    <div className="text-sm font-semibold text-neutral-900">{m.name}</div>
+                    <div className="text-xs text-neutral-500">{m.role}</div>
                   </div>
                 </div>
-                <div className="text-sm leading-relaxed text-neutral-600">{m.bio}</div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
 
