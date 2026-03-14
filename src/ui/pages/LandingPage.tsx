@@ -66,7 +66,6 @@ const mapsUrl = 'https://www.google.com/maps';
 
 const whatsappE164 = '5591000000000';
 const whatsappDisplay = '(91) 0000-0000';
-const cityDisplay = 'Belém — PA';
 
 const testimonials = [
   { name: 'Ricardo P.', initials: 'RP', text: 'Profissionalismo impecável. Conduziram meu caso com total transparência e resolveram em tempo recorde. Recomendo de olhos fechados.', rating: 5 },

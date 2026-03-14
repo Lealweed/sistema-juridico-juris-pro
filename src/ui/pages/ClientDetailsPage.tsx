@@ -6,6 +6,7 @@ import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
 import { ClientLinksSection } from '@/ui/widgets/ClientLinksSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { generateClientDossier } from '@/lib/pdfGenerator';
 
 function extractSourceFromNotes(notes: string | null) {
   if (!notes) return null;
@@ -48,6 +49,7 @@ export function ClientDetailsPage() {
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -150,9 +152,40 @@ export function ClientDetailsPage() {
           <h1 className="text-2xl font-semibold text-white">Cliente</h1>
           <p className="text-sm text-white/60">Detalhes (Supabase).</p>
         </div>
-        <Link to="/app/clientes" className="btn-ghost">
-          Voltar
-        </Link>
+        <div className="flex items-center gap-2">
+          {row && (
+            <button
+              disabled={exportingPdf}
+              onClick={() => {
+                setExportingPdf(true);
+                try {
+                  generateClientDossier(
+                    {
+                      name: row.name,
+                      phone: row.phone,
+                      whatsapp: row.whatsapp,
+                      email: row.email,
+                      notes: row.notes,
+                      created_at: row.created_at,
+                    },
+                    cases,
+                  );
+                } finally {
+                  setExportingPdf(false);
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
+                         bg-gradient-to-r from-yellow-600 to-yellow-500 text-black
+                         hover:from-yellow-500 hover:to-yellow-400
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exportingPdf ? 'Gerando…' : 'Exportar Dossiê (PDF)'}
+            </button>
+          )}
+          <Link to="/app/clientes" className="btn-ghost">
+            Voltar
+          </Link>
+        </div>
       </div>
 
       <Card>
