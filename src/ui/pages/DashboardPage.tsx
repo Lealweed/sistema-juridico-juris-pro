@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Briefcase, DollarSign, Clock } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -96,6 +97,11 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [counts, setCounts] = useState<{ clients: number; cases: number }>({ clients: 0, cases: 0 });
+  const [execCards, setExecCards] = useState<{ triagem: number; honorarios: number; tarefasPendentes: number }>({
+    triagem: 0,
+    honorarios: 0,
+    tarefasPendentes: 0,
+  });
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
 
@@ -126,7 +132,7 @@ export function DashboardPage() {
           days.push(toDateStr(new Date(Date.now() - i * 86400e3)));
         }
 
-        const [c1, c2, t1, a1, myLite, created14, done14, teamT, teamP] = await Promise.all([
+        const [c1, c2, t1, a1, myLite, created14, done14, teamT, teamP, execTriagem, execHonorarios, execTarefas] = await Promise.all([
           sb.from('clients').select('id', { count: 'exact', head: true }),
           sb.from('cases').select('id', { count: 'exact', head: true }),
           sb
@@ -171,6 +177,11 @@ export function DashboardPage() {
           roleNow === 'admin'
             ? sb.from('user_profiles').select('user_id,display_name,email').order('created_at', { ascending: false }).limit(500)
             : Promise.resolve({ data: [], error: null } as any),
+
+          // --- Executive cards ---
+          sb.from('cases').select('id', { count: 'exact', head: true }).ilike('status', 'triagem'),
+          sb.from('finance_transactions').select('amount_cents', { count: 'exact' }).eq('type', 'income').eq('status', 'planned'),
+          sb.from('tasks').select('id', { count: 'exact', head: true }).in('status_v2', ['open', 'in_progress', 'paused']),
         ]);
 
         // compute trend
@@ -210,6 +221,18 @@ export function DashboardPage() {
         if (!alive) return;
 
         setCounts({ clients: c1.count || 0, cases: c2.count || 0 });
+
+        // Executive cards
+        const honorariosCents = (execHonorarios.data || []).reduce(
+          (sum: number, r: { amount_cents: number }) => sum + (r.amount_cents || 0),
+          0,
+        );
+        setExecCards({
+          triagem: execTriagem.count || 0,
+          honorarios: honorariosCents,
+          tarefasPendentes: execTarefas.count || 0,
+        });
+
         setTasks((t1.data || []) as TaskRow[]);
         setAgenda((a1.data || []) as AgendaItem[]);
         setMyTasksLite((myLite.data || []) as TeamTaskRow[]);
@@ -378,6 +401,79 @@ export function DashboardPage() {
       </div>
 
       {error ? <div className="text-sm text-red-200">{error}</div> : null}
+
+      {/* Executive KPI Cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {/* Card 1 — Casos em Triagem */}
+        <Link
+          to="/app/casos"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-amber-500/15 via-white/10 to-white/5 p-5 transition-all hover:-translate-y-1 hover:border-amber-400/40 hover:shadow-[0_12px_40px_rgba(251,191,36,0.15)]"
+        >
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-amber-400/10 blur-2xl transition-all group-hover:bg-amber-400/20" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/20">
+              <Briefcase size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-200/80">Casos em Triagem</p>
+              <p className="mt-0.5 text-3xl font-bold text-white">{loading ? '—' : execCards.triagem}</p>
+            </div>
+          </div>
+          <div className="relative mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-300 transition-all"
+              style={{ width: `${Math.min(100, (execCards.triagem / Math.max(counts.cases, 1)) * 100)}%` }}
+            />
+          </div>
+        </Link>
+
+        {/* Card 2 — Honorários a Receber */}
+        <Link
+          to="/app/financeiro"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/15 via-white/10 to-white/5 p-5 transition-all hover:-translate-y-1 hover:border-emerald-400/40 hover:shadow-[0_12px_40px_rgba(52,211,153,0.12)]"
+        >
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-400/10 blur-2xl transition-all group-hover:bg-emerald-400/20" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-400/20">
+              <DollarSign size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">Honorários a Receber</p>
+              <p className="mt-0.5 text-3xl font-bold text-white">
+                {loading
+                  ? '—'
+                  : (execCards.honorarios / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </p>
+            </div>
+          </div>
+          <div className="relative mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all" />
+          </div>
+        </Link>
+
+        {/* Card 3 — Tarefas Pendentes */}
+        <Link
+          to="/app/tarefas"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-sky-500/15 via-white/10 to-white/5 p-5 transition-all hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-[0_12px_40px_rgba(56,189,248,0.12)]"
+        >
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-sky-400/10 blur-2xl transition-all group-hover:bg-sky-400/20" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/20">
+              <Clock size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-sky-200/80">Tarefas Pendentes</p>
+              <p className="mt-0.5 text-3xl font-bold text-white">{loading ? '—' : execCards.tarefasPendentes}</p>
+            </div>
+          </div>
+          <div className="relative mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-300 transition-all"
+              style={{ width: `${Math.min(100, execCards.tarefasPendentes * 5)}%` }}
+            />
+          </div>
+        </Link>
+      </div>
 
       <Hero1951 />
 
