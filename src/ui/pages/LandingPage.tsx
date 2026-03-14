@@ -96,7 +96,7 @@ export function LandingPage() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-gold opacity-50"></span>
                   <span className="relative inline-flex size-2 rounded-full bg-brand-gold"></span>
                 </span>
-                Belém — Pará
+                Parauapebas — Pará
               </div>
 
               <h1 className="mt-8 text-5xl font-light leading-[1.1] tracking-tight text-white md:text-7xl font-serif">
