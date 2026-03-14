@@ -66,6 +66,8 @@ const mapsUrl = 'https://www.google.com/maps';
 
 const whatsappE164 = '5594984233181';
 const whatsappDisplay = '(94) 98423-3181';
+const contactEmail = 'advkarolldiogenes@gmail.com';
+const businessHours = 'Seg - Sex: 8h às 18h';
 
 const testimonials = [
   { name: 'Ricardo P.', initials: 'RP', text: 'Profissionalismo impecável. Conduziram meu caso com total transparência e resolveram em tempo recorde. Recomendo de olhos fechados.', rating: 5 },
@@ -389,6 +391,24 @@ export function LandingPage() {
                     <a href={mapsUrl} target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-gold transition-colors block mt-1 leading-relaxed">
                       {address.line1}<br/>{address.line2}
                     </a>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="mt-1 text-gold">✦</div>
+                  <div>
+                    <div className="font-semibold text-white">E-mail</div>
+                    <a href={`mailto:${contactEmail}`} className="text-neutral-400 hover:text-gold transition-colors block mt-1">
+                      {contactEmail}
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="mt-1 text-gold">✦</div>
+                  <div>
+                    <div className="font-semibold text-white">Horário de Atendimento</div>
+                    <div className="text-neutral-400 mt-1">{businessHours}</div>
                   </div>
                 </div>
               </div>
