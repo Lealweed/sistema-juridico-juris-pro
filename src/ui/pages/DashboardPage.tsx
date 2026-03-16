@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, DollarSign, Clock, AlertTriangle, CheckCircle2, CalendarDays, Users, Filter } from 'lucide-react';
+import { Briefcase, DollarSign, Clock, AlertTriangle, CheckCircle2, CalendarDays, Users, Filter, Search } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Hero1951 } from '@/components/ui/hero-195-1';
+import { fetchEscavadorProcesso, type BrasilApiProcesso, type DataJudLastMovement } from '@/lib/datajud';
 import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
@@ -92,6 +95,40 @@ function dueKind(dueAt: string | null) {
   return null;
 }
 
+function formatCnjInput(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 20);
+  const parts = [
+    digits.slice(0, 7),
+    digits.slice(7, 9),
+    digits.slice(9, 13),
+    digits.slice(13, 14),
+    digits.slice(14, 16),
+    digits.slice(16, 20),
+  ].filter(Boolean);
+
+  if (parts.length === 0) return '';
+
+  let formatted = parts[0] || '';
+  if (parts[1]) formatted += `-${parts[1]}`;
+  if (parts[2]) formatted += `.${parts[2]}`;
+  if (parts[3]) formatted += `.${parts[3]}`;
+  if (parts[4]) formatted += `.${parts[4]}`;
+  if (parts[5]) formatted += `.${parts[5]}`;
+  return formatted;
+}
+
+function formatRadarDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +148,11 @@ export function DashboardPage() {
   const [myTasksLite, setMyTasksLite] = useState<TeamTaskRow[]>([]);
   const [trend, setTrend] = useState<{ day: string; criadas: number; concluidas: number }[]>([]);
   const [taskFilter, setTaskFilter] = useState<'all' | 'overdue' | 'today' | 'upcoming' | 'paused'>('all');
+  const [radarCnj, setRadarCnj] = useState('');
+  const [radarLoading, setRadarLoading] = useState(false);
+  const [radarResult, setRadarResult] = useState<BrasilApiProcesso | null>(null);
+  const [radarError, setRadarError] = useState<string | null>(null);
+  const [radarWarning, setRadarWarning] = useState<string | null>(null);
 
   const todayStr = useMemo(() => toDateStr(new Date()), []);
 
@@ -431,6 +473,26 @@ export function DashboardPage() {
     }));
   }, [role, teamStats]);
 
+  async function handleRadarSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setRadarLoading(true);
+    setRadarError(null);
+    setRadarWarning(null);
+    setRadarResult(null);
+
+    try {
+      const result = await fetchEscavadorProcesso(radarCnj);
+      setRadarResult(result);
+      setRadarWarning(result.warning || null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao consultar processo.';
+      setRadarError(message);
+      setRadarWarning('Serviço nacional de consulta temporariamente indisponível.');
+    } finally {
+      setRadarLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
@@ -529,6 +591,84 @@ export function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      <Card className="border-white/15 bg-gradient-to-br from-[#0f1115] via-[#12161d] to-black shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-white">Radar de Processos (Escavador)</div>
+            <div className="mt-1 text-xs text-white/60">
+              Consulte um processo em formato CNJ para inspecionar tribunal, última movimentação e status atual via Escavador.
+            </div>
+          </div>
+          <span className="badge border-amber-300/30 bg-amber-300/10 text-amber-100">API Escavador</span>
+        </div>
+
+        <form onSubmit={handleRadarSubmit} className="mt-4 flex flex-col gap-3 lg:flex-row">
+          <div className="flex-1">
+            <Input
+              value={radarCnj}
+              onChange={(event) => setRadarCnj(formatCnjInput(event.target.value))}
+              inputMode="numeric"
+              placeholder="0000000-00.0000.0.00.0000"
+              className="h-11 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/35"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={radarLoading}
+            className="h-11 rounded-xl bg-amber-400 px-5 text-black hover:bg-amber-300 disabled:bg-amber-400/60"
+          >
+            <Search className="mr-2 size-4" />
+            {radarLoading ? 'Buscando...' : 'Buscar processo'}
+          </Button>
+        </form>
+
+        <div className="mt-2 text-[11px] text-white/45">
+          Formato aceito: XXXXXXX-XX.XXXX.X.XX.XXXX
+        </div>
+
+        {radarWarning ? <div className="mt-3 text-sm text-amber-200/90">{radarWarning}</div> : null}
+        {radarError ? <div className="mt-3 text-sm text-red-200">{radarError}</div> : null}
+
+        {radarResult ? (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-white/45">Processo</div>
+                <div className="mt-1 text-lg font-semibold text-white">{radarResult.numero}</div>
+              </div>
+              <span
+                className={
+                  radarResult.source === 'mock'
+                    ? 'badge border-amber-300/30 bg-amber-300/10 text-amber-100'
+                    : 'badge border-green-400/30 bg-green-400/10 text-green-200'
+                }
+              >
+                {radarResult.status}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Tribunal</div>
+                <div className="mt-1 text-sm font-medium text-amber-200">{radarResult.tribunal}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Última movimentação</div>
+                <div className="mt-1 text-sm font-medium text-white">{radarResult.ultimoAndamento}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Data</div>
+                <div className="mt-1 text-sm font-medium text-amber-200">{formatRadarDate(radarResult.dataUltimoAndamento)}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Status</div>
+                <div className="mt-1 text-sm font-medium text-amber-200">{radarResult.status}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Card>
 
       <Hero1951 />
 

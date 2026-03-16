@@ -22,8 +22,18 @@ type TaskRow = {
   client_id: string | null;
   case_id: string | null;
   office_id?: string | null;
+  subtasks?: TaskSubtask[] | null;
   client?: { id: string; name: string }[] | null;
   case?: { id: string; title: string }[] | null;
+};
+
+type TaskSubtask = {
+  id: string;
+  title: string;
+  assignee_id: string;
+  is_done: boolean;
+  doneAt: string | null;
+  doneByUserId: string | null;
 };
 
 type Participant = {
@@ -36,6 +46,49 @@ type Participant = {
   concluded_at: string | null;
   profile?: { display_name: string | null; email: string | null } | null;
 };
+
+function normalizeSubtasks(input: unknown): TaskSubtask[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item) => {
+      const data = item as Record<string, unknown>;
+      const title = typeof data.title === 'string' ? data.title.trim() : '';
+      const assigneeId =
+        typeof data.assignee_id === 'string'
+          ? data.assignee_id
+          : typeof data.responsibleUserId === 'string'
+            ? data.responsibleUserId
+            : '';
+      if (!title || !assigneeId) return null;
+
+      return {
+        id: typeof data.id === 'string' && data.id ? data.id : crypto.randomUUID(),
+        title,
+        assignee_id: assigneeId,
+        is_done: data.is_done === true || data.done === true,
+        doneAt: typeof data.doneAt === 'string' ? data.doneAt : null,
+        doneByUserId: typeof data.doneByUserId === 'string' ? data.doneByUserId : null,
+      } satisfies TaskSubtask;
+    })
+    .filter((item): item is TaskSubtask => Boolean(item));
+}
+
+function areSubtasksComplete(subtasks: TaskSubtask[] | null | undefined) {
+  if (!subtasks?.length) return true;
+  return subtasks.every((subtask) => subtask.is_done);
+}
+
+function initialsFromLabel(label: string) {
+  return (
+    label
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || '')
+      .join('') || '??'
+  );
+}
 
 function fmtDT(iso: string | null) {
   if (!iso) return '—';
@@ -54,6 +107,7 @@ export function TaskDetailsPage() {
   const [savingPart, setSavingPart] = useState(false);
 
   const [role, setRole] = useState('');
+  const [myUserId, setMyUserId] = useState('');
   const [members, setMembers] = useState<OfficeMemberProfile[]>([]);
   const [delegateOpen, setDelegateOpen] = useState(false);
   const [delegateTo, setDelegateTo] = useState('');
@@ -64,6 +118,11 @@ export function TaskDetailsPage() {
   const [addPartUserId, setAddPartUserId] = useState('');
   const [addPartRole, setAddPartRole] = useState<'assignee' | 'reviewer' | 'protocol' | string>('assignee');
   const [addingPart, setAddingPart] = useState(false);
+  const [subtasks, setSubtasks] = useState<TaskSubtask[]>([]);
+  const [savingSubtasks, setSavingSubtasks] = useState(false);
+  const [subtaskModalOpen, setSubtaskModalOpen] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskAssigneeId, setNewSubtaskAssigneeId] = useState('');
 
   async function onAddParticipant() {
     if (!row) return;
@@ -136,19 +195,21 @@ export function TaskDetailsPage() {
 
     try {
       const sb = requireSupabase();
-      await getAuthedUser();
+      const user = await getAuthedUser();
+      setMyUserId(user.id);
 
       const { data, error: qErr } = await sb
         .from('tasks')
         .select(
-          'id,office_id,title,description,status_v2,priority,due_at,created_at,client_id,case_id,assigned_to_user_id,last_assigned_by_user_id,last_assigned_at, client:clients(id,name), case:cases(id,title)',
+          'id,office_id,title,description,status_v2,priority,due_at,created_at,client_id,case_id,assigned_to_user_id,last_assigned_by_user_id,last_assigned_at,subtasks, client:clients(id,name), case:cases(id,title)',
         )
         .eq('id', taskId)
         .maybeSingle();
 
       if (qErr) throw new Error(qErr.message);
-      const t = data || null;
+      const t = data ? ({ ...data, subtasks: normalizeSubtasks((data as TaskRow).subtasks) } as TaskRow) : null;
       setRow(t);
+      setSubtasks(normalizeSubtasks(t?.subtasks));
 
       const r = await getMyOfficeRole().catch(() => '');
       setRole(r);
@@ -197,6 +258,118 @@ export function TaskDetailsPage() {
   useEffect(() => {
     if (sp.get('delegate') === '1') setDelegateOpen(true);
   }, [sp]);
+
+  const subtasksComplete = areSubtasksComplete(subtasks);
+
+  async function persistSubtasks(nextSubtasks: TaskSubtask[]) {
+    if (!row?.id) return;
+
+    setSavingSubtasks(true);
+    setError(null);
+
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
+      const normalized = normalizeSubtasks(nextSubtasks);
+      const { error: updateErr } = await sb.from('tasks').update({ subtasks: normalized }).eq('id', row.id);
+      if (updateErr) throw new Error(updateErr.message);
+
+      const uniqueUsers = Array.from(new Set(normalized.map((subtask) => subtask.assignee_id).filter(Boolean)));
+      for (const userId of uniqueUsers) {
+        await sb.rpc('task_add_participant', {
+          p_task_id: row.id,
+          p_user_id: userId,
+          p_role: userId === row.assigned_to_user_id ? 'assignee' : 'reviewer',
+        });
+      }
+
+      setSubtasks(normalized);
+      setRow((prev) => (prev ? { ...prev, subtasks: normalized } : prev));
+    } catch (e: any) {
+      setError(e?.message || 'Falha ao salvar etapas da tarefa.');
+    } finally {
+      setSavingSubtasks(false);
+    }
+  }
+
+  async function toggleSubtaskDone(subtaskId: string) {
+    const target = subtasks.find((subtask) => subtask.id === subtaskId);
+    if (!target) return;
+
+    const canToggle = isAdmin || target.assignee_id === myUserId;
+    if (!canToggle) {
+      setError('Somente o responsável da etapa ou um sócio/admin pode concluí-la.');
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const next = subtasks.map((subtask) =>
+      subtask.id === subtaskId
+        ? {
+            ...subtask,
+            is_done: !subtask.is_done,
+            doneAt: !subtask.is_done ? nowIso : null,
+            doneByUserId: !subtask.is_done ? myUserId : null,
+          }
+        : subtask,
+    );
+
+    await persistSubtasks(next);
+  }
+
+  async function addSubtask() {
+    const title = newSubtaskTitle.trim();
+    if (!title || !newSubtaskAssigneeId) {
+      setError('Informe o nome da etapa e o responsável.');
+      return;
+    }
+
+    const next = [
+      ...subtasks,
+      {
+        id: crypto.randomUUID(),
+        title,
+        assignee_id: newSubtaskAssigneeId,
+        is_done: false,
+        doneAt: null,
+        doneByUserId: null,
+      },
+    ];
+
+    await persistSubtasks(next);
+    setSubtaskModalOpen(false);
+    setNewSubtaskTitle('');
+    setNewSubtaskAssigneeId(row?.assigned_to_user_id || myUserId || '');
+  }
+
+  async function markTaskDone() {
+    if (!row?.id) return;
+    if (!subtasksComplete) {
+      setError('Todas as etapas da equipe precisam ser concluídas primeiro.');
+      window.alert('Todas as etapas da equipe precisam ser concluídas primeiro.');
+      return;
+    }
+
+    try {
+      const sb = requireSupabase();
+      const user = await getAuthedUser();
+      const { error: updateErr } = await sb
+        .from('tasks')
+        .update({
+          status_v2: 'done',
+          done_at: new Date().toISOString(),
+          completed_by_user_id: user.id,
+          paused_at: null,
+          pause_reason: null,
+        })
+        .eq('id', row.id);
+      if (updateErr) throw new Error(updateErr.message);
+
+      await load();
+    } catch (e: any) {
+      setError(e?.message || 'Falha ao concluir tarefa.');
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -269,12 +442,37 @@ export function TaskDetailsPage() {
 
             <div className="text-xs text-white/40">Criada em: {fmtDT(row.created_at)}</div>
 
-            {isAdmin ? (
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {isAdmin ? (
                 <button className="btn-ghost" onClick={() => setDelegateOpen((v) => !v)}>
                   {delegateOpen ? 'Fechar delegação' : 'Delegar'}
                 </button>
+              ) : null}
+              <div
+                onClick={() => {
+                  if (row.status_v2 !== 'done' && row.status_v2 !== 'cancelled' && !subtasksComplete) {
+                    setError('Todas as etapas da equipe precisam ser concluídas primeiro.');
+                    window.alert('Todas as etapas da equipe precisam ser concluídas primeiro.');
+                  }
+                }}
+              >
+                <button
+                  className={
+                    subtasksComplete
+                      ? 'btn-primary'
+                      : 'inline-flex items-center justify-center rounded-lg bg-neutral-700 px-4 py-2 text-sm font-semibold text-white/70'
+                  }
+                  onClick={() => void markTaskDone()}
+                  disabled={row.status_v2 === 'done' || row.status_v2 === 'cancelled' || !subtasksComplete}
+                  title={!subtasksComplete ? 'Todas as etapas da equipe precisam ser concluídas primeiro' : 'Mover tarefa para concluído'}
+                >
+                  Mover para Concluído
+                </button>
               </div>
+            </div>
+
+            {!subtasksComplete ? (
+              <div className="text-sm text-amber-200">Todas as etapas da equipe precisam ser concluídas primeiro.</div>
             ) : null}
 
             {isAdmin && delegateOpen ? (
@@ -306,6 +504,135 @@ export function TaskDetailsPage() {
           </div>
         ) : null}
       </Card>
+
+      {!loading && row ? (
+        <Card>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-white">Etapas / Subtarefas</div>
+              <div className="text-xs text-white/60">A tarefa mãe funciona como uma pasta. Cada etapa pertence a um membro da equipe.</div>
+            </div>
+            <button
+              type="button"
+              className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+              disabled={savingSubtasks}
+              onClick={() => {
+                setNewSubtaskTitle('');
+                setNewSubtaskAssigneeId(row.assigned_to_user_id || myUserId || members[0]?.user_id || '');
+                setSubtaskModalOpen(true);
+              }}
+            >
+              + Adicionar Etapa
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {subtasks.map((subtask) => {
+              const canToggle = isAdmin || subtask.assignee_id === myUserId;
+              const responsible = members.find((member) => member.user_id === subtask.assignee_id);
+              const responsibleLabel = responsible?.display_name || responsible?.email || subtask.assignee_id.slice(0, 8);
+              return (
+                <div key={subtask.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="grid gap-3 md:grid-cols-[auto_1fr_auto] md:items-center">
+                    <label className="flex items-center gap-3 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={subtask.is_done}
+                        disabled={savingSubtasks}
+                        onChange={() => {
+                          if (!canToggle) {
+                            setError('Somente o responsável da etapa ou um sócio/admin pode concluí-la.');
+                            window.alert('Somente o responsável da etapa ou um sócio/admin pode concluí-la.');
+                            return;
+                          }
+                          void toggleSubtaskDone(subtask.id);
+                        }}
+                      />
+                      <span className="text-xs text-white/60">Concluir etapa</span>
+                    </label>
+
+                    <div>
+                      <div className="text-sm font-semibold text-white">{subtask.title}</div>
+                      <div className="mt-1 text-xs text-white/50">
+                        {subtask.doneAt ? `Concluída em ${fmtDT(subtask.doneAt)}` : 'Pendente'}
+                        {!canToggle ? ' · somente o responsável ou admin pode marcar' : ''}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/20 px-3 py-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-300 text-xs font-semibold text-black">
+                          {initialsFromLabel(responsibleLabel)}
+                        </div>
+                        <div className="text-sm text-white/80">{responsibleLabel}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-ghost !rounded-lg !px-3 !py-2 !text-xs"
+                        disabled={savingSubtasks}
+                        onClick={() => void persistSubtasks(subtasks.filter((item) => item.id !== subtask.id))}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {!subtasks.length ? <div className="text-sm text-white/60">Nenhuma etapa cadastrada.</div> : null}
+          </div>
+        </Card>
+      ) : null}
+
+      {subtaskModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#11151c] p-5 shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold text-white">Nova etapa</div>
+                <div className="mt-1 text-sm text-white/60">Defina o nome da etapa e o responsável da equipe.</div>
+              </div>
+              <button className="btn-ghost !px-3 !py-1.5 !text-xs" onClick={() => setSubtaskModalOpen(false)}>
+                Fechar
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <label className="text-sm text-white/80">
+                Nome da Etapa
+                <input
+                  className="input"
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  placeholder="Ex.: Revisar petição"
+                />
+              </label>
+
+              <label className="text-sm text-white/80">
+                Responsável
+                <select className="select" value={newSubtaskAssigneeId} onChange={(e) => setNewSubtaskAssigneeId(e.target.value)}>
+                  <option value="">Selecione…</option>
+                  {members.map((member) => (
+                    <option key={member.user_id} value={member.user_id}>
+                      {member.display_name || member.email || member.user_id.slice(0, 8)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="btn-ghost" onClick={() => setSubtaskModalOpen(false)} disabled={savingSubtasks}>
+                Cancelar
+              </button>
+              <button className="btn-primary" onClick={() => void addSubtask()} disabled={savingSubtasks}>
+                {savingSubtasks ? 'Salvando...' : 'Adicionar Etapa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {!loading && row ? (
         <Card>

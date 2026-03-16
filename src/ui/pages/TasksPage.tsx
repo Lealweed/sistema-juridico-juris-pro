@@ -17,6 +17,15 @@ type Profile = {
   office_id: string | null;
 };
 
+type TaskSubtask = {
+  id: string;
+  title: string;
+  assignee_id: string;
+  is_done: boolean;
+  doneAt: string | null;
+  doneByUserId: string | null;
+};
+
 type TaskRow = {
   id: string;
   title: string;
@@ -46,6 +55,7 @@ type TaskRow = {
 
   created_at: string;
   task_group_id?: string | null;
+  subtasks?: TaskSubtask[] | null;
 };
 
 function fmtDT(iso: string | null) {
@@ -75,6 +85,36 @@ function toIsoFromDatetimeLocal(value: string) {
 
 function profileLabel(p: Profile) {
   return p.display_name || p.email || p.user_id;
+}
+
+function normalizeSubtasks(input: unknown): TaskSubtask[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item) => {
+      const data = item as Record<string, unknown>;
+      const id = typeof data.id === 'string' && data.id ? data.id : crypto.randomUUID();
+      const title = typeof data.title === 'string' ? data.title.trim() : '';
+      const assigneeId =
+        typeof data.assignee_id === 'string'
+          ? data.assignee_id
+          : typeof data.responsibleUserId === 'string'
+            ? data.responsibleUserId
+            : '';
+      const isDone = data.is_done === true || data.done === true;
+      const doneAt = typeof data.doneAt === 'string' ? data.doneAt : null;
+      const doneByUserId = typeof data.doneByUserId === 'string' ? data.doneByUserId : null;
+
+      if (!title || !assigneeId) return null;
+
+      return { id, title, assignee_id: assigneeId, is_done: isDone, doneAt, doneByUserId };
+    })
+    .filter((item): item is TaskSubtask => Boolean(item));
+}
+
+function areSubtasksComplete(subtasks: TaskSubtask[] | null | undefined) {
+  if (!subtasks?.length) return true;
+  return subtasks.every((subtask) => subtask.is_done);
 }
 
 export function TasksPage() {
@@ -109,6 +149,7 @@ export function TasksPage() {
   const [teamRoles, setTeamRoles] = useState<Record<string, string>>({});
   const [clientId, setClientId] = useState('');
   const [caseId, setCaseId] = useState('');
+  const [subtasks, setSubtasks] = useState<TaskSubtask[]>([]);
   const [saving, setSaving] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map((p) => [p.user_id, p] as const)), [profiles]);
@@ -175,7 +216,7 @@ export function TasksPage() {
         sb
           .from('tasks')
           .select(
-            'id,title,description,priority,status_v2,due_at,created_by_user_id,assigned_to_user_id,last_assigned_by_user_id,last_assigned_at,client_id,case_id,done_at,completed_by_user_id,paused_at,pause_reason,cancelled_at,cancel_reason,created_at,task_group_id',
+            'id,title,description,priority,status_v2,due_at,created_by_user_id,assigned_to_user_id,last_assigned_by_user_id,last_assigned_at,client_id,case_id,done_at,completed_by_user_id,paused_at,pause_reason,cancelled_at,cancel_reason,created_at,task_group_id,subtasks',
           )
           .order('created_at', { ascending: false })
           .limit(500),
@@ -184,7 +225,7 @@ export function TasksPage() {
       ]);
 
       if (qErr) throw new Error(qErr.message);
-      setRows((data || []) as TaskRow[]);
+  setRows(((data || []) as TaskRow[]).map((task) => ({ ...task, subtasks: normalizeSubtasks(task.subtasks) })));
       setClients(clientsLite);
       setCases(casesLite);
       setLoading(false);
@@ -248,6 +289,12 @@ export function TasksPage() {
   async function onCreate() {
     if (!title.trim()) return;
 
+    const normalizedSubtasks = normalizeSubtasks(subtasks);
+    if (subtasks.length !== normalizedSubtasks.length) {
+      setError('Preencha o título e o responsável de todas as etapas antes de salvar.');
+      return;
+    }
+
     const dueIso = dueAtLocal ? toIsoFromDatetimeLocal(dueAtLocal) : null;
     if (dueAtLocal && !dueIso) {
       setError('Prazo inválido.');
@@ -276,6 +323,10 @@ export function TasksPage() {
         client_id: clientId || null,
         case_id: caseId || null,
         task_group_id: groupId,
+        subtasks: normalizedSubtasks.map((subtask) => ({
+          ...subtask,
+          assignee_id: subtask.assignee_id || uid,
+        })),
       }));
 
       const { data: inserted, error: iErr } = await sb
@@ -311,6 +362,19 @@ export function TasksPage() {
             }
           }
         }
+
+        if (normalizedSubtasks.length) {
+          const subtaskUsers = Array.from(new Set(normalizedSubtasks.map((subtask) => subtask.assignee_id).filter(Boolean)));
+          for (const tr of insertedRows) {
+            for (const uid of subtaskUsers) {
+              await sb.rpc('task_add_participant', {
+                p_task_id: tr.id,
+                p_user_id: uid,
+                p_role: uid === tr.assigned_to_user_id ? 'assignee' : 'reviewer',
+              });
+            }
+          }
+        }
       }
 
       setCreateOpen(false);
@@ -326,6 +390,7 @@ export function TasksPage() {
       setAssignees([user.id]);
       setClientId('');
       setCaseId('');
+      setSubtasks([]);
       setSaving(false);
       await load();
     } catch (err: any) {
@@ -342,6 +407,11 @@ export function TasksPage() {
   }
 
   async function markDone(t: TaskRow) {
+    if (!areSubtasksComplete(t.subtasks)) {
+      setError('Todas as etapas precisam ser concluídas primeiro.');
+      return;
+    }
+
     try {
       const user = await getAuthedUser();
       await updateTask(t.id, {
@@ -674,6 +744,85 @@ export function TasksPage() {
                       </div>
                     ) : null}
                   </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-white">Etapas da tarefa</div>
+                        <div className="text-xs text-white/60">Divida a execução entre várias pessoas desde a criação.</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+                        onClick={() =>
+                          setSubtasks((curr) => [
+                            ...curr,
+                            {
+                              id: crypto.randomUUID(),
+                              title: '',
+                              assignee_id: assignedTo || myUserId,
+                              is_done: false,
+                              doneAt: null,
+                              doneByUserId: null,
+                            },
+                          ])
+                        }
+                      >
+                        + Adicionar Etapa
+                      </button>
+                    </div>
+
+                    <div className="mt-3 grid gap-3">
+                      {subtasks.map((subtask, index) => (
+                        <div key={subtask.id} className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-3 md:grid-cols-[1fr_220px_auto]">
+                          <label className="text-sm text-white/80">
+                            Título da etapa
+                            <input
+                              className="input"
+                              value={subtask.title}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setSubtasks((curr) => curr.map((item, itemIndex) => (itemIndex === index ? { ...item, title: value } : item)));
+                              }}
+                              placeholder="Ex.: Revisar petição"
+                            />
+                          </label>
+
+                          <label className="text-sm text-white/80">
+                            Responsável
+                            <select
+                              className="select"
+                              value={subtask.assignee_id}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setSubtasks((curr) => curr.map((item, itemIndex) => (itemIndex === index ? { ...item, assignee_id: value } : item)));
+                              }}
+                              disabled={saving || !subtask.title.trim() || !subtask.assignee_id}
+                            >
+                              <option value="">Selecione…</option>
+                              {profiles.map((p) => (
+                                <option key={p.user_id} value={p.user_id}>
+                                  {profileLabel(p)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <div className="flex items-end">
+                            <button
+                              type="button"
+                              className="btn-ghost !rounded-lg !px-3 !py-2 !text-xs"
+                              onClick={() => setSubtasks((curr) => curr.filter((item) => item.id !== subtask.id))}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {!subtasks.length ? <div className="text-xs text-white/50">Nenhuma etapa cadastrada.</div> : null}
+                    </div>
+                  </div>
                 </div>
             </div>
 
@@ -781,7 +930,12 @@ export function TasksPage() {
                       ) : null}
 
                       {t.status_v2 !== 'done' && t.status_v2 !== 'cancelled' ? (
-                        <button onClick={() => void markDone(t)} className="btn-primary !rounded-lg !px-3 !py-1.5 !text-xs">
+                        <button
+                          onClick={() => void markDone(t)}
+                          className="btn-primary !rounded-lg !px-3 !py-1.5 !text-xs disabled:opacity-50"
+                          disabled={!areSubtasksComplete(t.subtasks)}
+                          title={!areSubtasksComplete(t.subtasks) ? 'Todas as etapas precisam ser concluídas primeiro' : 'Concluir tarefa'}
+                        >
                           Concluir
                         </button>
                       ) : null}
@@ -819,6 +973,10 @@ export function TasksPage() {
                         </button>
                       ) : null}
                     </div>
+
+                    {!areSubtasksComplete(t.subtasks) ? (
+                      <div className="mt-2 text-xs text-amber-200">Todas as etapas precisam ser concluídas primeiro.</div>
+                    ) : null}
                   </div>
                 </div>
               );

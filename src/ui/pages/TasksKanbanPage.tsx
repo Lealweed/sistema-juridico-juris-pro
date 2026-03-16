@@ -29,6 +29,15 @@ type Profile = {
   office_id: string | null;
 };
 
+type TaskSubtask = {
+  id: string;
+  title: string;
+  assignee_id: string;
+  is_done: boolean;
+  doneAt: string | null;
+  doneByUserId: string | null;
+};
+
 type TaskRow = {
   id: string;
   title: string;
@@ -45,6 +54,7 @@ type TaskRow = {
   done_at: string | null;
   created_at: string;
   updated_at: string | null;
+  subtasks?: TaskSubtask[] | null;
 };
 
 const COLUMNS: { id: TaskStatus; label: string }[] = [
@@ -63,6 +73,48 @@ function fmtDT(iso: string | null) {
 function profileLabel(p: Profile) {
   return p.display_name || p.email || p.user_id.slice(0, 8);
 }
+
+function profileInitials(label: string) {
+  return label
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || '??';
+}
+
+function normalizeSubtasks(input: unknown): TaskSubtask[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((item) => {
+      const data = item as Record<string, unknown>;
+      const title = typeof data.title === 'string' ? data.title.trim() : '';
+      const assigneeId =
+        typeof data.assignee_id === 'string'
+          ? data.assignee_id
+          : typeof data.responsibleUserId === 'string'
+            ? data.responsibleUserId
+            : '';
+      if (!title || !assigneeId) return null;
+
+      return {
+        id: typeof data.id === 'string' && data.id ? data.id : crypto.randomUUID(),
+        title,
+        assignee_id: assigneeId,
+        is_done: data.is_done === true || data.done === true,
+        doneAt: typeof data.doneAt === 'string' ? data.doneAt : null,
+        doneByUserId: typeof data.doneByUserId === 'string' ? data.doneByUserId : null,
+      } satisfies TaskSubtask;
+    })
+    .filter((item): item is TaskSubtask => Boolean(item));
+}
+
+function areSubtasksComplete(subtasks: TaskSubtask[] | null | undefined) {
+  if (!subtasks?.length) return true;
+  return subtasks.every((subtask) => subtask.is_done);
+}
+                        const involvedUserIds = Array.from(new Set((t.subtasks || []).map((subtask) => subtask.assignee_id).filter(Boolean)));
+                                  <div>Etapas: {(t.subtasks || []).filter((subtask) => subtask.is_done).length}/{(t.subtasks || []).length}</div>
 
 function dueBadge(t: { due_at: string | null; status_v2: TaskStatus }) {
   if (!t.due_at) return null;
@@ -183,7 +235,7 @@ export function TasksKanbanPage() {
         sb
           .from('tasks')
           .select(
-            'id,title,priority,status_v2,due_at,assigned_to_user_id,client_id,case_id,paused_at,pause_reason,cancelled_at,cancel_reason,done_at,created_at,updated_at',
+            'id,title,priority,status_v2,due_at,assigned_to_user_id,client_id,case_id,paused_at,pause_reason,cancelled_at,cancel_reason,done_at,created_at,updated_at,subtasks',
           )
           .order('created_at', { ascending: false })
           .limit(500),
@@ -193,7 +245,7 @@ export function TasksKanbanPage() {
       ]);
 
       if (qErr) throw new Error(qErr.message);
-      setRows((data || []) as TaskRow[]);
+      setRows(((data || []) as TaskRow[]).map((task) => ({ ...task, subtasks: normalizeSubtasks(task.subtasks) })));
       setClients(clientsLite);
       setCases(casesLite);
       setProfiles((ps || []) as Profile[]);
@@ -289,6 +341,11 @@ export function TasksKanbanPage() {
 
   async function setStatus(task: TaskRow, next: TaskStatus) {
     if (busyId) return;
+
+    if (next === 'done' && !areSubtasksComplete(task.subtasks)) {
+      setError('Todas as etapas precisam ser concluídas primeiro.');
+      return;
+    }
 
     let patch: any = { status_v2: next };
     const nowIso = new Date().toISOString();
@@ -492,6 +549,7 @@ export function TasksKanbanPage() {
                         const assignee = t.assigned_to_user_id ? profileMap.get(t.assigned_to_user_id) : null;
                         const client = t.client_id ? clientsMap.get(t.client_id) : null;
                         const kase = t.case_id ? casesMap.get(t.case_id) : null;
+                        const involvedUserIds = Array.from(new Set((t.subtasks || []).map((subtask) => subtask.responsibleUserId).filter(Boolean)));
 
                         return (
                           <KanbanCard key={t.id} id={t.id} disabled={busyId === t.id}>
@@ -520,13 +578,37 @@ export function TasksKanbanPage() {
                                 {client ? <div>Cliente: {client.name}</div> : null}
                                 {kase ? <div>Caso: {kase.title}</div> : null}
                                 {t.due_at ? <div>Prazo: {fmtDT(t.due_at)}</div> : null}
+                                {(t.subtasks || []).length ? (
+                                  <div>Etapas: {(t.subtasks || []).filter((subtask) => subtask.done).length}/{(t.subtasks || []).length}</div>
+                                ) : null}
                               </div>
+
+                              {involvedUserIds.length ? (
+                                <div className="mt-3 flex items-center gap-2">
+                                  <div className="flex -space-x-2">
+                                    {involvedUserIds.slice(0, 5).map((userId) => {
+                                      const profile = profileMap.get(userId);
+                                      const label = profile ? profileLabel(profile) : userId.slice(0, 8);
+                                      return (
+                                        <div
+                                          key={userId}
+                                          className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-950 bg-amber-300 text-[10px] font-semibold text-black"
+                                          title={label}
+                                        >
+                                          {profileInitials(label)}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="text-[11px] text-white/45">Equipe envolvida</div>
+                                </div>
+                              ) : null}
 
                               <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
-                                  disabled={busyId === t.id}
+                                  disabled={busyId === t.id || !areSubtasksComplete(t.subtasks)}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -586,6 +668,10 @@ export function TasksKanbanPage() {
                                   </>
                                 ) : null}
                               </div>
+
+                              {!areSubtasksComplete(t.subtasks) ? (
+                                <div className="mt-2 text-[11px] text-amber-200">Todas as etapas precisam ser concluídas primeiro.</div>
+                              ) : null}
 
                               <div className="mt-2 text-[11px] text-white/40">Status: {t.status_v2}</div>
                             </div>

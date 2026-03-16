@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { fetchAddressByCep, fetchCompanyByCnpj } from '@/lib/brasilApi';
 import { Card } from '@/ui/widgets/Card';
 import { ClientAvatar } from '@/ui/widgets/ClientAvatar';
 import { formatCpf, isValidCpf, onlyDigits } from '@/lib/cpf';
@@ -21,6 +22,12 @@ type ClientRow = {
   user_id: string | null;
   created_at: string;
 };
+
+function formatCep(value: string) {
+  const digits = onlyDigits(value).slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
 
 export function ClientsPage() {
   const [rows, setRows] = useState<ClientRow[]>([]);
@@ -51,6 +58,11 @@ export function ClientsPage() {
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
   const [stateUf, setStateUf] = useState('');
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [addressLookupLoading, setAddressLookupLoading] = useState(false);
+  const [companyLookupLoading, setCompanyLookupLoading] = useState(false);
+  const [lastCepLookup, setLastCepLookup] = useState('');
+  const [lastCnpjLookup, setLastCnpjLookup] = useState('');
 
   // avatar
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -134,10 +146,106 @@ export function ClientsPage() {
     setNeighborhood('');
     setCity('');
     setStateUf('');
+    setLookupError(null);
+    setAddressLookupLoading(false);
+    setCompanyLookupLoading(false);
+    setLastCepLookup('');
+    setLastCnpjLookup('');
 
     setAvatarFile(null);
     setAvatarPreview(null);
   }
+
+  useEffect(() => {
+    if (!createOpen) return;
+
+    const cepDigits = onlyDigits(cep);
+    if (cepDigits.length !== 8 || cepDigits === lastCepLookup) return;
+
+    let active = true;
+    setAddressLookupLoading(true);
+    setLookupError(null);
+
+    fetchAddressByCep(cepDigits)
+      .then((address) => {
+        if (!active) return;
+        setStreet(address.logradouro || '');
+        setNeighborhood(address.bairro || '');
+        setCity(address.localidade || '');
+        setStateUf((address.uf || '').toUpperCase());
+        setLastCepLookup(cepDigits);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setLookupError(err instanceof Error ? err.message : 'Falha ao consultar CEP.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setAddressLookupLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [cep, createOpen, lastCepLookup]);
+
+  useEffect(() => {
+    if (!createOpen || personType !== 'pj') return;
+
+    const cnpjDigits = onlyDigits(newCnpj);
+    if (cnpjDigits.length !== 14 || cnpjDigits === lastCnpjLookup) return;
+
+    let active = true;
+    setCompanyLookupLoading(true);
+    setLookupError(null);
+
+    fetchCompanyByCnpj(cnpjDigits)
+      .then(async (company) => {
+        if (!active) return;
+
+        const resolvedName = company.razao_social || company.nome_fantasia || '';
+        if (resolvedName) setNewName(resolvedName);
+
+        const companyCepDigits = onlyDigits(company.cep || '');
+        if (companyCepDigits) {
+          setCep(formatCep(companyCepDigits));
+          setLastCepLookup(companyCepDigits);
+        }
+
+        setStreet(company.logradouro || '');
+        setNumber(company.numero || '');
+        setNeighborhood(company.bairro || '');
+        setCity(company.municipio || '');
+        setStateUf((company.uf || '').toUpperCase());
+        setLastCnpjLookup(cnpjDigits);
+
+        if (companyCepDigits.length === 8) {
+          try {
+            const address = await fetchAddressByCep(companyCepDigits);
+            if (!active) return;
+            setStreet(address.logradouro || company.logradouro || '');
+            setNeighborhood(address.bairro || company.bairro || '');
+            setCity(address.localidade || company.municipio || '');
+            setStateUf((address.uf || company.uf || '').toUpperCase());
+          } catch {
+            if (!active) return;
+            setLastCepLookup('');
+          }
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        setLookupError(err instanceof Error ? err.message : 'Falha ao consultar CNPJ.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setCompanyLookupLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [createOpen, lastCnpjLookup, newCnpj, personType]);
 
   async function onCreate() {
     if (!newName.trim()) return;
@@ -271,7 +379,12 @@ export function ClientsPage() {
 
               <label className="text-sm text-white/80">
                 Nome / Razão Social
-                <input className="input" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                <input
+                  className="input"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  disabled={companyLookupLoading}
+                />
               </label>
 
               {personType === 'pf' ? (
@@ -290,11 +403,19 @@ export function ClientsPage() {
                   CNPJ <span className="text-red-200">*</span>
                   <input
                     className="input"
+                    disabled={companyLookupLoading}
                     value={newCnpj}
-                    onChange={(e) => setNewCnpj(formatCnpj(e.target.value))}
+                    onChange={(e) => {
+                      setLookupError(null);
+                      setLastCnpjLookup('');
+                      setNewCnpj(formatCnpj(e.target.value));
+                    }}
                     placeholder="00.000.000/0000-00"
                     inputMode="numeric"
                   />
+                  <div className="mt-1 text-xs text-white/50">
+                    {companyLookupLoading ? 'Buscando CNPJ...' : 'Ao completar 14 dígitos, a razão social e o endereço serão preenchidos.'}
+                  </div>
                 </label>
               )}
 
@@ -380,15 +501,38 @@ export function ClientsPage() {
                 <div className="mt-2 grid gap-3 md:grid-cols-2">
                   <label className="text-sm text-white/80">
                     CEP
-                    <input className="input" value={cep} onChange={(e) => setCep(e.target.value)} inputMode="numeric" />
+                    <input
+                      className="input"
+                      value={cep}
+                      onChange={(e) => {
+                        setLookupError(null);
+                        setLastCepLookup('');
+                        setCep(formatCep(e.target.value));
+                      }}
+                      inputMode="numeric"
+                      disabled={addressLookupLoading}
+                    />
+                    <div className="mt-1 text-xs text-white/50">
+                      {addressLookupLoading ? 'Buscando CEP...' : 'Ao completar 8 dígitos, rua, bairro, cidade e UF serão preenchidos.'}
+                    </div>
                   </label>
                   <label className="text-sm text-white/80">
                     Rua
-                    <input className="input" value={street} onChange={(e) => setStreet(e.target.value)} />
+                    <input
+                      className="input"
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      disabled={addressLookupLoading || companyLookupLoading}
+                    />
                   </label>
                   <label className="text-sm text-white/80">
                     Número
-                    <input className="input" value={number} onChange={(e) => setNumber(e.target.value)} />
+                    <input
+                      className="input"
+                      value={number}
+                      onChange={(e) => setNumber(e.target.value)}
+                      disabled={companyLookupLoading}
+                    />
                   </label>
                   <label className="text-sm text-white/80">
                     Complemento
@@ -396,17 +540,33 @@ export function ClientsPage() {
                   </label>
                   <label className="text-sm text-white/80">
                     Bairro
-                    <input className="input" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
+                    <input
+                      className="input"
+                      value={neighborhood}
+                      onChange={(e) => setNeighborhood(e.target.value)}
+                      disabled={addressLookupLoading || companyLookupLoading}
+                    />
                   </label>
                   <label className="text-sm text-white/80">
                     Cidade
-                    <input className="input" value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input
+                      className="input"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      disabled={addressLookupLoading || companyLookupLoading}
+                    />
                   </label>
                   <label className="text-sm text-white/80">
                     UF
-                    <input className="input" value={stateUf} onChange={(e) => setStateUf(e.target.value.toUpperCase().slice(0, 2))} />
+                    <input
+                      className="input"
+                      value={stateUf}
+                      onChange={(e) => setStateUf(e.target.value.toUpperCase().slice(0, 2))}
+                      disabled={addressLookupLoading || companyLookupLoading}
+                    />
                   </label>
                 </div>
+                {lookupError ? <div className="mt-2 text-xs text-red-200">{lookupError}</div> : null}
               </div>
 
               <div className="md:col-span-2">
