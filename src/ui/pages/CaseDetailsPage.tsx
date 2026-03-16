@@ -91,7 +91,7 @@ export function CaseDetailsPage() {
 
       if (qErr) throw new Error(qErr.message);
       const r = data || null;
-      setRow(r);
+      setRow(r as CaseRow | null);
 
       setTitle(r?.title || '');
       setStatus(r?.status || '');

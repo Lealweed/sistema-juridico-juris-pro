@@ -113,8 +113,6 @@ function areSubtasksComplete(subtasks: TaskSubtask[] | null | undefined) {
   if (!subtasks?.length) return true;
   return subtasks.every((subtask) => subtask.is_done);
 }
-                        const involvedUserIds = Array.from(new Set((t.subtasks || []).map((subtask) => subtask.assignee_id).filter(Boolean)));
-                                  <div>Etapas: {(t.subtasks || []).filter((subtask) => subtask.is_done).length}/{(t.subtasks || []).length}</div>
 
 function dueBadge(t: { due_at: string | null; status_v2: TaskStatus }) {
   if (!t.due_at) return null;
@@ -549,7 +547,7 @@ export function TasksKanbanPage() {
                         const assignee = t.assigned_to_user_id ? profileMap.get(t.assigned_to_user_id) : null;
                         const client = t.client_id ? clientsMap.get(t.client_id) : null;
                         const kase = t.case_id ? casesMap.get(t.case_id) : null;
-                        const involvedUserIds = Array.from(new Set((t.subtasks || []).map((subtask) => subtask.responsibleUserId).filter(Boolean)));
+                        const involvedUserIds = Array.from(new Set((t.subtasks || []).map((subtask) => subtask.assignee_id).filter(Boolean)));
 
                         return (
                           <KanbanCard key={t.id} id={t.id} disabled={busyId === t.id}>
@@ -579,7 +577,7 @@ export function TasksKanbanPage() {
                                 {kase ? <div>Caso: {kase.title}</div> : null}
                                 {t.due_at ? <div>Prazo: {fmtDT(t.due_at)}</div> : null}
                                 {(t.subtasks || []).length ? (
-                                  <div>Etapas: {(t.subtasks || []).filter((subtask) => subtask.done).length}/{(t.subtasks || []).length}</div>
+                                  <div>Etapas: {(t.subtasks || []).filter((subtask) => subtask.is_done).length}/{(t.subtasks || []).length}</div>
                                 ) : null}
                               </div>
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Hero1951 } from '@/components/ui/hero-195-1';
-import { fetchEscavadorProcesso, type BrasilApiProcesso, type DataJudLastMovement } from '@/lib/datajud';
+import { fetchEscavadorProcesso, type BrasilApiProcesso } from '@/lib/datajud';
 import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
@@ -637,13 +637,7 @@ export function DashboardPage() {
                 <div className="text-xs uppercase tracking-[0.18em] text-white/45">Processo</div>
                 <div className="mt-1 text-lg font-semibold text-white">{radarResult.numero}</div>
               </div>
-              <span
-                className={
-                  radarResult.source === 'mock'
-                    ? 'badge border-amber-300/30 bg-amber-300/10 text-amber-100'
-                    : 'badge border-green-400/30 bg-green-400/10 text-green-200'
-                }
-              >
+              <span className="badge border-green-400/30 bg-green-400/10 text-green-200">
                 {radarResult.status}
               </span>
             </div>

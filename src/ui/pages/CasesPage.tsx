@@ -14,11 +14,17 @@ type CaseRow = {
   status: string;
   created_at: string;
   client_id: string | null;
-  client?: { name: string } | null;
+  client?: { name: string } | { name: string }[] | null;
   process_number: string | null;
   area: string | null;
   responsible_user_id: string | null;
 };
+
+function clientName(c: CaseRow['client']): string {
+  if (!c) return '';
+  if (Array.isArray(c)) return c[0]?.name || '';
+  return c.name || '';
+}
 
 function statusBadge(status: string) {
   const s = (status || '').toLowerCase();
@@ -65,7 +71,7 @@ export function CasesPage() {
 
     if (needle) {
       out = out.filter((r) => {
-        const s = `${r.title} ${r.process_number || ''} ${r.area || ''} ${r.client?.name || ''}`.toLowerCase();
+        const s = `${r.title} ${r.process_number || ''} ${r.area || ''} ${clientName(r.client)}`.toLowerCase();
         return s.includes(needle);
       });
     }
@@ -321,7 +327,7 @@ export function CasesPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-white/70">{c.client?.name || '—'}</td>
+                      <td className="px-4 py-3 text-white/70">{clientName(c.client) || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={statusBadge(c.status)}>{c.status}</span>
                       </td>
@@ -355,7 +361,7 @@ export function CasesPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-white">{c.title}</div>
-                      <div className="mt-1 text-xs text-white/60">{c.client?.name || '—'}</div>
+                      <div className="mt-1 text-xs text-white/60">{clientName(c.client) || '—'}</div>
                       <div className="mt-1 text-xs text-white/50">
                         {c.process_number ? `CNJ: ${c.process_number}` : 'CNJ: —'}{c.area ? ` · ${c.area}` : ''}
                       </div>
