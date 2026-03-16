@@ -117,7 +117,7 @@ export function LandingPage() {
               <div className="mt-6 h-px w-16 bg-gradient-to-r from-brand-gold to-transparent" />
 
               <p className="mt-6 max-w-lg text-xl font-light leading-relaxed text-neutral-400 font-serif italic">
-                Inteligência Estratégica. Resolução Resoluta.
+                Inteligência Estratégica. Resultados Sólidos.
               </p>
 
               <p className="mt-4 max-w-md text-sm leading-relaxed text-neutral-500">
