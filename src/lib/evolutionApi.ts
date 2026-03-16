@@ -63,17 +63,8 @@ export function notifyTeamNewTask(phone: string, assigneeName: string, taskTitle
   return sendWhatsAppText(phone, text);
 }
 
-export function notifyClientBilling(phone: string, clientName: string, amount: string, dueDate: string) {
-  const text = [
-    `Prezado(a) ${clientName},`,
-    '',
-    `Informamos que há um título em aberto no valor de R$ ${amount} com vencimento em ${dueDate}.`,
-    '',
-    'Em caso de dúvidas, entre em contato com o escritório.',
-    '',
-    'Atenciosamente,',
-    'Lima, Lopes & Diógenes Advogados',
-  ].join('\n');
+export function notifyClientBilling(phone: string, clientName: string, amount: string, pixKey: string) {
+  const text = `Olá *${clientName}*, a sua parcela de *R$ ${amount}* referente aos honorários está disponível. Por favor, realize o pagamento via PIX na chave: *${pixKey}*. Agradecemos a confiança!`;
 
   return sendWhatsAppText(phone, text);
 }

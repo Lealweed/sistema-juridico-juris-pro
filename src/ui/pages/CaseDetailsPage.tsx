@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { DollarSign } from 'lucide-react';
 
 import { Card } from '@/ui/widgets/Card';
 import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { fetchDatajudLastMovement } from '@/lib/datajud';
 import { formatBrPhone } from '@/lib/phone';
-import { notifyClientCaseUpdate } from '@/lib/evolutionApi';
+import { notifyClientBilling, notifyClientCaseUpdate } from '@/lib/evolutionApi';
 import { parseMoneyInput, formatBRL } from '@/lib/money';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
@@ -39,6 +40,22 @@ type CaseRow = {
   datajud_last_checked_at: string | null;
 };
 
+type CaseClientContact = { id: string; name: string; whatsapp?: string | null };
+
+const OFFICE_PIX_KEY = (import.meta.env.VITE_OFFICE_PIX_KEY as string | undefined)?.trim() || 'CNPJ: 00.000.000/0001-00';
+
+function getCaseClients(row: CaseRow | null): CaseClientContact[] {
+  if (!row) return [];
+
+  const allClients = new Map<string, CaseClientContact>();
+  if (row.client?.[0]) allClients.set(row.client[0].id, row.client[0]);
+  row.case_clients?.forEach((cc) => {
+    if (cc.client) allClients.set(cc.client.id, cc.client);
+  });
+
+  return Array.from(allClients.values());
+}
+
 export function CaseDetailsPage() {
   const { caseId } = useParams();
   const [row, setRow] = useState<CaseRow | null>(null);
@@ -50,7 +67,10 @@ export function CaseDetailsPage() {
   const [processNumber, setProcessNumber] = useState('');
   const [checking, setChecking] = useState(false);
   const [wppSending, setWppSending] = useState(false);
-  const [wppMsg, setWppMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [billingAmount, setBillingAmount] = useState('');
+  const [billingSending, setBillingSending] = useState(false);
 
   const [officeMembers, setOfficeMembers] = useState<{ user_id: string; display_name: string | null; email: string | null }[]>([]);
 
@@ -208,6 +228,68 @@ export function CaseDetailsPage() {
     }
   }
 
+  async function createPixBilling() {
+    if (!row) return;
+
+    const amountValue = parseMoneyInput(billingAmount);
+    if (amountValue === null || amountValue <= 0) {
+      setError('Informe um valor válido para a cobrança. Ex.: 350,00');
+      return;
+    }
+
+    const client = getCaseClients(row).find((item) => item.whatsapp);
+    if (!client?.whatsapp) {
+      setActionMsg({ type: 'err', text: 'Nenhum cliente com WhatsApp cadastrado neste caso.' });
+      return;
+    }
+
+    setBillingSending(true);
+    setError(null);
+    setActionMsg(null);
+
+    let billingCreated = false;
+
+    try {
+      const sb = requireSupabase();
+      const user = await getAuthedUser();
+      const amountCents = Math.round(amountValue * 100);
+      const today = new Date().toISOString().slice(0, 10);
+      const amountLabel = amountValue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      const { error: insertErr } = await sb.from('finance_transactions').insert({
+        user_id: user.id,
+        type: 'income',
+        status: 'planned',
+        occurred_on: today,
+        due_date: today,
+        description: `Honorários do caso: ${row.title}`,
+        amount_cents: amountCents,
+        payment_method: 'pix',
+        notes: `Cobrança PIX automática. Chave: ${OFFICE_PIX_KEY}`,
+        client_id: client.id,
+        case_id: row.id,
+      });
+
+      if (insertErr) throw new Error(insertErr.message);
+      billingCreated = true;
+
+      await notifyClientBilling(client.whatsapp, client.name, amountLabel, OFFICE_PIX_KEY);
+
+      setBillingModalOpen(false);
+      setBillingAmount('');
+      setActionMsg({ type: 'ok', text: 'Cobrança gerada e enviada por WhatsApp!' });
+      await load();
+    } catch (err: any) {
+      const message = err?.message || 'Falha ao gerar cobrança PIX.';
+      setError(billingCreated ? `Cobrança criada, mas o WhatsApp falhou: ${message}` : message);
+    } finally {
+      setBillingSending(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
@@ -217,20 +299,29 @@ export function CaseDetailsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            disabled={loading || billingSending}
+            onClick={() => {
+              setBillingModalOpen(true);
+              setError(null);
+              setActionMsg(null);
+            }}
+            className="flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-500/20 px-4 py-2 text-sm font-medium text-amber-100 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
+          >
+            <DollarSign size={16} />
+            Gerar Cobrança Pix
+          </button>
+          <button
             disabled={wppSending}
             onClick={async () => {
               if (!row) return;
-              const allClients = new Map<string, { id: string; name: string; whatsapp?: string | null }>();
-              if (row.client?.[0]) allClients.set(row.client[0].id, row.client[0]);
-              row.case_clients?.forEach((cc) => { if (cc.client) allClients.set(cc.client.id, cc.client); });
-              const first = Array.from(allClients.values()).find((c) => c.whatsapp);
-              if (!first?.whatsapp) { setWppMsg({ type: 'err', text: 'Nenhum cliente com WhatsApp cadastrado neste caso.' }); return; }
-              setWppSending(true); setWppMsg(null);
+              const first = getCaseClients(row).find((c) => c.whatsapp);
+              if (!first?.whatsapp) { setActionMsg({ type: 'err', text: 'Nenhum cliente com WhatsApp cadastrado neste caso.' }); return; }
+              setWppSending(true); setActionMsg(null);
               try {
                 await notifyClientCaseUpdate(first.whatsapp, first.name, row.title);
-                setWppMsg({ type: 'ok', text: `Notificação enviada para ${first.name}!` });
+                setActionMsg({ type: 'ok', text: `Notificação enviada para ${first.name}!` });
               } catch (err: any) {
-                setWppMsg({ type: 'err', text: err?.message || 'Falha ao enviar WhatsApp.' });
+                setActionMsg({ type: 'err', text: err?.message || 'Falha ao enviar WhatsApp.' });
               } finally { setWppSending(false); }
             }}
             className="flex items-center gap-2 rounded-lg border border-green-400/30 bg-green-500/20 px-4 py-2 text-sm font-medium text-green-200 transition-colors hover:bg-green-500/30 disabled:opacity-50"
@@ -247,8 +338,8 @@ export function CaseDetailsPage() {
         </div>
       </div>
 
-      {wppMsg ? (
-        <div className={`text-sm ${wppMsg.type === 'ok' ? 'text-green-200' : 'text-red-200'}`}>{wppMsg.text}</div>
+      {actionMsg ? (
+        <div className={`text-sm ${actionMsg.type === 'ok' ? 'text-green-200' : 'text-red-200'}`}>{actionMsg.text}</div>
       ) : null}
 
       {error ? <div className="text-sm text-red-200">{error}</div> : null}
@@ -394,6 +485,50 @@ export function CaseDetailsPage() {
           </div>
         </div>
       </Card>
+
+      {billingModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#11151c] p-5 shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold text-white">Gerar Cobrança Pix</div>
+                <div className="mt-1 text-sm text-white/60">Informe o valor da parcela e dispare a cobrança para o cliente.</div>
+              </div>
+              <button className="btn-ghost !px-3 !py-1.5 !text-xs" onClick={() => setBillingModalOpen(false)} disabled={billingSending}>
+                Fechar
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <label className="text-sm text-white/80">
+                Valor (R$)
+                <input
+                  className="input mt-1"
+                  value={billingAmount}
+                  onChange={(e) => setBillingAmount(e.target.value)}
+                  placeholder="Ex.: 350,00"
+                  inputMode="decimal"
+                />
+              </label>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-xs text-white/50">Chave PIX do Escritório</div>
+                <div className="mt-1 text-sm font-semibold text-amber-100">{OFFICE_PIX_KEY}</div>
+                <div className="mt-2 text-xs text-white/50">Prévia: {formatBRL(parseMoneyInput(billingAmount))}</div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="btn-ghost" onClick={() => setBillingModalOpen(false)} disabled={billingSending}>
+                Cancelar
+              </button>
+              <button className="btn-primary !bg-amber-500 !text-slate-950 hover:!bg-amber-400" onClick={() => void createPixBilling()} disabled={billingSending}>
+                {billingSending ? 'Gerando...' : 'Confirmar Cobrança'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {!loading && row?.client_id ? <DocumentsSection clientId={row.client_id} caseId={row.id} /> : null}
 
