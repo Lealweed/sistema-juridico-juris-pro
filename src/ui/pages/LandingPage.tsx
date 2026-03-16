@@ -15,6 +15,10 @@ function SectionTitle({ kicker, title, desc }: { kicker: string; title: string; 
 
 const areas = [
   {
+    title: 'Direito Previdenciário',
+    items: ['Aposentadorias e Benefícios', 'Revisão de Benefícios do INSS', 'BPC/LOAS e Auxílio-Doença'],
+  },
+  {
     title: 'Direito Civil e Contratos',
     items: ['Elaboração e Revisão de Contratos', 'Responsabilidade Civil', 'Recuperação de Crédito e Execuções'],
   },
@@ -37,18 +41,18 @@ const areas = [
 ];
 
 const partners = [
-  { name: 'Dr. Nilton Lima da Silva', role: 'Sócio', oab: 'OAB/PA 40881' },
-  { name: 'Dra. Karolline Diógenes', role: 'Sócia', oab: 'OAB/PA 35857' },
-  { name: 'Dr. José Lopes da Silva Filho', role: 'Sócio', oab: 'OAB/PA 36029' },
+  { name: 'Dr. Nilton Lima da Silva', role: 'Sócio', oab: 'OAB/PA 40881', image: '' },
+  { name: 'Dra. Karolline Diógenes', role: 'Sócia', oab: 'OAB/PA 35857', image: '' },
+  { name: 'Dr. José Lopes da Silva Filho', role: 'Sócio', oab: 'OAB/PA 36029', image: '' },
 ];
 
 const staff = [
-  { name: 'Jeffeson Barroso', role: 'Advogado Associado' },
-  { name: 'Kewilla', role: 'Advogada Associada' },
-  { name: 'Maria Eduarda', role: 'Secretária' },
-  { name: 'Iasmin Rocha', role: 'Secretária' },
-  { name: 'Mateus Diógenes', role: 'Estagiário' },
-  { name: 'Iago Costa', role: 'Assistente' },
+  { name: 'Jeffeson Barroso', role: 'Advogado Associado', image: '' },
+  { name: 'Kewilla', role: 'Advogada Associada', image: '' },
+  { name: 'Maria Eduarda', role: 'Secretária', image: '' },
+  { name: 'Iasmin Rocha', role: 'Secretária', image: '' },
+  { name: 'Mateus Diógenes', role: 'Estagiário', image: '' },
+  { name: 'Iago Costa', role: 'Assistente', image: '' },
 ];
 
 const address = {
@@ -289,14 +293,22 @@ export function LandingPage() {
                 .join('');
 
               return (
-                <div key={m.name} className="group rounded-3xl border border-neutral-100 bg-white p-6 transition-all hover:border-gold/20 hover:shadow-lg hover:shadow-neutral-900/5">
+                <div key={m.name} className="group rounded-3xl border border-neutral-100 bg-white p-6 transition-all hover:border-brand-gold/20 hover:shadow-lg hover:shadow-neutral-900/5">
                   <div className="flex items-center gap-4">
-                    <div className="grid size-14 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-lg font-serif text-gold group-hover:scale-105 transition-transform">
-                      {initials}
-                    </div>
+                    {m.image ? (
+                      <img 
+                        src={m.image} 
+                        alt={m.name} 
+                        className="size-16 shrink-0 rounded-full object-cover border border-neutral-100 group-hover:scale-105 transition-transform shadow-sm"
+                      />
+                    ) : (
+                      <div className="grid size-16 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-xl font-serif text-brand-gold group-hover:scale-105 transition-transform shadow-sm">
+                        {initials}
+                      </div>
+                    )}
                     <div>
                       <div className="text-lg font-serif text-neutral-900">{m.name}</div>
-                      <div className="text-sm font-medium text-gold">{m.role}</div>
+                      <div className="text-sm font-medium text-brand-gold">{m.role}</div>
                       <div className="text-xs text-neutral-400 mt-0.5">{m.oab}</div>
                     </div>
                   </div>
@@ -320,9 +332,17 @@ export function LandingPage() {
 
               return (
                 <div key={m.name} className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4 transition-all hover:border-gold/20 hover:shadow-md">
-                  <div className="grid size-10 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-sm font-serif text-gold">
-                    {initials}
-                  </div>
+                  {m.image ? (
+                    <img 
+                      src={m.image} 
+                      alt={m.name} 
+                      className="size-12 shrink-0 rounded-full object-cover border border-neutral-100 shadow-sm"
+                    />
+                  ) : (
+                    <div className="grid size-12 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-sm font-serif text-gold">
+                      {initials}
+                    </div>
+                  )}
                   <div>
                     <div className="text-sm font-semibold text-neutral-900">{m.name}</div>
                     <div className="text-xs text-neutral-500">{m.role}</div>
