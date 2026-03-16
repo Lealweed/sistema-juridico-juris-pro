@@ -86,7 +86,7 @@ export function PublicNavbar() {
 
         <div className="flex items-center gap-2">
           <Link
-            to="/login"
+            to="/app/login"
             className="hidden items-center gap-2 rounded-lg bg-brand-gold px-4 py-2 text-sm font-bold text-brand-black transition-all hover:bg-brand-gold-dark hover:shadow-lg hover:shadow-brand-gold/20 md:inline-flex"
           >
             Área do Advogado
@@ -147,7 +147,7 @@ export function PublicNavbar() {
                 <ShimmerButton className="w-full !border-brand-gold/20 !bg-brand-gold/10 !text-brand-gold">Falar no WhatsApp</ShimmerButton>
               </a>
               <Link
-                to="/login"
+                to="/app/login"
                 className="inline-flex w-full items-center justify-center rounded-xl bg-brand-gold px-4 py-3 text-sm font-bold text-brand-black"
                 onClick={() => setOpen(false)}
               >
