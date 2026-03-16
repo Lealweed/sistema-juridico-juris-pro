@@ -299,10 +299,10 @@ export function LandingPage() {
                       <img 
                         src={m.image} 
                         alt={m.name} 
-                        className="size-16 shrink-0 rounded-full object-cover border border-neutral-100 group-hover:scale-105 transition-transform shadow-sm"
+                        className="size-24 shrink-0 rounded-full object-cover border-2 border-neutral-100 group-hover:scale-105 transition-transform shadow-md"
                       />
                     ) : (
-                      <div className="grid size-16 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-xl font-serif text-brand-gold group-hover:scale-105 transition-transform shadow-sm">
+                      <div className="grid size-24 shrink-0 place-items-center rounded-full bg-neutral-50 border-2 border-neutral-100 text-2xl font-serif text-brand-gold group-hover:scale-105 transition-transform shadow-md">
                         {initials}
                       </div>
                     )}
@@ -336,10 +336,10 @@ export function LandingPage() {
                     <img 
                       src={m.image} 
                       alt={m.name} 
-                      className="size-12 shrink-0 rounded-full object-cover border border-neutral-100 shadow-sm"
+                      className="size-16 shrink-0 rounded-full object-cover border border-neutral-100 shadow-sm"
                     />
                   ) : (
-                    <div className="grid size-12 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-sm font-serif text-gold">
+                    <div className="grid size-16 shrink-0 place-items-center rounded-full bg-neutral-50 border border-neutral-100 text-lg font-serif text-gold">
                       {initials}
                     </div>
                   )}
