@@ -53,6 +53,9 @@ export function AppRouter() {
             <Route path="/demo" element={<HelixDemoPage />} />
           </Route>
 
+          {/* Portal do Cliente (público, sem auth) */}
+          <Route path="/portal/:clientId" element={<ClientPortalPage />} />
+
           {/* Auth (no sidebar) */}
           <Route element={<AuthLayout />}>
             <Route path="/app/login" element={<LoginPage />} />
@@ -85,7 +88,6 @@ export function AppRouter() {
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />
               <Route path="/app/publicacoes" element={<PublicationsPage />} />
-              <Route path="/app/portal" element={<ClientPortalPage />} />
               <Route path="/app/configuracoes" element={<SettingsPage />} />
 
               <Route element={<RequireRole allowed={["admin"]} />}>

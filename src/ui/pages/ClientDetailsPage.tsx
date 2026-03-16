@@ -7,6 +7,7 @@ import { ClientLinksSection } from '@/ui/widgets/ClientLinksSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
+import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
 
 function extractSourceFromNotes(notes: string | null) {
   if (!notes) return null;
@@ -28,6 +29,17 @@ type ClientRow = {
   notes: string | null;
   user_id: string | null;
   created_at: string;
+  cpf: string | null;
+  rg: string | null;
+  profession: string | null;
+  civil_status: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_cep: string | null;
 };
 
 type CaseLite = {
@@ -50,6 +62,7 @@ export function ClientDetailsPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [generatingDocx, setGeneratingDocx] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -69,7 +82,7 @@ export function ClientDetailsPage() {
         await getAuthedUser();
 
         const [c1, c2] = await Promise.all([
-          sb.from('clients').select('id,name,phone,whatsapp,email,notes,user_id,created_at').eq('id', clientId).maybeSingle(),
+          sb.from('clients').select('id,name,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep').eq('id', clientId).maybeSingle(),
           sb
             .from('cases')
             .select('id,title,status,process_number,area,created_at')
@@ -180,6 +193,30 @@ export function ClientDetailsPage() {
                          disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {exportingPdf ? 'Gerando…' : 'Exportar Dossiê (PDF)'}
+            </button>
+          )}
+          {row && (
+            <button
+              disabled={generatingDocx}
+              onClick={async () => {
+                if (!row) return;
+                setGeneratingDocx(true);
+                try {
+                  const data = buildProcuracaoData(row);
+                  await generateProcuracaoDocx(data);
+                } catch (err: any) {
+                  alert(err?.message || 'Falha ao gerar procuração.');
+                } finally {
+                  setGeneratingDocx(false);
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
+                         bg-gradient-to-r from-sky-600 to-sky-500 text-white
+                         hover:from-sky-500 hover:to-sky-400
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+              {generatingDocx ? 'Gerando…' : 'Gerar Procuração (Word)'}
             </button>
           )}
           <Link to="/app/clientes" className="btn-ghost">

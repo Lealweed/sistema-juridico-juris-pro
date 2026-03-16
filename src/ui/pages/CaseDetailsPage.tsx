@@ -6,6 +6,7 @@ import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { fetchDatajudLastMovement } from '@/lib/datajud';
 import { formatBrPhone } from '@/lib/phone';
+import { notifyClientCaseUpdate } from '@/lib/evolutionApi';
 import { parseMoneyInput, formatBRL } from '@/lib/money';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
@@ -17,8 +18,8 @@ type CaseRow = {
   description: string | null;
   created_at: string;
   client_id: string | null;
-  client?: { id: string; name: string }[] | null;
-  case_clients?: { client: { id: string; name: string } }[] | null;
+  client?: { id: string; name: string; whatsapp?: string | null }[] | null;
+  case_clients?: { client: { id: string; name: string; whatsapp?: string | null } }[] | null;
 
   process_number: string | null;
 
@@ -48,6 +49,8 @@ export function CaseDetailsPage() {
 
   const [processNumber, setProcessNumber] = useState('');
   const [checking, setChecking] = useState(false);
+  const [wppSending, setWppSending] = useState(false);
+  const [wppMsg, setWppMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const [officeMembers, setOfficeMembers] = useState<{ user_id: string; display_name: string | null; email: string | null }[]>([]);
 
@@ -81,7 +84,7 @@ export function CaseDetailsPage() {
       const { data, error: qErr } = await sb
         .from('cases')
         .select(
-          'id,office_id,title,status,description,created_at,client_id, client:clients!cases_client_id_fkey(id,name), case_clients(client:clients(id,name)), process_number, area,court,district,counterparty_name,counterparty_doc,counterparty_whatsapp,claim_value,distributed_at,responsible_user_id, datajud_last_movement_text, datajud_last_movement_at, datajud_last_checked_at',
+          'id,office_id,title,status,description,created_at,client_id, client:clients!cases_client_id_fkey(id,name,whatsapp), case_clients(client:clients(id,name,whatsapp)), process_number, area,court,district,counterparty_name,counterparty_doc,counterparty_whatsapp,claim_value,distributed_at,responsible_user_id, datajud_last_movement_text, datajud_last_movement_at, datajud_last_checked_at',
         )
         .eq('id', caseId)
         .maybeSingle();
@@ -213,6 +216,28 @@ export function CaseDetailsPage() {
           <p className="text-sm text-white/60">Detalhes (Supabase).</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            disabled={wppSending}
+            onClick={async () => {
+              if (!row) return;
+              const allClients = new Map<string, { id: string; name: string; whatsapp?: string | null }>();
+              if (row.client?.[0]) allClients.set(row.client[0].id, row.client[0]);
+              row.case_clients?.forEach((cc) => { if (cc.client) allClients.set(cc.client.id, cc.client); });
+              const first = Array.from(allClients.values()).find((c) => c.whatsapp);
+              if (!first?.whatsapp) { setWppMsg({ type: 'err', text: 'Nenhum cliente com WhatsApp cadastrado neste caso.' }); return; }
+              setWppSending(true); setWppMsg(null);
+              try {
+                await notifyClientCaseUpdate(first.whatsapp, first.name, row.title);
+                setWppMsg({ type: 'ok', text: `Notificação enviada para ${first.name}!` });
+              } catch (err: any) {
+                setWppMsg({ type: 'err', text: err?.message || 'Falha ao enviar WhatsApp.' });
+              } finally { setWppSending(false); }
+            }}
+            className="flex items-center gap-2 rounded-lg border border-green-400/30 bg-green-500/20 px-4 py-2 text-sm font-medium text-green-200 transition-colors hover:bg-green-500/30 disabled:opacity-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            {wppSending ? 'Enviando…' : 'Notificar Cliente (WPP)'}
+          </button>
           <Link to={`/app/tarefas/kanban?new=1&caseId=${caseId || ''}`} className="btn-primary !rounded-lg !px-4 !py-2 !text-sm flex items-center gap-2">
             <span className="text-lg leading-none">+</span> Nova Tarefa
           </Link>
@@ -221,6 +246,10 @@ export function CaseDetailsPage() {
           </Link>
         </div>
       </div>
+
+      {wppMsg ? (
+        <div className={`text-sm ${wppMsg.type === 'ok' ? 'text-green-200' : 'text-red-200'}`}>{wppMsg.text}</div>
+      ) : null}
 
       {error ? <div className="text-sm text-red-200">{error}</div> : null}
 

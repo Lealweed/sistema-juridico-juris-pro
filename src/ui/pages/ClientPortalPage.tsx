@@ -1,250 +1,194 @@
 import { useEffect, useState, useRef } from 'react';
-import { Card } from '@/ui/widgets/Card';
-import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
-import { getDocumentDownloadUrl, uploadClientDocument, type DocumentRow } from '@/lib/documents';
-import { Download, Upload, FileText, CheckCircle, Clock } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Upload, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
-type ClientCase = {
-  id: string;
-  title: string;
-  status: string;
-  process_number: string | null;
-  area: string | null;
-  court: string | null;
-  datajud_last_movement_text: string | null;
-  datajud_last_movement_at: string | null;
-  responsible_user_id: string | null;
-};
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 export function ClientPortalPage() {
+  const { clientId } = useParams<{ clientId: string }>();
+  const [clientName, setClientName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [clientProfile, setClientProfile] = useState<any>(null);
-  const [cases, setCases] = useState<ClientCase[]>([]);
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  
+  const [invalid, setInvalid] = useState(false);
+
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const sb = requireSupabase();
-      const user = await getAuthedUser();
-
-      // Find client record bound to this auth user
-      const { data: client, error: cErr } = await sb
-        .from('clients')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (cErr) throw new Error(cErr.message);
-      
-      if (!client) {
-        setClientProfile(null);
-        setLoading(false);
-        return;
-      }
-      
-      setClientProfile(client);
-
-      // Fetch cases
-      const { data: caseData } = await sb
-        .from('cases')
-        .select('id, title, status, process_number, area, court, datajud_last_movement_text, datajud_last_movement_at, responsible_user_id')
-        .eq('client_id', client.id)
-        .order('created_at', { ascending: false });
-        
-      setCases((caseData || []) as ClientCase[]);
-
-      // Fetch public documents only
-      const { data: docData } = await sb
-        .from('documents')
-        .select('*')
-        .eq('client_id', client.id)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-
-      setDocuments((docData || []) as DocumentRow[]);
-      
-      setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar portal do cliente.');
-      setLoading(false);
-    }
-  }
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    load();
-  }, []);
-
-  async function handleDownload(doc: DocumentRow) {
-    try {
-      const url = await getDocumentDownloadUrl(doc.file_path);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      alert('Falha ao gerar link de download: ' + err.message);
+    if (!clientId || !hasSupabaseEnv || !supabase) {
+      setInvalid(true);
+      setLoading(false);
+      return;
     }
-  }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !clientProfile) return;
+    supabase
+      .from('clients')
+      .select('name')
+      .eq('id', clientId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) {
+          setInvalid(true);
+        } else {
+          setClientName(data.name);
+        }
+        setLoading(false);
+      });
+  }, [clientId]);
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length || !clientId || !supabase) return;
 
     setUploading(true);
+    setSuccessMsg(null);
+    setErrorMsg(null);
+
     try {
-      // Documentos enviados pelo cliente ficam públicos por padrão (para ele mesmo ver)
-      await uploadClientDocument({
-        clientId: clientProfile.id,
-        kind: 'personal',
-        title: `Enviado pelo cliente: ${file.name}`,
-        file,
-        isPublic: true, 
-      });
-      
-      alert('Documento enviado com sucesso para seu advogado!');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      await load();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > MAX_UPLOAD_BYTES) {
+          throw new Error(`"${file.name}" excede 25 MB.`);
+        }
+
+        const docId = crypto.randomUUID();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `clients/${clientId}/portal/${docId}_${safeName}`;
+
+        const { error: upErr } = await supabase.storage
+          .from('documents')
+          .upload(path, file, { upsert: false, contentType: file.type || undefined });
+        if (upErr) throw new Error(upErr.message);
+
+        const { error: insErr } = await supabase.from('documents').insert({
+          id: docId,
+          user_id: PORTAL_USER_ID,
+          client_id: clientId,
+          kind: 'personal',
+          title: `Portal: ${file.name}`,
+          file_path: path,
+          mime_type: file.type || null,
+          size_bytes: file.size || null,
+          is_public: true,
+        });
+
+        if (insErr) {
+          await supabase.storage.from('documents').remove([path]).catch(() => null);
+          throw new Error(insErr.message);
+        }
+      }
+
+      setSuccessMsg(
+        files.length === 1
+          ? 'Documento recebido com sucesso!'
+          : `${files.length} documentos recebidos com sucesso!`,
+      );
+      if (fileRef.current) fileRef.current.value = '';
     } catch (err: any) {
-      alert('Erro ao enviar: ' + err.message);
+      setErrorMsg(err?.message || 'Falha ao enviar documento.');
     } finally {
       setUploading(false);
     }
   }
 
+  /* ── Layout ── */
+
   if (loading) {
-    return <div className="p-10 text-center text-white/50 animate-pulse">Carregando sua área exclusiva...</div>;
-  }
-
-  if (error) {
-    return <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-200">{error}</div>;
-  }
-
-  if (!clientProfile) {
     return (
-      <div className="flex flex-col items-center justify-center p-16 text-center space-y-4">
-        <FileText className="w-16 h-16 text-amber-500/50" />
-        <h2 className="text-2xl font-bold text-white">Bem-vindo ao Portal</h2>
-        <p className="text-white/60 max-w-md">
-          Seu e-mail ainda não foi vinculado a uma ficha de cliente pelo escritório. 
-          Entre em contato com seu advogado para liberar o acesso aos seus processos e documentos.
+      <div className="min-h-screen bg-[#08090b] flex items-center justify-center">
+        <p className="text-white/50 animate-pulse">Carregando…</p>
+      </div>
+    );
+  }
+
+  if (invalid) {
+    return (
+      <div className="min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4">
+        <AlertTriangle className="size-12 text-red-400" />
+        <h1 className="text-xl font-semibold text-white">Link Inválido</h1>
+        <p className="text-sm text-white/50 text-center max-w-sm">
+          Este link de portal não corresponde a nenhum cliente cadastrado. Verifique com seu advogado.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Olá, {clientProfile.name.split(' ')[0]}</h1>
-        <p className="text-sm text-white/60">Acompanhe o andamento dos seus processos e gerencie seus documentos de forma segura.</p>
-      </div>
+    <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
+      {/* Logo */}
+      <img
+        src="/brand/logo.jpg"
+        alt="Lima, Lopes & Diógenes"
+        className="h-16 w-auto rounded-xl shadow-lg"
+      />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Lado Esquerdo: Processos e Casos */}
-        <div className="lg:col-span-2 space-y-6">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-emerald-400" />
-            Seus Processos Ativos
-          </h2>
-
-          {cases.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
-              <p className="text-white/50">Você ainda não possui processos registrados no sistema.</p>
-            </Card>
-          ) : (
-            cases.map(kase => (
-              <Card key={kase.id} className="overflow-hidden p-0 border-white/10 hover:border-white/20 transition-colors">
-                <div className="p-5 border-b border-white/5 bg-white/[0.02]">
-                  <div className="flex justify-between items-start gap-4">
-                    <div>
-                      <h3 className="font-bold text-lg text-white">{kase.title}</h3>
-                      <p className="text-sm text-amber-200 font-mono mt-1">
-                        CNJ: {kase.process_number || 'Aguardando distribuição'}
-                      </p>
-                    </div>
-                    <span className="badge border-blue-500/30 bg-blue-500/10 text-blue-300 px-3 py-1">
-                      {kase.status}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="p-5 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <div className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-1">Vara / Tribunal</div>
-                    <div className="text-sm text-white/80">{kase.court || 'Não informado'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-1">Área</div>
-                    <div className="text-sm text-white/80">{kase.area || 'Não informada'}</div>
-                  </div>
-                </div>
-
-                {/* Movimentação DataJud (se houver) */}
-                {kase.datajud_last_movement_text && (
-                  <div className="bg-black/40 p-5 border-t border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock className="w-4 h-4 text-white/40" />
-                      <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Última Movimentação Oficial</span>
-                    </div>
-                    <p className="text-sm text-white/80 leading-relaxed border-l-2 border-amber-500/50 pl-3">
-                      {kase.datajud_last_movement_text}
-                    </p>
-                    <p className="text-[11px] text-white/40 mt-2">
-                      Data do movimento: {kase.datajud_last_movement_at ? new Date(kase.datajud_last_movement_at).toLocaleDateString() : '—'}
-                    </p>
-                  </div>
-                )}
-              </Card>
-            ))
-          )}
+      <div className="mt-8 w-full max-w-md space-y-6">
+        {/* Boas-vindas */}
+        <div className="text-center">
+          <h1 className="text-xl font-semibold text-white">
+            Olá, {clientName?.split(' ')[0]}!
+          </h1>
+          <p className="mt-2 text-sm text-white/60">
+            Envie os documentos solicitados pelo seu advogado abaixo.
+          </p>
         </div>
 
-        {/* Lado Direito: Documentos Seguros */}
-        <div className="space-y-6">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-400" />
-            Seus Documentos
-          </h2>
+        {/* Upload Area */}
+        <label
+          className={`relative flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed
+                      p-10 text-center transition-colors
+                      ${uploading ? 'border-amber-400/40 bg-amber-400/5' : 'border-white/15 bg-white/5 hover:border-amber-300/40 hover:bg-white/10'}`}
+        >
+          <Upload className={`size-10 ${uploading ? 'animate-bounce text-amber-400' : 'text-white/40'}`} />
+          <span className="text-sm font-medium text-white">
+            {uploading ? 'Enviando…' : 'Toque aqui para anexar documentos'}
+          </span>
+          <span className="text-xs text-white/40">Imagens ou PDF • Máx. 25 MB cada</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            className="absolute inset-0 cursor-pointer opacity-0"
+            onChange={handleFiles}
+            disabled={uploading}
+          />
+        </label>
 
-          <Card className="bg-blue-950/10 border-blue-500/20">
-            <div className="text-sm font-semibold text-white mb-2">Enviar para o Advogado</div>
-            <p className="text-xs text-white/60 mb-4">
-              Faça upload de fotos de RG, comprovantes de endereço ou provas (PDF, JPG, PNG).
-            </p>
-            
-            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-blue-500/30 rounded-xl hover:bg-blue-500/5 hover:border-blue-500/50 transition-colors cursor-pointer relative">
-              {uploading ? (
-                <span className="text-sm text-blue-300 font-semibold animate-pulse">Enviando cofre...</span>
-              ) : (
-                <>
-                  <Upload className="w-6 h-6 text-blue-400 mb-2" />
-                  <span className="text-xs font-semibold text-blue-200">Toque para selecionar</span>
-                </>
-              )}
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                className="hidden" 
-                onChange={handleUpload}
-                disabled={uploading}
-                accept="image/*,application/pdf"
-              />
-            </label>
-          </Card>
+        {/* Feedback */}
+        {successMsg && (
+          <div className="flex items-center gap-3 rounded-xl border border-green-400/30 bg-green-400/10 p-4">
+            <CheckCircle2 className="size-5 shrink-0 text-green-300" />
+            <span className="text-sm text-green-200">{successMsg}</span>
+          </div>
+        )}
 
-          <Card className="p-0 overflow-hidden">
-            <div className="p-4 border-b border-white/5 font-semibold text-sm">
-              Disponibilizados pelo Escritório
-            </div>
-            
-            {documents.length === 0 ? (
-              <div className="p-6 text-center text-xs text-white/50">
-                Nenhum documento compartilhado com você no momento.
-              </div>
+        {errorMsg && (
+          <div className="flex items-center gap-3 rounded-xl border border-red-400/30 bg-red-400/10 p-4">
+            <AlertTriangle className="size-5 shrink-0 text-red-300" />
+            <span className="text-sm text-red-200">{errorMsg}</span>
+          </div>
+        )}
+
+        {/* Info footer */}
+        <div className="flex items-start gap-2 rounded-xl border border-white/10 bg-white/5 p-4">
+          <FileText className="mt-0.5 size-4 shrink-0 text-amber-300/70" />
+          <p className="text-xs leading-relaxed text-white/50">
+            Seus documentos são enviados de forma segura diretamente ao sistema do escritório.
+            Apenas a equipe autorizada terá acesso.
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-12 text-[11px] text-white/30">
+        Lima, Lopes &amp; Diógenes Advogados &bull; Portal do Cliente
+      </p>
+    </div>
+  );
+}
             ) : (
               <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto">
                 {documents.map((doc) => (
