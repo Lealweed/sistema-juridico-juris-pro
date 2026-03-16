@@ -189,31 +189,3 @@ export function ClientPortalPage() {
     </div>
   );
 }
-            ) : (
-              <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="p-4 hover:bg-white/[0.02] transition-colors flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate" title={doc.title}>{doc.title}</p>
-                      <p className="text-[10px] text-white/40 mt-1">
-                        {new Date(doc.created_at).toLocaleDateString()} 
-                        {doc.size_bytes ? ` • ${(doc.size_bytes / 1024 / 1024).toFixed(2)}MB` : ''}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => handleDownload(doc)}
-                      className="shrink-0 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-amber-400 hover:text-black transition-colors"
-                      title="Baixar arquivo"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
