@@ -77,9 +77,21 @@ export function LandingPage() {
     <div>
       {/* HERO */}
       <section className="relative overflow-hidden bg-brand-black">
+        {/* Background Video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover opacity-30"
+        >
+          <source src="/hero-bg.mp4" type="video/mp4" />
+        </video>
+
         {/* Background effects */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(212,175,55,0.12),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(212,175,55,0.06),transparent_60%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-brand-black/80 via-brand-black/40 to-brand-black" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(212,175,55,0.15),transparent_50%)] mix-blend-screen" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(212,175,55,0.08),transparent_60%)] mix-blend-screen" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-gold/30 to-transparent" />
 
         <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-24 md:pb-36 md:pt-40">
