@@ -481,7 +481,7 @@ export function LandingPage() {
                 </p>
 
                 <Link
-                  to="/login"
+                  to="/app/login"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-gold px-8 py-4 text-sm font-bold text-brand-black transition-all hover:bg-brand-gold-dark hover:shadow-lg hover:shadow-brand-gold/20 group"
                 >
                   Entrar no Portal
