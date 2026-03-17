@@ -50,8 +50,9 @@ export function LeadForm() {
       setWhatsapp('');
       setArea('');
       setDescription('');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro inesperado.';
+    } catch (err: any) {
+      console.error(err);
+      const msg = err?.message || (typeof err === 'string' ? err : 'Erro inesperado no servidor.');
       setError(msg);
     } finally {
       setLoading(false);
