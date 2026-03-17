@@ -92,60 +92,70 @@ export function AiReportsPage() {
   }, []);
 
   const report = useMemo(() => {
-    const now = Date.now();
-    const sevenDaysAgo = now - 7 * 86400e3;
+    try {
+      const now = Date.now();
+      const sevenDaysAgo = now - 7 * 86400e3;
 
-    const openTasks = tasks.filter((t) => !['done', 'cancelled'].includes((t.status_v2 || '').toLowerCase()));
-    const created7d = tasks.filter((t) => (t.created_at ? new Date(t.created_at).getTime() >= sevenDaysAgo : false)).length;
-    const done7d = tasks.filter((t) => (t.done_at ? new Date(t.done_at).getTime() >= sevenDaysAgo : false)).length;
+      const openTasks = tasks.filter((t) => !['done', 'cancelled'].includes((t.status_v2 || '').toLowerCase()));
+      const created7d = tasks.filter((t) => (t.created_at ? new Date(t.created_at).getTime() >= sevenDaysAgo : false)).length;
+      const done7d = tasks.filter((t) => (t.done_at ? new Date(t.done_at).getTime() >= sevenDaysAgo : false)).length;
 
-    const overdue = openTasks.filter((t) => t.due_at && new Date(t.due_at).getTime() < now).length;
-    const due48 = openTasks.filter((t) => {
-      if (!t.due_at) return false;
-      const diff = new Date(t.due_at).getTime() - now;
-      return diff >= 0 && diff <= 48 * 3600e3;
-    }).length;
+      const overdue = openTasks.filter((t) => t.due_at && new Date(t.due_at).getTime() < now).length;
+      const due48 = openTasks.filter((t) => {
+        if (!t.due_at) return false;
+        const diff = new Date(t.due_at).getTime() - now;
+        return diff >= 0 && diff <= 48 * 3600e3;
+      }).length;
 
-    const statusBucket = {
-      open: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'open').length,
-      in_progress: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'in_progress').length,
-      paused: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'paused').length,
-      done: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'done').length,
-      cancelled: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'cancelled').length,
-    };
+      const statusBucket = {
+        open: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'open').length,
+        in_progress: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'in_progress').length,
+        paused: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'paused').length,
+        done: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'done').length,
+        cancelled: tasks.filter((t) => (t.status_v2 || '').toLowerCase() === 'cancelled').length,
+      };
 
-    const paid = finance.filter((f) => !!f.paid_at || (f.status || '').toLowerCase() === 'paid');
-    const weekIncome = paid
-      .filter((f) => f.type === 'income')
-      .reduce((acc, f) => acc + Number(f.amount_cents || 0) / 100, 0);
-    const weekExpense = paid
-      .filter((f) => f.type === 'expense')
-      .reduce((acc, f) => acc + Number(f.amount_cents || 0) / 100, 0);
+      const paid = finance.filter((f) => !!f.paid_at || (f.status || '').toLowerCase() === 'paid');
+      const weekIncome = paid
+        .filter((f) => f.type === 'income')
+        .reduce((acc, f) => acc + Number(f.amount_cents || 0) / 100, 0);
+      const weekExpense = paid
+        .filter((f) => f.type === 'expense')
+        .reduce((acc, f) => acc + Number(f.amount_cents || 0) / 100, 0);
 
-    const upcomingAgenda = agenda
-      .map((a) => ({
-        ...a,
-        ts:
-          a.kind === 'deadline'
-            ? new Date(`${a.due_date}T00:00:00`).getTime()
-            : a.starts_at
-              ? new Date(a.starts_at).getTime()
-              : Number.MAX_SAFE_INTEGER,
-      }))
-      .sort((a, b) => a.ts - b.ts)
-      .slice(0, 6);
+      const upcomingAgenda = agenda
+        .map((a) => ({
+          ...a,
+          ts:
+            a.kind === 'deadline'
+              ? new Date(`${a.due_date}T00:00:00`).getTime()
+              : a.starts_at
+                ? new Date(a.starts_at).getTime()
+                : Number.MAX_SAFE_INTEGER,
+        }))
+        .sort((a, b) => a.ts - b.ts)
+        .slice(0, 6);
 
-    return {
-      created7d,
-      done7d,
-      overdue,
-      due48,
-      weekIncome,
-      weekExpense,
-      net: weekIncome - weekExpense,
-      statusBucket,
-      upcomingAgenda,
-    };
+      return {
+        created7d,
+        done7d,
+        overdue,
+        due48,
+        weekIncome,
+        weekExpense,
+        net: weekIncome - weekExpense,
+        statusBucket,
+        upcomingAgenda,
+      };
+    } catch (err) {
+      console.error("Report calc error", err);
+      return {
+        created7d: 0, done7d: 0, overdue: 0, due48: 0,
+        weekIncome: 0, weekExpense: 0, net: 0,
+        statusBucket: { open: 0, in_progress: 0, paused: 0, done: 0, cancelled: 0 },
+        upcomingAgenda: []
+      };
+    }
   }, [tasks, finance, agenda]);
 
   return (
