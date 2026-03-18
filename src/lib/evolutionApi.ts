@@ -1,15 +1,19 @@
 function sanitizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  return digits.startsWith('55') ? digits : `55${digits}`;
+  // Números locais BR têm 10 (fixo com DDD) ou 11 (celular com DDD+9) dígitos
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+  return digits;
 }
 
 export async function sendWhatsAppText(phone: string, text: string): Promise<true> {
-  const baseUrl = import.meta.env.VITE_EVOLUTION_URL as string | undefined;
-  const apiKey = import.meta.env.VITE_EVOLUTION_KEY as string | undefined;
+  const baseUrl = import.meta.env.VITE_EVOLUTION_API_URL as string | undefined;
+  const apiKey = import.meta.env.VITE_EVOLUTION_API_KEY as string | undefined;
   const instance = import.meta.env.VITE_EVOLUTION_INSTANCE as string | undefined;
 
   if (!baseUrl || !apiKey || !instance) {
-    throw new Error('Variáveis da Evolution API não configuradas (VITE_EVOLUTION_URL, VITE_EVOLUTION_KEY, VITE_EVOLUTION_INSTANCE).');
+    throw new Error('Variáveis da Evolution API não configuradas (VITE_EVOLUTION_API_URL, VITE_EVOLUTION_API_KEY, VITE_EVOLUTION_INSTANCE).');
   }
 
   const numero = sanitizePhone(phone);

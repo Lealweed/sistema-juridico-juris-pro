@@ -8,6 +8,7 @@ import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
 import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
+import { sendWhatsAppText } from '@/lib/evolutionApi';
 
 function extractSourceFromNotes(notes: string | null) {
   if (!notes) return null;
@@ -130,6 +131,19 @@ export function ClientDetailsPage() {
       alive = false;
     };
   }, [clientId]);
+
+  async function handleSendWhatsApp() {
+    if (!row?.whatsapp) return;
+    const msg = prompt('Mensagem para enviar via WhatsApp:');
+    if (!msg) return;
+    try {
+      await sendWhatsAppText(row.whatsapp, msg);
+      alert('✅ Mensagem enviada com sucesso!');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Falha ao enviar WhatsApp.';
+      alert(`❌ Erro: ${message}`);
+    }
+  }
 
   async function onSave() {
     if (!clientId) return;
@@ -286,7 +300,17 @@ export function ClientDetailsPage() {
                       </div>
                       <div>
                         <div className="text-xs text-white/50">WhatsApp</div>
-                        <div className="text-sm text-white/80">{row.whatsapp || '—'}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-white/80">{row.whatsapp || '—'}</span>
+                          {row.whatsapp && (
+                            <button
+                              onClick={() => void handleSendWhatsApp()}
+                              className="inline-flex items-center gap-1 rounded-lg bg-green-600/20 px-2 py-0.5 text-xs font-medium text-green-300 hover:bg-green-600/40 transition"
+                            >
+                              💬 Zap
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <div className="text-xs text-white/50">E-mail</div>

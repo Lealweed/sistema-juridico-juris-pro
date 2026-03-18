@@ -54,7 +54,7 @@ export function AppRouter() {
           </Route>
 
           {/* Portal do Cliente (público, sem auth) */}
-          <Route path="/portal/:clientId" element={<ClientPortalPage />} />
+          <Route path="/portal" element={<ClientPortalPage />} />
 
           {/* Auth (no sidebar) */}
           <Route element={<AuthLayout />}>
