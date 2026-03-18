@@ -55,6 +55,10 @@ export function CasesPage() {
   const [newClientIds, setNewClientIds] = useState<string[]>([]);
   const [newProcessNumber, setNewProcessNumber] = useState('');
   const [newArea, setNewArea] = useState('');
+  const [newCourt, setNewCourt] = useState('');
+  const [newClaimValue, setNewClaimValue] = useState('');
+  const [newPoloAtivo, setNewPoloAtivo] = useState('');
+  const [newPoloPassivo, setNewPoloPassivo] = useState('');
   const [saving, setSaving] = useState(false);
 
   const ordered = useMemo(() => {
@@ -148,6 +152,16 @@ export function CasesPage() {
       // Ensure we have a primary client_id for the legacy column, if needed.
       const primaryClientId = newClientIds.length > 0 ? newClientIds[0] : null;
 
+      // Encode polo ativo/passivo into description
+      const descParts: string[] = [];
+      if (newPoloAtivo.trim()) descParts.push(`Polo Ativo: ${newPoloAtivo.trim()}`);
+      if (newPoloPassivo.trim()) descParts.push(`Polo Passivo: ${newPoloPassivo.trim()}`);
+      const builtDesc = descParts.join('\n') || null;
+
+      const claimCents = newClaimValue.trim()
+        ? parseFloat(newClaimValue.replace(',', '.').replace(/[^0-9.]/g, ''))
+        : null;
+
       const { data: createdCase, error: iErr } = await sb.from('cases').insert({
         user_id: user.id,
         title: newTitle.trim(),
@@ -155,6 +169,9 @@ export function CasesPage() {
         client_id: primaryClientId,
         process_number: newProcessNumber.trim() || null,
         area: newArea.trim() || null,
+        court: newCourt.trim() || null,
+        claim_value: claimCents || null,
+        description: builtDesc,
       }).select('id').single();
 
       if (iErr) throw new Error(iErr.message);
@@ -173,6 +190,10 @@ export function CasesPage() {
       setNewClientIds([]);
       setNewProcessNumber('');
       setNewArea('');
+      setNewCourt('');
+      setNewClaimValue('');
+      setNewPoloAtivo('');
+      setNewPoloPassivo('');
       setSaving(false);
       await load();
     } catch (err: any) {
@@ -213,6 +234,22 @@ export function CasesPage() {
               <label className="text-sm text-white/80">
                 Área
                 <input className="input" value={newArea} onChange={(e) => setNewArea(e.target.value)} placeholder="Ex.: Previdenciário" />
+              </label>
+              <label className="text-sm text-white/80">
+                Vara / Tribunal
+                <input className="input" value={newCourt} onChange={(e) => setNewCourt(e.target.value)} placeholder="Ex.: 3ª Vara Previdenciária" />
+              </label>
+              <label className="text-sm text-white/80">
+                Valor da Causa
+                <input className="input" value={newClaimValue} onChange={(e) => setNewClaimValue(e.target.value)} placeholder="Ex.: 15000,00" inputMode="decimal" />
+              </label>
+              <label className="text-sm text-white/80">
+                Polo Ativo (Autor)
+                <input className="input" value={newPoloAtivo} onChange={(e) => setNewPoloAtivo(e.target.value)} />
+              </label>
+              <label className="text-sm text-white/80">
+                Polo Passivo (Réu)
+                <input className="input" value={newPoloPassivo} onChange={(e) => setNewPoloPassivo(e.target.value)} />
               </label>
               <label className="md:col-span-2 text-sm text-white/80">
                 Clientes Vinculados

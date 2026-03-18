@@ -50,6 +50,19 @@ export function ClientsPage() {
   const [govLoginHint, setGovLoginHint] = useState('');
   const [govNotes, setGovNotes] = useState('');
 
+  // new personal fields
+  const [newRg, setNewRg] = useState('');
+  const [newBirthDate, setNewBirthDate] = useState('');
+  const [newCivilStatus, setNewCivilStatus] = useState('');
+  const [newProfession, setNewProfession] = useState('');
+  const [newNationality, setNewNationality] = useState('');
+
+  // legal representative
+  const [hasRepresentative, setHasRepresentative] = useState(false);
+  const [repName, setRepName] = useState('');
+  const [repCpf, setRepCpf] = useState('');
+  const [repRg, setRepRg] = useState('');
+
   // address
   const [cep, setCep] = useState('');
   const [street, setStreet] = useState('');
@@ -138,6 +151,16 @@ export function ClientsPage() {
     setNewSourceChannel('recepcao');
     setGovLoginHint('');
     setGovNotes('');
+
+    setNewRg('');
+    setNewBirthDate('');
+    setNewCivilStatus('');
+    setNewProfession('');
+    setNewNationality('');
+    setHasRepresentative(false);
+    setRepName('');
+    setRepCpf('');
+    setRepRg('');
 
     setCep('');
     setStreet('');
@@ -284,6 +307,20 @@ export function ClientsPage() {
 
       const sourceTag = `[#origem:${newSourceChannel}]`;
 
+      // Build extra notes
+      const extraLines: string[] = [];
+      if (newRg.trim()) extraLines.push(`RG: ${newRg.trim()}`);
+      if (newBirthDate) extraLines.push(`Nascimento: ${newBirthDate}`);
+      if (newCivilStatus.trim()) extraLines.push(`Est. Civil: ${newCivilStatus.trim()}`);
+      if (newProfession.trim()) extraLines.push(`Profissão: ${newProfession.trim()}`);
+      if (newNationality.trim()) extraLines.push(`Nacionalidade: ${newNationality.trim()}`);
+      if (hasRepresentative) {
+        const repLine = ['Representante:', repName.trim(), repCpf.trim() ? `CPF: ${repCpf.trim()}` : '', repRg.trim() ? `RG: ${repRg.trim()}` : '']
+          .filter(Boolean).join(' ');
+        extraLines.push(repLine);
+      }
+      const extraBlock = extraLines.length ? `\n${extraLines.join('\n')}` : '';
+
       const payload: any = {
         user_id: user.id,
         person_type: personType,
@@ -291,7 +328,7 @@ export function ClientsPage() {
         whatsapp: onlyDigits(newWhatsapp),
         email: newEmail.trim() || null,
         phone: onlyDigits(newPhone) || null,
-        notes: `${sourceTag} ${newNotes.trim()}`.trim(),
+        notes: `${sourceTag}${extraBlock} ${newNotes.trim()}`.trim(),
         gov_login_hint: govLoginHint.trim() || null,
         gov_notes: govNotes.trim() || null,
         address_cep: onlyDigits(cep) || null,
@@ -490,6 +527,66 @@ export function ClientsPage() {
                   <option value="outro">Outro</option>
                 </select>
               </label>
+
+              {personType === 'pf' ? (
+                <>
+                  <label className="text-sm text-white/80">
+                    RG
+                    <input className="input" value={newRg} onChange={(e) => setNewRg(e.target.value)} />
+                  </label>
+                  <label className="text-sm text-white/80">
+                    Data de Nascimento
+                    <input type="date" className="input" value={newBirthDate} onChange={(e) => setNewBirthDate(e.target.value)} />
+                  </label>
+                  <label className="text-sm text-white/80">
+                    Estado Civil
+                    <select className="input" value={newCivilStatus} onChange={(e) => setNewCivilStatus(e.target.value)}>
+                      <option value="">—</option>
+                      <option value="Solteiro(a)">Solteiro(a)</option>
+                      <option value="Casado(a)">Casado(a)</option>
+                      <option value="Divorciado(a)">Divorciado(a)</option>
+                      <option value="Viúvo(a)">Viúvo(a)</option>
+                      <option value="União Estável">União Estável</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </label>
+                  <label className="text-sm text-white/80">
+                    Profissão
+                    <input className="input" value={newProfession} onChange={(e) => setNewProfession(e.target.value)} />
+                  </label>
+                  <label className="text-sm text-white/80">
+                    Nacionalidade
+                    <input className="input" value={newNationality} onChange={(e) => setNewNationality(e.target.value)} placeholder="Ex.: Brasileira" />
+                  </label>
+
+                  <label className="md:col-span-2 flex items-center gap-2 text-sm text-white/80">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={hasRepresentative}
+                      onChange={(e) => setHasRepresentative(e.target.checked)}
+                    />
+                    Possui Representante Legal
+                  </label>
+
+                  {hasRepresentative ? (
+                    <>
+                      <label className="text-sm text-white/80">
+                        Nome do Representante
+                        <input className="input" value={repName} onChange={(e) => setRepName(e.target.value)} />
+                      </label>
+                      <label className="text-sm text-white/80">
+                        CPF do Representante
+                        <input className="input" value={repCpf} onChange={(e) => setRepCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
+                      </label>
+                      <label className="text-sm text-white/80">
+                        RG do Representante
+                        <input className="input" value={repRg} onChange={(e) => setRepRg(e.target.value)} />
+                      </label>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
 
               <label className="text-sm text-white/80 md:col-span-2">
                 Observações

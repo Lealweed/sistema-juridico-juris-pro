@@ -74,6 +74,12 @@ export function CaseDetailsPage() {
 
   const [officeMembers, setOfficeMembers] = useState<{ user_id: string; display_name: string | null; email: string | null }[]>([]);
 
+  // client picker state
+  const [allClients, setAllClients] = useState<{ id: string; name: string }[]>([]);
+  const [pickedClientId, setPickedClientId] = useState('');
+  const [savingClient, setSavingClient] = useState(false);
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
+
   // editable fields
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState('');
@@ -143,6 +149,17 @@ export function CaseDetailsPage() {
       }
 
       setLoading(false);
+
+      // Load clients for picker
+      if (r?.office_id) {
+        const { data: clientsData } = await sb
+          .from('clients')
+          .select('id,name')
+          .order('name', { ascending: true })
+          .limit(500);
+        setAllClients((clientsData || []) as { id: string; name: string }[]);
+      }
+      setPickedClientId(r?.client_id || '');
     } catch (err: any) {
       setError(err?.message || 'Falha ao carregar.');
       setLoading(false);
@@ -190,6 +207,27 @@ export function CaseDetailsPage() {
     } catch (err: any) {
       setError(err?.message || 'Falha ao salvar.');
       setSaving(false);
+    }
+  }
+
+  async function saveClientId() {
+    if (!caseId) return;
+    setSavingClient(true);
+    setError(null);
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
+      const { error: uErr } = await sb
+        .from('cases')
+        .update({ client_id: pickedClientId || null })
+        .eq('id', caseId);
+      if (uErr) throw new Error(uErr.message);
+      setClientPickerOpen(false);
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao atualizar cliente.');
+    } finally {
+      setSavingClient(false);
     }
   }
 
@@ -368,13 +406,13 @@ export function CaseDetailsPage() {
                 <div className="text-sm text-white/80">Clientes Vinculados</div>
                 <div className="mt-2 flex flex-col gap-1">
                   {(() => {
-                    const allClients = new Map<string, {id: string, name: string}>();
-                    if (row.client?.[0]) allClients.set(row.client[0].id, row.client[0]);
+                    const allCliMap = new Map<string, {id: string, name: string}>();
+                    if (row.client?.[0]) allCliMap.set(row.client[0].id, row.client[0]);
                     row.case_clients?.forEach(cc => {
-                      if (cc.client) allClients.set(cc.client.id, cc.client);
+                      if (cc.client) allCliMap.set(cc.client.id, cc.client);
                     });
                     
-                    const clientList = Array.from(allClients.values());
+                    const clientList = Array.from(allCliMap.values());
                     
                     if (clientList.length === 0) return <div className="text-sm text-white/70">—</div>;
                     
@@ -385,6 +423,34 @@ export function CaseDetailsPage() {
                     ));
                   })()}
                 </div>
+                <button
+                  type="button"
+                  className="mt-2 btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+                  onClick={() => setClientPickerOpen((v) => !v)}
+                >
+                  {clientPickerOpen ? 'Fechar' : 'Vincular / Alterar Cliente Principal'}
+                </button>
+                {clientPickerOpen ? (
+                  <div className="mt-2 grid gap-2">
+                    <select
+                      className="select"
+                      value={pickedClientId}
+                      onChange={(e) => setPickedClientId(e.target.value)}
+                    >
+                      <option value="">— Nenhum —</option>
+                      {allClients.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn-primary w-fit"
+                      disabled={savingClient}
+                      onClick={() => void saveClientId()}
+                    >
+                      {savingClient ? 'Salvando...' : 'Confirmar'}
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               <label className="text-sm text-white/80">

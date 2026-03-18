@@ -24,7 +24,7 @@ type TaskRow = {
   office_id?: string | null;
   subtasks?: TaskSubtask[] | null;
   client?: { id: string; name: string }[] | null;
-  case?: { id: string; title: string }[] | null;
+  case_rel?: { id: string; title: string }[] | null;
 };
 
 type TaskSubtask = {
@@ -201,7 +201,7 @@ export function TaskDetailsPage() {
       const { data, error: qErr } = await sb
         .from('tasks')
         .select(
-          'id,office_id,title,description,status_v2,priority,due_at,created_at,client_id,case_id,assigned_to_user_id,last_assigned_by_user_id,last_assigned_at,subtasks, client:clients(id,name), case:cases(id,title)',
+          'id,office_id,title,description,status_v2,priority,due_at,created_at,client_id,case_id,assigned_to_user_id,last_assigned_by_user_id,last_assigned_at,subtasks, client:clients(id,name), case_rel:cases(id,title)',
         )
         .eq('id', taskId)
         .maybeSingle();
@@ -430,9 +430,9 @@ export function TaskDetailsPage() {
               </div>
               <div>
                 <div className="text-xs text-white/50">Caso</div>
-                {row.case?.[0] ? (
-                  <Link className="link-accent" to={`/app/casos/${row.case[0].id}`}>
-                    {row.case[0].title}
+                {row.case_rel?.[0] ? (
+                  <Link className="link-accent" to={`/app/casos/${row.case_rel[0].id}`}>
+                    {row.case_rel[0].title}
                   </Link>
                 ) : (
                   <div className="text-sm text-white/70">—</div>

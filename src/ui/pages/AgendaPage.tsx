@@ -125,6 +125,8 @@ export function AgendaPage() {
   const [casesLite, setCasesLite] = useState<CaseLite[]>([]);
   const [linkClientId, setLinkClientId] = useState('');
   const [linkCaseId, setLinkCaseId] = useState('');
+  const [casePickerOpen, setCasePickerOpen] = useState(false);
+  const [casePickerQ, setCasePickerQ] = useState('');
 
   const [remindersOpen, setRemindersOpen] = useState<null | { item: AgendaItem }>(null);
   const [reminders, setReminders] = useState<any[]>([]);
@@ -366,6 +368,8 @@ export function AgendaPage() {
       setDueDate('');
       setLinkClientId('');
       setLinkCaseId('');
+      setCasePickerOpen(false);
+      setCasePickerQ('');
       setSaving(false);
       await load();
     } catch (err: any) {
@@ -881,19 +885,92 @@ export function AgendaPage() {
                   ))}
                 </select>
               </label>
-              <label className="text-sm text-white/80">
+              <div className="text-sm text-white/80">
                 Caso (opcional)
-                <select className="select" value={linkCaseId} onChange={(e) => setLinkCaseId(e.target.value)}>
-                  <option value="">—</option>
-                  {casesLite
-                    .filter((c) => (!linkClientId ? true : c.client_id === linkClientId))
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
-                </select>
-              </label>
+                <div className="mt-1 flex items-center gap-2">
+                  {linkCaseId ? (
+                    <span className="rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white">
+                      {casesLite.find((c) => c.id === linkCaseId)?.title || 'Caso selecionado'}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-white/50">—</span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+                    onClick={() => { setCasePickerOpen(true); setCasePickerQ(''); }}
+                  >
+                    Selecionar Caso
+                  </button>
+                  {linkCaseId ? (
+                    <button
+                      type="button"
+                      className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs text-red-300"
+                      onClick={() => setLinkCaseId('')}
+                    >
+                      Limpar
+                    </button>
+                  ) : null}
+                </div>
+
+                {casePickerOpen ? (
+                  <div className="mt-2 rounded-2xl border border-white/10 bg-[#0d1117] p-4 shadow-lg">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-xs font-semibold text-white">Buscar caso</span>
+                      <button
+                        type="button"
+                        className="btn-ghost !rounded-lg !px-2 !py-1 !text-xs"
+                        onClick={() => setCasePickerOpen(false)}
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                    <input
+                      className="input !mt-0 !py-1.5 !text-sm mb-3"
+                      placeholder="Buscar por título, CNJ ou cliente..."
+                      value={casePickerQ}
+                      onChange={(e) => setCasePickerQ(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="max-h-52 overflow-y-auto grid gap-1">
+                      {casesLite
+                        .filter((c) => {
+                          const needle = casePickerQ.trim().toLowerCase();
+                          if (!needle) return true;
+                          const clientName = Array.isArray(c.client) ? (c.client[0]?.name || '') : '';
+                          const haystack = `${c.title} ${c.process_number || ''} ${clientName}`.toLowerCase();
+                          return haystack.includes(needle);
+                        })
+                        .map((c) => {
+                          const clientName = Array.isArray(c.client) ? (c.client[0]?.name || '') : '';
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors"
+                              onClick={() => { setLinkCaseId(c.id); setCasePickerOpen(false); }}
+                            >
+                              <div className="font-medium text-white">{c.title}</div>
+                              <div className="text-xs text-white/50">
+                                {c.process_number ? `CNJ: ${c.process_number}` : ''}
+                                {c.process_number && clientName ? ' · ' : ''}
+                                {clientName}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      {casesLite.filter((c) => {
+                        const needle = casePickerQ.trim().toLowerCase();
+                        if (!needle) return true;
+                        const clientName = Array.isArray(c.client) ? (c.client[0]?.name || '') : '';
+                        return `${c.title} ${c.process_number || ''} ${clientName}`.toLowerCase().includes(needle);
+                      }).length === 0 && (
+                        <div className="text-sm text-white/50 px-2">Nenhum caso encontrado.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
