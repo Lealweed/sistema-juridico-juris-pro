@@ -21,6 +21,11 @@ type FinanceLite = {
   status: string | null;
 };
 
+type CaseCreatedLite = {
+  id: string;
+  created_at: string | null;
+};
+
 type AgendaLite = {
   id: string;
   kind: 'deadline' | 'commitment' | string;
@@ -50,7 +55,6 @@ export function AiReportsPage() {
   const [agenda, setAgenda] = useState<AgendaLite[]>([]);
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
   const [weeklySummaryText, setWeeklySummaryText] = useState('');
-  const [weeklyWhatsapp, setWeeklyWhatsapp] = useState('');
   const [buildingSummary, setBuildingSummary] = useState(false);
   const [sendingWeekly, setSendingWeekly] = useState(false);
   const [weeklyFeedback, setWeeklyFeedback] = useState<string | null>(null);
@@ -174,50 +178,83 @@ export function AiReportsPage() {
     }
   }, [tasks, finance, agenda]);
 
-  const doneByLawyer7d = useMemo(() => {
-    const sevenDaysAgo = Date.now() - 7 * 86400e3;
-    const profileById = new Map(
-      profiles.map((p) => [p.user_id, p.display_name || p.email || 'Membros'] as const),
-    );
-    const grouped = new Map<string, { label: string; count: number }>();
-
-    for (const t of tasks) {
-      if (!t.done_at) continue;
-      if (new Date(t.done_at).getTime() < sevenDaysAgo) continue;
-
-      const key = t.assigned_to_user_id || 'Membros';
-      const label = t.assigned_to_user_id ? profileById.get(t.assigned_to_user_id) || 'Membros' : 'Membros';
-      const current = grouped.get(key) || { label, count: 0 };
-      current.count += 1;
-      grouped.set(key, current);
-    }
-
-    return Array.from(grouped.values()).sort((a, b) => b.count - a.count);
-  }, [tasks, profiles]);
-
-  function buildWeeklySummary() {
+  async function buildWeeklySummary() {
     setBuildingSummary(true);
     setWeeklyError(null);
     setWeeklyFeedback(null);
 
-    const linesByLawyer = doneByLawyer7d.length
-      ? doneByLawyer7d.map((row) => `• ${row.label}: ${row.count}`).join('\n')
-      : '• Membros: 0';
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
 
-    const summary = [
-      '📊 *Fechamento Semanal - Lima, Lopes & Diógenes*',
-      `✅ Tarefas Concluídas: ${report.done7d}`,
-      `🚀 Novos Casos: ${report.created7d}`,
-      `💰 Faturamento (Pago): R$ ${report.weekIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      '',
-      '👥 Concluídas por advogado:',
-      linesByLawyer,
-      '',
-      '(Bom trabalho equipe!)',
-    ].join('\n');
+      const since7 = new Date(Date.now() - 7 * 86400e3).toISOString();
 
-    setWeeklySummaryText(summary);
-    setBuildingSummary(false);
+      const [doneTasksRes, newCasesRes, paidFinanceRes] = await Promise.all([
+        sb
+          .from('tasks')
+          .select('id,done_at,assigned_to_user_id')
+          .gte('done_at', since7)
+          .limit(1200),
+        sb
+          .from('cases')
+          .select('id,created_at')
+          .gte('created_at', since7)
+          .limit(1200),
+        sb
+          .from('finance_transactions')
+          .select('id,type,amount_cents,paid_at,status')
+          .eq('type', 'income')
+          .eq('status', 'paid')
+          .gte('paid_at', since7)
+          .limit(1200),
+      ]);
+
+      if (doneTasksRes.error || newCasesRes.error || paidFinanceRes.error) {
+        throw new Error(doneTasksRes.error?.message || newCasesRes.error?.message || paidFinanceRes.error?.message || 'Falha ao gerar fechamento semanal.');
+      }
+
+      const weeklyTasks = (doneTasksRes.data || []) as Pick<TaskLite, 'id' | 'done_at' | 'assigned_to_user_id'>[];
+      const weeklyCases = (newCasesRes.data || []) as CaseCreatedLite[];
+      const weeklyPaidFinance = (paidFinanceRes.data || []) as FinanceLite[];
+
+      const profileById = new Map(
+        profiles.map((p) => [p.user_id, p.display_name || p.email || 'Membros'] as const),
+      );
+      const grouped = new Map<string, { label: string; count: number }>();
+
+      for (const t of weeklyTasks) {
+        const key = t.assigned_to_user_id || 'Membros';
+        const label = t.assigned_to_user_id ? profileById.get(t.assigned_to_user_id) || 'Membros' : 'Membros';
+        const current = grouped.get(key) || { label, count: 0 };
+        current.count += 1;
+        grouped.set(key, current);
+      }
+
+      const linesByLawyer = grouped.size
+        ? Array.from(grouped.values()).sort((a, b) => b.count - a.count).map((row) => `• ${row.label}: ${row.count}`).join('\n')
+        : '• Membros: 0';
+
+      const paidAmount = weeklyPaidFinance.reduce((acc, item) => acc + Number(item.amount_cents || 0), 0) / 100;
+
+      const summary = [
+        '📊 *Fechamento Semanal - Lima Lopes & Diógenes*',
+        `✅ Tarefas Concluídas: ${weeklyTasks.length}`,
+        `🚀 Novos Casos: ${weeklyCases.length}`,
+        `💰 Faturamento (Pago): R$ ${paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        '',
+        '👥 Concluídas por advogado:',
+        linesByLawyer,
+        '',
+        '(Bom trabalho equipe!)',
+      ].join('\n');
+
+      setWeeklySummaryText(summary);
+      setWeeklyFeedback('Relatório semanal gerado. Você pode revisar e editar o texto antes do envio.');
+    } catch (e: any) {
+      setWeeklyError(e?.message || 'Falha ao gerar fechamento semanal.');
+    } finally {
+      setBuildingSummary(false);
+    }
   }
 
   async function handleSendWeeklyWhatsapp() {
@@ -226,8 +263,10 @@ export function AiReportsPage() {
       setWeeklyFeedback(null);
       return;
     }
-    if (!weeklyWhatsapp.trim()) {
-      setWeeklyError('Informe o WhatsApp do grupo/sócio para envio.');
+
+    const target = prompt('Informe o número do Grupo ou do Sócio para envio no WhatsApp:');
+    if (!target?.trim()) {
+      setWeeklyError('Envio cancelado: informe o WhatsApp do grupo/sócio.');
       setWeeklyFeedback(null);
       return;
     }
@@ -236,7 +275,7 @@ export function AiReportsPage() {
       setSendingWeekly(true);
       setWeeklyError(null);
       setWeeklyFeedback(null);
-      await sendWhatsAppText(weeklyWhatsapp.trim(), weeklySummaryText);
+      await sendWhatsAppText(target.trim(), weeklySummaryText);
       setWeeklyFeedback('Resumo enviado com sucesso no WhatsApp.');
     } catch (e: any) {
       setWeeklyError(e?.message || 'Falha ao enviar o resumo no WhatsApp.');
@@ -305,8 +344,8 @@ export function AiReportsPage() {
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-semibold text-white">Fechamento da Equipe (Semanal)</div>
-          <button className="btn-primary !px-4 !py-2 !text-sm" onClick={buildWeeklySummary} disabled={loading || buildingSummary}>
+          <div className="text-sm font-semibold text-white">Fechamento da Equipe (Sexta-feira)</div>
+          <button className="btn-primary !px-4 !py-2 !text-sm" onClick={() => void buildWeeklySummary()} disabled={loading || buildingSummary}>
             {buildingSummary ? 'Gerando...' : 'Gerar Relatório de Produtividade'}
           </button>
         </div>
@@ -315,26 +354,17 @@ export function AiReportsPage() {
           <textarea
             className="input min-h-[180px] !text-sm"
             value={weeklySummaryText}
-            readOnly
-            placeholder="Clique em \"Gerar Relatório de Produtividade\" para montar o fechamento semanal da equipe."
+            onChange={(e) => setWeeklySummaryText(e.target.value)}
+            placeholder={'Clique em "Gerar Relatório de Produtividade" para montar o fechamento semanal da equipe.'}
           />
 
-          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-            <input
-              className="input !mt-0"
-              value={weeklyWhatsapp}
-              onChange={(e) => setWeeklyWhatsapp(e.target.value)}
-              placeholder="WhatsApp do Grupo/Sócio (ex.: 5511999999999)"
-              inputMode="tel"
-            />
-            <button
-              className="btn-primary !h-[42px] !px-4 !py-2 !text-sm"
-              onClick={() => void handleSendWeeklyWhatsapp()}
-              disabled={sendingWeekly || !weeklySummaryText.trim()}
-            >
-              {sendingWeekly ? 'Enviando...' : 'Enviar Resumo no WhatsApp'}
-            </button>
-          </div>
+          <button
+            className="inline-flex h-[42px] items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-500 disabled:opacity-50"
+            onClick={() => void handleSendWeeklyWhatsapp()}
+            disabled={sendingWeekly || !weeklySummaryText.trim()}
+          >
+            {sendingWeekly ? 'Enviando...' : '💬 Enviar para o Grupo (WhatsApp)'}
+          </button>
 
           {weeklyError ? <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{weeklyError}</div> : null}
           {weeklyFeedback ? <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">{weeklyFeedback}</div> : null}

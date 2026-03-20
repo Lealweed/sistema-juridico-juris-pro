@@ -206,10 +206,12 @@ create policy agenda_reminders_delete on public.agenda_reminders
 for delete using (public.is_office_member(office_id));
 
 -- Audit
+drop trigger if exists tr_audit_agendas on public.agendas;
 create trigger tr_audit_agendas
 after insert or update or delete on public.agendas
 for each row execute function public._audit_log_row();
 
+drop trigger if exists tr_audit_agenda_reminders on public.agenda_reminders;
 create trigger tr_audit_agenda_reminders
 after insert or update or delete on public.agenda_reminders
 for each row execute function public._audit_log_row();

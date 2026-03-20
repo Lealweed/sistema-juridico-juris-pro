@@ -52,6 +52,23 @@ export async function listFinanceTx(limit = 50): Promise<FinanceTx[]> {
   return (data || []) as FinanceTx[];
 }
 
+export async function loadClientTransactions(clientId: string): Promise<FinanceTx[]> {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { data, error } = await sb
+    .from('finance_transactions')
+    .select(
+      'id,user_id,type,status,occurred_on,due_date,description,amount_cents,payment_method,notes,reminder_1d_sent_at,category_id,category:finance_categories(name),created_at',
+    )
+    .eq('client_id', clientId)
+    .order('due_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as FinanceTx[];
+}
+
 export async function listCategories(type: 'income' | 'expense'): Promise<FinanceCategory[]> {
   const sb = requireSupabase();
   await getAuthedUser();

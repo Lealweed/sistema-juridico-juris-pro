@@ -9,6 +9,7 @@ import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
 import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
 import { sendWhatsAppText } from '@/lib/evolutionApi';
+import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
 
 function extractSourceFromNotes(notes: string | null) {
   if (!notes) return null;
@@ -56,8 +57,10 @@ export function ClientDetailsPage() {
   const { clientId } = useParams();
   const [row, setRow] = useState<ClientRow | null>(null);
   const [cases, setCases] = useState<CaseLite[]>([]);
+  const [clientTransactions, setClientTransactions] = useState<FinanceTx[]>([]);
   const [createdByLabel, setCreatedByLabel] = useState<string>('—');
   const [loading, setLoading] = useState(true);
+  const [txLoading, setTxLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState(false);
@@ -69,6 +72,12 @@ export function ClientDetailsPage() {
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [feesModalOpen, setFeesModalOpen] = useState(false);
+  const [feesSaving, setFeesSaving] = useState(false);
+  const [feeDescription, setFeeDescription] = useState('');
+  const [feeTotal, setFeeTotal] = useState('');
+  const [feeInstallments, setFeeInstallments] = useState(1);
+  const [feeFirstDueDate, setFeeFirstDueDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     let alive = true;
@@ -76,19 +85,21 @@ export function ClientDetailsPage() {
     (async () => {
       try {
         setLoading(true);
+        setTxLoading(true);
         setError(null);
         if (!clientId) throw new Error('Cliente inválido.');
 
         const sb = requireSupabase();
         await getAuthedUser();
 
-        const [c1, c2] = await Promise.all([
+        const [c1, c2, tx] = await Promise.all([
           sb.from('clients').select('id,name,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep').eq('id', clientId).maybeSingle(),
           sb
             .from('cases')
             .select('id,title,status,process_number,area,created_at')
             .eq('client_id', clientId)
             .order('created_at', { ascending: false }),
+          loadClientTransactions(clientId),
         ]);
 
         if (c1.error) throw new Error(c1.error.message);
@@ -103,6 +114,7 @@ export function ClientDetailsPage() {
         setEmail(client?.email || '');
         setNotes(client?.notes || '');
         setCases((c2.data || []) as CaseLite[]);
+        setClientTransactions(tx || []);
 
         if (client?.user_id) {
           const p = await sb
@@ -120,10 +132,12 @@ export function ClientDetailsPage() {
         }
 
         setLoading(false);
+        setTxLoading(false);
       } catch (err: any) {
         if (!alive) return;
         setError(err?.message || 'Falha ao carregar.');
         setLoading(false);
+        setTxLoading(false);
       }
     })();
 
@@ -169,6 +183,99 @@ export function ClientDetailsPage() {
       setError(e.message || 'Falha ao salvar');
     } finally {
       setSaving(false);
+    }
+  }
+
+  function formatDueDate(value: string | null) {
+    if (!value) return '—';
+    return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR');
+  }
+
+  function addMonths(dateIso: string, months: number) {
+    const dt = new Date(`${dateIso}T00:00:00`);
+    dt.setMonth(dt.getMonth() + months);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  async function refreshClientTx() {
+    if (!clientId) return;
+    setTxLoading(true);
+    try {
+      const tx = await loadClientTransactions(clientId);
+      setClientTransactions(tx);
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao carregar honorários.');
+    } finally {
+      setTxLoading(false);
+    }
+  }
+
+  async function handleLaunchFees() {
+    if (!clientId) return;
+
+    const description = feeDescription.trim();
+    if (!description) {
+      setError('Informe a descrição dos honorários.');
+      return;
+    }
+
+    const totalCents = brlToCents(feeTotal);
+    if (totalCents === null || totalCents <= 0) {
+      setError('Informe um valor total válido. Ex.: 1500,00');
+      return;
+    }
+
+    if (!feeFirstDueDate) {
+      setError('Informe a data da primeira parcela.');
+      return;
+    }
+
+    if (feeInstallments < 1 || feeInstallments > 12) {
+      setError('Número de parcelas deve ser entre 1 e 12.');
+      return;
+    }
+
+    setFeesSaving(true);
+    setError(null);
+
+    try {
+      const sb = requireSupabase();
+      const user = await getAuthedUser();
+      const occurredOn = new Date().toISOString().slice(0, 10);
+      const baseAmount = Math.floor(totalCents / feeInstallments);
+      const remainder = totalCents - baseAmount * feeInstallments;
+
+      for (let idx = 0; idx < feeInstallments; idx += 1) {
+        const installmentCents = baseAmount + (idx < remainder ? 1 : 0);
+        const dueDate = addMonths(feeFirstDueDate, idx);
+        const installmentLabel = feeInstallments > 1 ? ` (${idx + 1}/${feeInstallments})` : '';
+
+        const { error: insertErr } = await sb.from('finance_transactions').insert({
+          user_id: user.id,
+          type: 'income',
+          status: 'planned',
+          occurred_on: occurredOn,
+          due_date: dueDate,
+          description: `${description}${installmentLabel}`,
+          amount_cents: installmentCents,
+          payment_method: null,
+          notes: 'Honorários lançados na ficha do cliente.',
+          client_id: clientId,
+        });
+
+        if (insertErr) throw new Error(insertErr.message);
+      }
+
+      await refreshClientTx();
+      setFeesModalOpen(false);
+      setFeeDescription('');
+      setFeeTotal('');
+      setFeeInstallments(1);
+      setFeeFirstDueDate(new Date().toISOString().slice(0, 10));
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao lançar honorários.');
+    } finally {
+      setFeesSaving(false);
     }
   }
 
@@ -408,6 +515,132 @@ export function ClientDetailsPage() {
       ) : null}
 
       {clientId ? <TimelineSection clientId={clientId} /> : null}
+
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-white">Honorários e Parcelas</div>
+            <div className="text-xs text-white/60">Lançamentos financeiros vinculados ao cliente</div>
+          </div>
+          <button
+            onClick={() => {
+              setFeesModalOpen(true);
+              setError(null);
+            }}
+            className="btn-primary !rounded-lg !px-3 !py-1.5 !text-xs"
+          >
+            Lançar Honorários
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {txLoading ? <div className="text-sm text-white/60">Carregando honorários...</div> : null}
+          {!txLoading && clientTransactions.length === 0 ? <div className="text-sm text-white/60">Nenhum lançamento financeiro para este cliente.</div> : null}
+          {!txLoading && clientTransactions.map((tx) => {
+            const paid = tx.status === 'paid';
+            return (
+              <div key={tx.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs text-white/50">Vencimento</div>
+                    <div className="text-sm text-white/90">{formatDueDate(tx.due_date)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/50">Valor</div>
+                    <div className="text-sm font-semibold text-white">{centsToBRL(tx.amount_cents)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/50">Status</div>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${paid ? 'bg-green-500/20 text-green-200' : 'bg-amber-500/20 text-amber-200'}`}>
+                      {paid ? 'Pago' : 'Pendente'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {feesModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-white">Lançar Honorários</h2>
+              <button
+                onClick={() => !feesSaving && setFeesModalOpen(false)}
+                className="rounded-md px-2 py-1 text-sm text-white/70 hover:bg-white/10"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="grid gap-3">
+              <label className="text-sm text-white/80">
+                Descrição
+                <input
+                  className="input"
+                  value={feeDescription}
+                  onChange={(e) => setFeeDescription(e.target.value)}
+                  placeholder="Ex.: Honorários iniciais do atendimento"
+                />
+              </label>
+
+              <label className="text-sm text-white/80">
+                Valor Total
+                <input
+                  className="input"
+                  value={feeTotal}
+                  onChange={(e) => setFeeTotal(e.target.value)}
+                  placeholder="Ex.: 1500,00"
+                />
+              </label>
+
+              <label className="text-sm text-white/80">
+                Número de Parcelas
+                <select
+                  className="input"
+                  value={feeInstallments}
+                  onChange={(e) => setFeeInstallments(Number(e.target.value))}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}x
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="text-sm text-white/80">
+                Data da Primeira Parcela
+                <input
+                  type="date"
+                  className="input"
+                  value={feeFirstDueDate}
+                  onChange={(e) => setFeeFirstDueDate(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setFeesModalOpen(false)}
+                disabled={feesSaving}
+                className="btn-ghost !px-3 !py-1.5 text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => void handleLaunchFees()}
+                disabled={feesSaving}
+                className="btn-primary !px-3 !py-1.5 text-xs"
+              >
+                {feesSaving ? 'Lançando...' : 'Salvar Parcelas'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

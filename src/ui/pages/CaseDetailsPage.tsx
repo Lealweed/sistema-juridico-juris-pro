@@ -5,7 +5,7 @@ import { DollarSign } from 'lucide-react';
 import { Card } from '@/ui/widgets/Card';
 import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
-import { fetchDatajudLastMovement } from '@/lib/datajud';
+import { fetchProcessoEscavador } from '@/lib/escavadorApi';
 import { formatBrPhone } from '@/lib/phone';
 import { notifyClientBilling, notifyClientCaseUpdate } from '@/lib/evolutionApi';
 import { parseMoneyInput, formatBRL } from '@/lib/money';
@@ -231,7 +231,7 @@ export function CaseDetailsPage() {
     }
   }
 
-  async function consultDatajud() {
+  async function consultEscavador() {
     if (!caseId) return;
     if (!processNumber.trim()) {
       setError('Informe o número CNJ do processo.');
@@ -240,9 +240,10 @@ export function CaseDetailsPage() {
 
     setChecking(true);
     setError(null);
+    setActionMsg({ type: 'ok', text: 'Buscando...' });
 
     try {
-      const res = await fetchDatajudLastMovement(processNumber.trim());
+      const res = await fetchProcessoEscavador(processNumber.trim());
 
       const sb = requireSupabase();
       await getAuthedUser();
@@ -250,18 +251,20 @@ export function CaseDetailsPage() {
       const { error: uErr } = await sb
         .from('cases')
         .update({
-          process_number: processNumber.trim(),
-          datajud_last_movement_text: res.last_movement_text,
-          datajud_last_movement_at: res.last_movement_at,
+          process_number: res.numero_cnj || processNumber.trim(),
+          datajud_last_movement_text: res.ultima_movimentacao.texto || 'Sem movimentação disponível no Escavador.',
+          datajud_last_movement_at: res.ultima_movimentacao.data,
           datajud_last_checked_at: new Date().toISOString(),
         })
         .eq('id', caseId);
 
       if (uErr) throw new Error(uErr.message);
       await load();
+      setActionMsg({ type: 'ok', text: 'Movimentação atualizada via Escavador.' });
       setChecking(false);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao consultar DataJud.');
+      setError(err?.message || 'Falha ao consultar Escavador.');
+      setActionMsg(null);
       setChecking(false);
     }
   }
@@ -456,6 +459,9 @@ export function CaseDetailsPage() {
               <label className="text-sm text-white/80">
                 Número do processo (CNJ)
                 <input className="input mt-1" value={processNumber} onChange={(e) => setProcessNumber(e.target.value)} />
+                <button onClick={() => void consultEscavador()} disabled={checking} className="mt-2 btn-primary !px-3 !py-1.5 !text-xs">
+                  {checking ? 'Buscando...' : '🔍 Consultar Escavador'}
+                </button>
               </label>
 
               <label className="text-sm text-white/80">
@@ -532,12 +538,9 @@ export function CaseDetailsPage() {
       <Card>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-white">DataJud (consulta sob demanda)</div>
+            <div className="text-sm font-semibold text-white">Escavador (consulta sob demanda)</div>
             <div className="text-xs text-white/60">Consulta por número CNJ e salva a última movimentação.</div>
           </div>
-          <button onClick={() => void consultDatajud()} disabled={checking} className="btn-primary">
-            {checking ? 'Consultando…' : 'Consultar DataJud'}
-          </button>
         </div>
 
         <div className="mt-4 grid gap-2">

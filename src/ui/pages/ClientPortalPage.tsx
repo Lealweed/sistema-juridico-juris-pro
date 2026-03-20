@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
-import { sendWhatsAppText } from '@/lib/evolutionApi';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -11,7 +10,18 @@ type PortalState = 'cpf' | 'token' | 'authenticated';
 type PortalClient = {
   id: string;
   name: string;
-  whatsapp: string | null;
+  whatsapp_last4: string;
+};
+
+type OtpRequestResponse = {
+  ok: true;
+  challenge: string;
+  client: PortalClient;
+};
+
+type OtpVerifyResponse = {
+  ok: true;
+  client: PortalClient;
 };
 
 function onlyDigits(value: string) {
@@ -26,15 +36,10 @@ function formatCpfMask(value: string) {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
-function whatsappLast4(value: string | null | undefined) {
-  const digits = onlyDigits(value || '');
-  return digits.slice(-4).padStart(4, '*');
-}
-
 export function ClientPortalPage() {
   const [state, setState] = useState<PortalState>('cpf');
   const [client, setClient] = useState<PortalClient | null>(null);
-  const [expectedCode, setExpectedCode] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
   const [cpfInput, setCpfInput] = useState('');
   const [tokenInput, setTokenInput] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
@@ -44,6 +49,23 @@ export function ClientPortalPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function getErrorMessage(err: unknown, fallback: string) {
+    if (err instanceof Error && err.message) return err.message;
+    return fallback;
+  }
+
+  async function invokePortalOtp<T>(payload: Record<string, unknown>) {
+    if (!supabase) throw new Error('Configuração do portal indisponível no momento.');
+
+    const { data, error } = await supabase.functions.invoke<T>('portal-auth-otp', {
+      body: payload,
+    });
+
+    if (error) throw new Error(error.message || 'Falha ao processar autenticação.');
+    if (!data) throw new Error('Resposta inválida da autenticação.');
+    return data;
+  }
 
   async function requestToken(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -63,50 +85,60 @@ export function ClientPortalPage() {
     setAuthError(null);
 
     try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id,name,whatsapp')
-        .eq('cpf', cpfLimpo)
-        .limit(1)
-        .maybeSingle();
+      const data = await invokePortalOtp<OtpRequestResponse>({
+        action: 'request',
+        cpf: cpfLimpo,
+      });
 
-      if (error) throw new Error(error.message);
-      if (!data) {
-        setAuthError('CPF não encontrado na base do escritório.');
-        return;
+      if (!data.ok || !data.challenge || !data.client?.id) {
+        throw new Error('Falha ao iniciar validação de segurança.');
       }
 
-      if (!data.whatsapp) {
-        setAuthError('Cliente sem WhatsApp cadastrado para receber o código.');
-        return;
-      }
-
-      const code = String(Math.floor(1000 + Math.random() * 9000));
-      setExpectedCode(code);
-      setClient({ id: data.id, name: data.name, whatsapp: data.whatsapp });
-
-      await sendWhatsAppText(
-        data.whatsapp,
-        `Seu código de segurança para acessar o portal Lima, Lopes & Diógenes é: *${code}*`,
-      );
+      setChallengeToken(data.challenge);
+      setClient(data.client);
 
       setTokenInput('');
       setState('token');
-    } catch (err: any) {
-      setAuthError(err?.message || 'Falha ao enviar código de segurança.');
+    } catch (err: unknown) {
+      setAuthError(getErrorMessage(err, 'Falha ao enviar código de segurança.'));
     } finally {
       setAuthLoading(false);
     }
   }
 
-  function validateToken(e: React.FormEvent<HTMLFormElement>) {
+  async function validateToken(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (tokenInput.trim() !== expectedCode) {
-      setAuthError('Código inválido');
+    const trimmedCode = tokenInput.trim();
+    if (!challengeToken) {
+      setAuthError('Sessão de validação expirada. Solicite um novo código.');
       return;
     }
+    if (trimmedCode.length !== 4) {
+      setAuthError('Informe o código de 4 dígitos.');
+      return;
+    }
+
+    setAuthLoading(true);
     setAuthError(null);
-    setState('authenticated');
+
+    try {
+      const data = await invokePortalOtp<OtpVerifyResponse>({
+        action: 'verify',
+        challenge: challengeToken,
+        code: trimmedCode,
+      });
+
+      if (!data.ok || !data.client?.id) {
+        throw new Error('Falha ao validar código.');
+      }
+
+      setClient(data.client);
+      setState('authenticated');
+    } catch (err: unknown) {
+      setAuthError(getErrorMessage(err, 'Código inválido.'));
+    } finally {
+      setAuthLoading(false);
+    }
   }
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -157,8 +189,8 @@ export function ClientPortalPage() {
           : `${files.length} documentos recebidos com sucesso!`,
       );
       if (fileRef.current) fileRef.current.value = '';
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Falha ao enviar documento.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err, 'Falha ao enviar documento.'));
     } finally {
       setUploading(false);
     }
@@ -227,7 +259,7 @@ export function ClientPortalPage() {
         <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
           <h1 className="text-xl font-semibold text-white">Validação de Segurança</h1>
           <p className="mt-2 text-sm text-white/60">
-            Enviamos um código de 4 dígitos para o seu WhatsApp final {whatsappLast4(client?.whatsapp)}.
+            Enviamos um código de 4 dígitos para o seu WhatsApp final {client?.whatsapp_last4 || '****'}.
           </p>
 
           <form className="mt-5 grid gap-3" onSubmit={validateToken}>
@@ -254,14 +286,15 @@ export function ClientPortalPage() {
                 onClick={() => {
                   setState('cpf');
                   setTokenInput('');
-                  setExpectedCode('');
+                  setChallengeToken('');
+                  setClient(null);
                   setAuthError(null);
                 }}
               >
                 Voltar
               </button>
-              <button className="btn-primary flex-1" type="submit">
-                Validar Código
+              <button className="btn-primary flex-1" type="submit" disabled={authLoading}>
+                {authLoading ? 'Validando...' : 'Validar Código'}
               </button>
             </div>
           </form>
