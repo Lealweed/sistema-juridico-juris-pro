@@ -13,6 +13,7 @@ type Member = {
   oab_number?: string;
   oab_uf?: string;
   phone?: string;
+  whatsapp?: string;
   created_at: string;
   stats?: {
     activeCases: number;
@@ -53,7 +54,7 @@ export function TeamPage() {
       const userIds = data.map((m: any) => m.user_id);
       const { data: profilesData } = await sb
         .from('user_profiles')
-        .select('user_id, display_name, email, oab_number, oab_uf, phone')
+        .select('user_id, display_name, email, oab_number, oab_uf, phone, whatsapp')
         .in('user_id', userIds);
 
       const profilesMap = new Map((profilesData || []).map((p: any) => [p.user_id, p]));
@@ -68,6 +69,7 @@ export function TeamPage() {
           oab_number: p?.oab_number || '',
           oab_uf: p?.oab_uf || '',
           phone: p?.phone || '',
+          whatsapp: p?.whatsapp || '',
           stats: {
             activeCases: Math.floor(Math.random() * 20) + 2,
             tasksDone: Math.floor(Math.random() * 50) + 10,
@@ -132,11 +134,11 @@ export function TeamPage() {
     }
   }
 
-  async function updateProfile(userId: string, oabNumber: string, oabUf: string, phone: string) {
+  async function updateProfile(userId: string, oabNumber: string, oabUf: string, phone: string, whatsapp: string) {
     const sb = requireSupabase();
     const { error } = await sb
       .from('user_profiles')
-      .update({ oab_number: oabNumber, oab_uf: oabUf, phone: phone.trim() || null })
+      .update({ oab_number: oabNumber, oab_uf: oabUf, phone: phone.trim() || null, whatsapp: whatsapp.trim() || null })
       .eq('user_id', userId);
 
     if (error) {
@@ -295,14 +297,24 @@ export function TeamPage() {
                           id={`oab_uf_${selectedMember.id}`}
                         />
                       </label>
+                      <label className="text-xs text-white/60 flex-1 min-w-[140px]">
+                        Telefone
+                        <input 
+                          className="input mt-1 !py-2 !text-sm" 
+                          placeholder="Ex: 1132223333" 
+                          inputMode="tel"
+                          defaultValue={selectedMember.phone || ''}
+                          id={`phone_${selectedMember.id}`}
+                        />
+                      </label>
                       <label className="text-xs text-white/60 flex-1 min-w-[160px]">
-                        WhatsApp (com DDD e país)
+                        WhatsApp (notificações n8n)
                         <input 
                           className="input mt-1 !py-2 !text-sm" 
                           placeholder="Ex: 5511999999999" 
                           inputMode="tel"
-                          defaultValue={selectedMember.phone || ''}
-                          id={`phone_${selectedMember.id}`}
+                          defaultValue={selectedMember.whatsapp || ''}
+                          id={`whatsapp_${selectedMember.id}`}
                         />
                       </label>
                       <button 
@@ -310,7 +322,8 @@ export function TeamPage() {
                           const num = (document.getElementById(`oab_number_${selectedMember.id}`) as HTMLInputElement)?.value;
                           const uf = (document.getElementById(`oab_uf_${selectedMember.id}`) as HTMLInputElement)?.value;
                           const ph = (document.getElementById(`phone_${selectedMember.id}`) as HTMLInputElement)?.value;
-                          updateProfile(selectedMember.user_id, num, uf, ph);
+                          const wa = (document.getElementById(`whatsapp_${selectedMember.id}`) as HTMLInputElement)?.value;
+                          updateProfile(selectedMember.user_id, num, uf, ph, wa);
                         }}
                         className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0"
                       >

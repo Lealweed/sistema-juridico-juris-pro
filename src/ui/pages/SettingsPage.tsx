@@ -70,6 +70,8 @@ export function SettingsPage() {
   const [inviteRole, setInviteRole] = useState<'member' | 'admin' | 'finance' | 'staff'>('member');
 
   const [saving, setSaving] = useState(false);
+  const [myWhatsapp, setMyWhatsapp] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const myMember = useMemo(() => members.find((m) => m.user_id === meId) || null, [members, meId]);
   const isAdmin = myMember?.role === 'admin';
@@ -87,6 +89,14 @@ export function SettingsPage() {
       // load invites even when office query fails
       const myInvites = await listMyOfficeInvites().catch(() => [] as OfficeInviteRow[]);
       setInvites((myInvites || []) as OfficeInviteRow[]);
+
+      // Carrega WhatsApp do próprio perfil
+      const { data: selfProfile } = await sb
+        .from('user_profiles')
+        .select('whatsapp')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setMyWhatsapp((selfProfile as any)?.whatsapp || '');
 
       // Find my office by membership
       const { data: myMembership, error: memErr } = await sb
@@ -231,6 +241,24 @@ export function SettingsPage() {
     }
   }
 
+  async function saveMyWhatsapp() {
+    if (!meId) return;
+    setSavingProfile(true);
+    setError(null);
+    try {
+      const sb = requireSupabase();
+      const { error: uErr } = await sb
+        .from('user_profiles')
+        .update({ whatsapp: myWhatsapp.trim() || null })
+        .eq('user_id', meId);
+      if (uErr) throw new Error(uErr.message);
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
   // (revogar convite) será adicionado quando listarmos convites do escritório para admin
 
   async function setRole(memberId: string, role: string) {
@@ -288,6 +316,30 @@ export function SettingsPage() {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <div className="text-sm font-semibold text-white">Meu Perfil</div>
+          <div className="mt-3 grid gap-3">
+            <label className="text-sm text-white/80">
+              WhatsApp (para notificações n8n)
+              <input
+                className="input"
+                inputMode="tel"
+                value={myWhatsapp}
+                onChange={(e) => setMyWhatsapp(e.target.value)}
+                placeholder="Ex: 5511999999999"
+              />
+            </label>
+            <p className="text-xs text-white/50">Formato internacional sem espaços ou hífen. Usado pelo n8n para cobrança de tarefas.</p>
+            <button
+              className="btn-primary !text-sm"
+              disabled={savingProfile}
+              onClick={() => void saveMyWhatsapp()}
+            >
+              {savingProfile ? 'Salvando…' : 'Salvar WhatsApp'}
+            </button>
+          </div>
+        </Card>
+
         <Card>
           <div className="text-sm font-semibold text-white">Escritório</div>
           {loading ? <div className="mt-3 text-sm text-white/60">Carregando…</div> : null}

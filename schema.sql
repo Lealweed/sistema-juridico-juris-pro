@@ -1183,6 +1183,10 @@ CREATE TABLE public.user_profiles (
     oab_uf text
 );
 
+-- Patches aplicados após o dump original (aplicar via SQL Editor do Supabase):
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS whatsapp TEXT;
+
 
 --
 -- Name: Case Case_pkey; Type: CONSTRAINT; Schema: public; Owner: -
