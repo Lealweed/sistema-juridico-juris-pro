@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
 import { acceptOfficeInvite, createOfficeInvite, listMyOfficeInvites } from '@/lib/offices';
@@ -305,12 +306,12 @@ export function SettingsPage() {
               
               {isAdmin ? (
                 <div className="grid gap-2">
-                  <a className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10" href="/app/configuracoes/equipe">
+                  <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10" to="/app/configuracoes/equipe">
                     👥 Gerenciar Equipe
-                  </a>
-                  <a className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-amber-200 transition-colors hover:bg-white/10" href="/app/configuracoes/auditoria">
+                  </Link>
+                  <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-amber-200 transition-colors hover:bg-white/10" to="/app/configuracoes/auditoria">
                     🛡️ Auditoria e Logs
-                  </a>
+                  </Link>
                 </div>
               ) : null}
             </div>
