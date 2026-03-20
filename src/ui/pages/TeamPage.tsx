@@ -12,6 +12,7 @@ type Member = {
   full_name?: string;
   oab_number?: string;
   oab_uf?: string;
+  phone?: string;
   created_at: string;
   stats?: {
     activeCases: number;
@@ -52,7 +53,7 @@ export function TeamPage() {
       const userIds = data.map((m: any) => m.user_id);
       const { data: profilesData } = await sb
         .from('user_profiles')
-        .select('user_id, display_name, email, oab_number, oab_uf')
+        .select('user_id, display_name, email, oab_number, oab_uf, phone')
         .in('user_id', userIds);
 
       const profilesMap = new Map((profilesData || []).map((p: any) => [p.user_id, p]));
@@ -66,6 +67,7 @@ export function TeamPage() {
           full_name: p?.display_name || p?.email?.split('@')[0] || 'Dr(a). Associado',
           oab_number: p?.oab_number || '',
           oab_uf: p?.oab_uf || '',
+          phone: p?.phone || '',
           stats: {
             activeCases: Math.floor(Math.random() * 20) + 2,
             tasksDone: Math.floor(Math.random() * 50) + 10,
@@ -130,17 +132,17 @@ export function TeamPage() {
     }
   }
 
-  async function updateOab(userId: string, oabNumber: string, oabUf: string) {
+  async function updateProfile(userId: string, oabNumber: string, oabUf: string, phone: string) {
     const sb = requireSupabase();
     const { error } = await sb
       .from('user_profiles')
-      .update({ oab_number: oabNumber, oab_uf: oabUf })
+      .update({ oab_number: oabNumber, oab_uf: oabUf, phone: phone.trim() || null })
       .eq('user_id', userId);
 
     if (error) {
-      alert('Erro ao atualizar OAB: ' + error.message);
+      alert('Erro ao atualizar perfil: ' + error.message);
     } else {
-      alert('OAB salva com sucesso!');
+      alert('Perfil salvo com sucesso!');
       loadTeam();
     }
   }
@@ -273,8 +275,8 @@ export function TeamPage() {
                 {['admin', 'lawyer'].includes(selectedMember.role) && (
                   <div className="mb-5 bg-blue-900/10 border border-blue-500/20 rounded-xl p-4">
                     <div className="text-sm font-semibold text-blue-200 mb-2">Integração PJe (Intimações Automáticas)</div>
-                    <div className="flex gap-3 items-end">
-                      <label className="text-xs text-white/60 flex-1">
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <label className="text-xs text-white/60 flex-1 min-w-[120px]">
                         Número OAB
                         <input 
                           className="input mt-1 !py-2 !text-sm" 
@@ -293,15 +295,26 @@ export function TeamPage() {
                           id={`oab_uf_${selectedMember.id}`}
                         />
                       </label>
+                      <label className="text-xs text-white/60 flex-1 min-w-[160px]">
+                        WhatsApp (com DDD e país)
+                        <input 
+                          className="input mt-1 !py-2 !text-sm" 
+                          placeholder="Ex: 5511999999999" 
+                          inputMode="tel"
+                          defaultValue={selectedMember.phone || ''}
+                          id={`phone_${selectedMember.id}`}
+                        />
+                      </label>
                       <button 
                         onClick={() => {
                           const num = (document.getElementById(`oab_number_${selectedMember.id}`) as HTMLInputElement)?.value;
                           const uf = (document.getElementById(`oab_uf_${selectedMember.id}`) as HTMLInputElement)?.value;
-                          updateOab(selectedMember.user_id, num, uf);
+                          const ph = (document.getElementById(`phone_${selectedMember.id}`) as HTMLInputElement)?.value;
+                          updateProfile(selectedMember.user_id, num, uf, ph);
                         }}
                         className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0"
                       >
-                        Salvar OAB
+                        Salvar Perfil
                       </button>
                     </div>
                     <p className="text-[10px] text-white/40 mt-2">Ao preencher, o sistema fará a varredura automática do Diário de Justiça Eletrônico Nacional vinculando as intimações ao perfil.</p>
