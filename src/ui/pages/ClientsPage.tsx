@@ -13,6 +13,7 @@ type ClientRow = {
   id: string;
   name: string;
   person_type: 'pf' | 'pj' | null;
+  birth_date: string | null;
   cpf: string | null;
   cnpj: string | null;
   whatsapp: string | null;
@@ -122,7 +123,7 @@ export function ClientsPage() {
 
       const { data, error: qErr } = await sb
         .from('clients')
-        .select('id,name,person_type,cpf,cnpj,whatsapp,phone,email,avatar_path,user_id,created_at')
+        .select('id,name,person_type,birth_date,cpf,cnpj,whatsapp,phone,email,avatar_path,user_id,created_at')
         .order('created_at', { ascending: false });
 
       if (qErr) throw new Error(qErr.message);
@@ -310,7 +311,6 @@ export function ClientsPage() {
       // Build extra notes
       const extraLines: string[] = [];
       if (newRg.trim()) extraLines.push(`RG: ${newRg.trim()}`);
-      if (newBirthDate) extraLines.push(`Nascimento: ${newBirthDate}`);
       if (newCivilStatus.trim()) extraLines.push(`Est. Civil: ${newCivilStatus.trim()}`);
       if (newProfession.trim()) extraLines.push(`Profissão: ${newProfession.trim()}`);
       if (newNationality.trim()) extraLines.push(`Nacionalidade: ${newNationality.trim()}`);
@@ -328,6 +328,7 @@ export function ClientsPage() {
         whatsapp: onlyDigits(newWhatsapp),
         email: newEmail.trim() || null,
         phone: onlyDigits(newPhone) || null,
+        birth_date: newBirthDate || null,
         notes: `${sourceTag}${extraBlock} ${newNotes.trim()}`.trim(),
         gov_login_hint: govLoginHint.trim() || null,
         gov_notes: govNotes.trim() || null,

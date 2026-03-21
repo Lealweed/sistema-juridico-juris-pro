@@ -25,6 +25,7 @@ function cleanNotes(notes: string | null) {
 type ClientRow = {
   id: string;
   name: string;
+  birth_date: string | null;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
@@ -71,7 +72,29 @@ export function ClientDetailsPage() {
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [rg, setRg] = useState('');
+  const [civilStatus, setCivilStatus] = useState('');
+  const [profession, setProfession] = useState('');
+  const [nationality, setNationality] = useState('');
+
+  function extractNationality(notes: string | null) {
+    if (!notes) return '';
+    const m = notes.match(/Nacionalidade:\s*([^\n]+)/i);
+    return m?.[1]?.trim() || '';
+  }
+
+  function mergeNationality(notes: string, nationality: string) {
+    let n = notes || '';
+    // Remove linha antiga
+    n = n.replace(/Nacionalidade:\s*[^\n]+\n?/i, '');
+    if (nationality.trim()) {
+      n = (n + '\nNacionalidade: ' + nationality.trim()).trim();
+    }
+    return n.trim();
+  }
   const [feesModalOpen, setFeesModalOpen] = useState(false);
   const [feesSaving, setFeesSaving] = useState(false);
   const [feeDescription, setFeeDescription] = useState('');
@@ -93,7 +116,7 @@ export function ClientDetailsPage() {
         await getAuthedUser();
 
         const [c1, c2, tx] = await Promise.all([
-          sb.from('clients').select('id,name,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep').eq('id', clientId).maybeSingle(),
+          sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep').eq('id', clientId).maybeSingle(),
           sb
             .from('cases')
             .select('id,title,status,process_number,area,created_at')
@@ -112,7 +135,13 @@ export function ClientDetailsPage() {
         setPhone(client?.phone || '');
         setWhatsapp(client?.whatsapp || '');
         setEmail(client?.email || '');
+        setBirthDate(client?.birth_date || '');
         setNotes(client?.notes || '');
+        setCpf(client?.cpf || '');
+        setRg(client?.rg || '');
+        setCivilStatus(client?.civil_status || '');
+        setProfession(client?.profession || '');
+        setNationality(extractNationality(client?.notes || ''));
         setCases((c2.data || []) as CaseLite[]);
         setClientTransactions(tx || []);
 
@@ -165,6 +194,7 @@ export function ClientDetailsPage() {
     setError(null);
     try {
       const sb = requireSupabase();
+      const notesWithNationality = mergeNationality(notes.trim(), nationality);
       const { error: updateErr } = await sb
         .from('clients')
         .update({
@@ -172,12 +202,29 @@ export function ClientDetailsPage() {
           phone: phone.trim() || null,
           whatsapp: whatsapp.trim() || null,
           email: email.trim() || null,
-          notes: notes.trim() || null,
+          birth_date: birthDate || null,
+          notes: notesWithNationality,
+          cpf: cpf.trim() || null,
+          rg: rg.trim() || null,
+          civil_status: civilStatus.trim() || null,
+          profession: profession.trim() || null,
         })
         .eq('id', clientId);
       if (updateErr) throw new Error(updateErr.message);
-      
-      setRow(prev => prev ? { ...prev, name: name.trim(), phone: phone.trim() || null, whatsapp: whatsapp.trim() || null, email: email.trim() || null, notes: notes.trim() || null } : prev);
+
+      setRow(prev => prev ? {
+        ...prev,
+        name: name.trim(),
+        phone: phone.trim() || null,
+        whatsapp: whatsapp.trim() || null,
+        email: email.trim() || null,
+        birth_date: birthDate || null,
+        notes: notesWithNationality,
+        cpf: cpf.trim() || null,
+        rg: rg.trim() || null,
+        civil_status: civilStatus.trim() || null,
+        profession: profession.trim() || null,
+      } : prev);
       setEditing(false);
     } catch (e: any) {
       setError(e.message || 'Falha ao salvar');
@@ -187,6 +234,11 @@ export function ClientDetailsPage() {
   }
 
   function formatDueDate(value: string | null) {
+    if (!value) return '—';
+    return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR');
+  }
+
+  function formatBirthDate(value: string | null) {
     if (!value) return '—';
     return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR');
   }
@@ -374,6 +426,42 @@ export function ClientDetailsPage() {
                         <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
                       </label>
                     </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <label className="text-sm text-white/80">
+                        CPF
+                        <input className="input" value={cpf} onChange={(e) => setCpf(e.target.value)} />
+                      </label>
+                      <label className="text-sm text-white/80">
+                        RG
+                        <input className="input" value={rg} onChange={(e) => setRg(e.target.value)} />
+                      </label>
+                      <label className="text-sm text-white/80">
+                        Data de Nascimento
+                        <input type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                      </label>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <label className="text-sm text-white/80">
+                        Estado Civil
+                        <select className="input" value={civilStatus} onChange={(e) => setCivilStatus(e.target.value)}>
+                          <option value="">—</option>
+                          <option value="Solteiro(a)">Solteiro(a)</option>
+                          <option value="Casado(a)">Casado(a)</option>
+                          <option value="Divorciado(a)">Divorciado(a)</option>
+                          <option value="Viúvo(a)">Viúvo(a)</option>
+                          <option value="União Estável">União Estável</option>
+                          <option value="Outro">Outro</option>
+                        </select>
+                      </label>
+                      <label className="text-sm text-white/80">
+                        Profissão
+                        <input className="input" value={profession} onChange={(e) => setProfession(e.target.value)} />
+                      </label>
+                      <label className="text-sm text-white/80">
+                        Nacionalidade
+                        <input className="input" value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Ex.: Brasileira" />
+                      </label>
+                    </div>
                     <label className="text-sm text-white/80">
                       Observações
                       <textarea className="input min-h-[100px]" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -388,7 +476,13 @@ export function ClientDetailsPage() {
                         setPhone(row.phone || '');
                         setWhatsapp(row.whatsapp || '');
                         setEmail(row.email || '');
+                        setBirthDate(row.birth_date || '');
                         setNotes(row.notes || '');
+                        setCpf(row.cpf || '');
+                        setRg(row.rg || '');
+                        setCivilStatus(row.civil_status || '');
+                        setProfession(row.profession || '');
+                        setNationality(extractNationality(row.notes || ''));
                       }} disabled={saving} className="btn-ghost">
                         Cancelar
                       </button>
@@ -422,6 +516,8 @@ export function ClientDetailsPage() {
                       <div>
                         <div className="text-xs text-white/50">E-mail</div>
                         <div className="text-sm text-white/80">{row.email || '—'}</div>
+                        <div className="mt-1 text-xs text-white/50">Data de Nascimento</div>
+                        <div className="text-sm text-white/80">{formatBirthDate(row.birth_date)}</div>
                       </div>
                     </div>
                     <div className="mt-3">
