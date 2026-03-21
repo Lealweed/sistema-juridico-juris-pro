@@ -103,6 +103,12 @@ export function TaskDetailsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPriority, setEditPriority] = useState('medium');
+  const [editDueAt, setEditDueAt] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
   const [myNotes, setMyNotes] = useState('');
   const [savingPart, setSavingPart] = useState(false);
 
@@ -210,6 +216,10 @@ export function TaskDetailsPage() {
       const t = data ? ({ ...data, subtasks: normalizeSubtasks((data as TaskRow).subtasks) } as TaskRow) : null;
       setRow(t);
       setSubtasks(normalizeSubtasks(t?.subtasks));
+      setEditTitle(t?.title || '');
+      setEditDescription(t?.description || '');
+      setEditPriority(t?.priority || 'medium');
+      setEditDueAt(t?.due_at ? t.due_at.slice(0, 16) : '');
 
       const r = await getMyOfficeRole().catch(() => '');
       setRole(r);
@@ -390,32 +400,93 @@ export function TaskDetailsPage() {
 
         {!loading && row ? (
           <div className="grid gap-4">
-            <div>
-              <div className="text-xs text-white/50">Título</div>
-              <div className="text-lg font-semibold text-white">{row.title}</div>
-            </div>
-
-            {row.description ? (
-              <div>
-                <div className="text-xs text-white/50">Descrição</div>
-                <div className="text-sm text-white/80">{row.description}</div>
-              </div>
-            ) : null}
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <div>
-                <div className="text-xs text-white/50">Status</div>
-                <div className="text-sm text-white/80">{row.status_v2 || '—'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-white/50">Prioridade</div>
-                <div className="text-sm text-white/80">{row.priority}</div>
-              </div>
-              <div>
-                <div className="text-xs text-white/50">Prazo</div>
-                <div className="text-sm text-white/80">{fmtDT(row.due_at)}</div>
-              </div>
-            </div>
+            {editing ? (
+              <>
+                <label className="text-sm text-white/80">
+                  Título
+                  <input className="input" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                </label>
+                <label className="text-sm text-white/80">
+                  Descrição
+                  <textarea className="input min-h-[80px]" value={editDescription} onChange={e => setEditDescription(e.target.value)} />
+                </label>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="text-sm text-white/80">
+                    Prioridade
+                    <select className="input" value={editPriority} onChange={e => setEditPriority(e.target.value)}>
+                      <option value="low">Baixa</option>
+                      <option value="medium">Média</option>
+                      <option value="high">Alta</option>
+                    </select>
+                  </label>
+                  <label className="text-sm text-white/80">
+                    Prazo
+                    <input type="datetime-local" className="input" value={editDueAt} onChange={e => setEditDueAt(e.target.value)} />
+                  </label>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    className="btn-primary"
+                    disabled={savingEdit}
+                    onClick={async () => {
+                      if (!row?.id) return;
+                      setSavingEdit(true);
+                      setError(null);
+                      try {
+                        const sb = requireSupabase();
+                        await getAuthedUser();
+                        const dueIso = editDueAt ? new Date(editDueAt).toISOString() : null;
+                        const { error: updateErr } = await sb.from('tasks').update({
+                          title: editTitle.trim(),
+                          description: editDescription.trim() || null,
+                          priority: editPriority,
+                          due_at: dueIso,
+                        }).eq('id', row.id);
+                        if (updateErr) throw new Error(updateErr.message);
+                        setEditing(false);
+                        await load();
+                      } catch (e: any) {
+                        setError(e?.message || 'Falha ao salvar alterações.');
+                      } finally {
+                        setSavingEdit(false);
+                      }
+                    }}
+                  >
+                    {savingEdit ? 'Salvando…' : 'Salvar Alterações'}
+                  </button>
+                  <button className="btn-ghost" disabled={savingEdit} onClick={() => setEditing(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <div className="text-xs text-white/50">Título</div>
+                  <div className="text-lg font-semibold text-white">{row.title}</div>
+                </div>
+                {row.description ? (
+                  <div>
+                    <div className="text-xs text-white/50">Descrição</div>
+                    <div className="text-sm text-white/80">{row.description}</div>
+                  </div>
+                ) : null}
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div>
+                    <div className="text-xs text-white/50">Status</div>
+                    <div className="text-sm text-white/80">{row.status_v2 || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/50">Prioridade</div>
+                    <div className="text-sm text-white/80">{row.priority}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/50">Prazo</div>
+                    <div className="text-sm text-white/80">{fmtDT(row.due_at)}</div>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <div>
@@ -443,6 +514,17 @@ export function TaskDetailsPage() {
             <div className="text-xs text-white/40">Criada em: {fmtDT(row.created_at)}</div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {!editing && (
+                <button className="btn-ghost" onClick={() => {
+                  setEditing(true);
+                  setEditTitle(row.title);
+                  setEditDescription(row.description || '');
+                  setEditPriority(row.priority || 'medium');
+                  setEditDueAt(row.due_at ? row.due_at.slice(0, 16) : '');
+                }}>
+                  ✏️ Editar
+                </button>
+              )}
               {isAdmin ? (
                 <button className="btn-ghost" onClick={() => setDelegateOpen((v) => !v)}>
                   {delegateOpen ? 'Fechar delegação' : 'Delegar'}

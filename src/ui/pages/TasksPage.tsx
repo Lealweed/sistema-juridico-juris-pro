@@ -917,6 +917,13 @@ export function TasksPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                                            <Link
+                                              to={`/app/tarefas/${t.id}`}
+                                              className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+                                              title="Editar tarefa"
+                                            >
+                                              ✏️ Editar
+                                            </Link>
                       {t.status_v2 === 'open' ? (
                         <button onClick={() => void startTask(t)} className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
                           Iniciar
