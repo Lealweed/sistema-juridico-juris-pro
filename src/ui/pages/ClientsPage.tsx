@@ -58,6 +58,9 @@ export function ClientsPage() {
   const [newProfession, setNewProfession] = useState('');
   const [newNationality, setNewNationality] = useState('');
 
+  // Portal PIN
+  const [newPortalPin, setNewPortalPin] = useState('');
+
   // legal representative
   const [hasRepresentative, setHasRepresentative] = useState(false);
   const [repName, setRepName] = useState('');
@@ -178,6 +181,8 @@ export function ClientsPage() {
 
     setAvatarFile(null);
     setAvatarPreview(null);
+
+    setNewPortalPin('');
   }
 
   useEffect(() => {
@@ -339,6 +344,7 @@ export function ClientsPage() {
         address_neighborhood: neighborhood.trim() || null,
         address_city: city.trim() || null,
         address_state: stateUf.trim() || null,
+        portal_pin: newPortalPin.trim() || null,
       };
 
       if (personType === 'pf') {
@@ -407,6 +413,18 @@ export function ClientsPage() {
             <div className="text-sm font-semibold text-white">Novo cliente</div>
 
             <div className="grid gap-3 md:grid-cols-2">
+                            <label className="text-sm text-white/80 md:col-span-2">
+                              Senha do Portal (PIN)
+                              <input
+                                className="input"
+                                value={newPortalPin}
+                                onChange={(e) => setNewPortalPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="PIN numérico (até 6 dígitos)"
+                                inputMode="numeric"
+                                maxLength={6}
+                              />
+                              <span className="text-xs text-white/50">Defina uma senha numérica para o acesso do cliente ao portal digital.</span>
+                            </label>
               <label className="text-sm text-white/80">
                 Tipo
                 <select className="input" value={personType} onChange={(e) => setPersonType(e.target.value as 'pf' | 'pj')}>

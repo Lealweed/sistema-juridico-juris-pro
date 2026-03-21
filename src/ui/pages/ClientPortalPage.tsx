@@ -1,16 +1,15 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
 
-type PortalState = 'cpf' | 'token' | 'authenticated';
+type PortalState = 'login' | 'authenticated';
 
 type PortalClient = {
   id: string;
   name: string;
-  whatsapp_last4: string;
 };
 
 type OtpRequestResponse = {
@@ -36,12 +35,16 @@ function formatCpfMask(value: string) {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
-export function ClientPortalPage() {
-  const [state, setState] = useState<PortalState>('cpf');
+  const [state, setState] = useState<PortalState>(() => {
+    // Mantém sessão se já autenticado
+    if (typeof window !== 'undefined' && sessionStorage.getItem('clientPortalId')) {
+      return 'authenticated';
+    }
+    return 'login';
+  });
   const [client, setClient] = useState<PortalClient | null>(null);
-  const [challengeToken, setChallengeToken] = useState('');
   const [cpfInput, setCpfInput] = useState('');
-  const [tokenInput, setTokenInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -54,6 +57,16 @@ export function ClientPortalPage() {
     if (err instanceof Error && err.message) return err.message;
     return fallback;
   }
+
+  // Mantém sessão autenticada
+  useEffect(() => {
+    if (state === 'authenticated' && client?.id) {
+      sessionStorage.setItem('clientPortalId', client.id);
+    }
+    if (state === 'login') {
+      sessionStorage.removeItem('clientPortalId');
+    }
+  }, [state, client]);
 
   async function invokePortalOtp<T>(payload: Record<string, unknown>) {
     if (!supabase) throw new Error('Configuração do portal indisponível no momento.');
@@ -210,7 +223,7 @@ export function ClientPortalPage() {
     );
   }
 
-  if (state === 'cpf') {
+  if (state === 'login') {
     return (
       <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
         <img
@@ -220,9 +233,32 @@ export function ClientPortalPage() {
         />
         <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
           <h1 className="text-xl font-semibold text-white">Acessar Meu Portal</h1>
-          <p className="mt-2 text-sm text-white/60">Informe seu CPF para receber o código de segurança no WhatsApp.</p>
+          <p className="mt-2 text-sm text-white/60">Informe seu CPF e sua Senha Numérica (PIN) para acessar o portal.</p>
 
-          <form className="mt-5 grid gap-3" onSubmit={requestToken}>
+          <form className="mt-5 grid gap-3" onSubmit={async (e) => {
+            e.preventDefault();
+            setAuthLoading(true);
+            setAuthError(null);
+            try {
+              const cpfLimpo = onlyDigits(cpfInput);
+              if (cpfLimpo.length !== 11) throw new Error('CPF inválido.');
+              if (!pinInput.trim()) throw new Error('Informe sua senha numérica (PIN).');
+              const { data, error } = await supabase
+                .from('clients')
+                .select('id,name')
+                .eq('cpf', cpfLimpo)
+                .eq('portal_pin', pinInput.trim())
+                .maybeSingle();
+              if (error) throw new Error(error.message);
+              if (!data?.id) throw new Error('CPF ou Senha incorretos.');
+              setClient({ id: data.id, name: data.name });
+              setState('authenticated');
+            } catch (err) {
+              setAuthError(getErrorMessage(err, 'CPF ou Senha incorretos.'));
+            } finally {
+              setAuthLoading(false);
+            }
+          }}>
             <label className="text-sm text-white/80">
               CPF
               <input
@@ -232,15 +268,26 @@ export function ClientPortalPage() {
                 inputMode="numeric"
                 maxLength={14}
                 placeholder="000.000.000-00"
+                autoFocus
               />
             </label>
-
+            <label className="text-sm text-white/80">
+              Senha (PIN)
+              <input
+                className="input mt-1"
+                value={pinInput}
+                onChange={(e) => setPinInput(onlyDigits(e.target.value).slice(0, 6))}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="PIN numérico"
+                type="password"
+              />
+            </label>
             {authError ? (
               <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{authError}</div>
             ) : null}
-
             <button className="btn-primary mt-1" type="submit" disabled={authLoading}>
-              {authLoading ? 'Enviando código...' : 'Continuar'}
+              {authLoading ? 'Acessando...' : 'Acessar meu Portal'}
             </button>
           </form>
         </div>
@@ -248,60 +295,7 @@ export function ClientPortalPage() {
     );
   }
 
-  if (state === 'token') {
-    return (
-      <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
-        <img
-          src="/brand/logo.jpg"
-          alt="Lima, Lopes & Diógenes"
-          className="h-16 w-auto rounded-xl shadow-lg"
-        />
-        <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h1 className="text-xl font-semibold text-white">Validação de Segurança</h1>
-          <p className="mt-2 text-sm text-white/60">
-            Enviamos um código de 4 dígitos para o seu WhatsApp final {client?.whatsapp_last4 || '****'}.
-          </p>
 
-          <form className="mt-5 grid gap-3" onSubmit={validateToken}>
-            <label className="text-sm text-white/80">
-              Código
-              <input
-                className="input mt-1"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(onlyDigits(e.target.value).slice(0, 4))}
-                inputMode="numeric"
-                maxLength={4}
-                placeholder="0000"
-              />
-            </label>
-
-            {authError ? (
-              <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{authError}</div>
-            ) : null}
-
-            <div className="flex gap-2">
-              <button
-                className="btn-ghost"
-                type="button"
-                onClick={() => {
-                  setState('cpf');
-                  setTokenInput('');
-                  setChallengeToken('');
-                  setClient(null);
-                  setAuthError(null);
-                }}
-              >
-                Voltar
-              </button>
-              <button className="btn-primary flex-1" type="submit" disabled={authLoading}>
-                {authLoading ? 'Validando...' : 'Validar Código'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">

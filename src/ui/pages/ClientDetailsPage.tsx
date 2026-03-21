@@ -43,6 +43,7 @@ type ClientRow = {
   address_city: string | null;
   address_state: string | null;
   address_cep: string | null;
+  portal_pin?: string | null;
 };
 
 type CaseLite = {
@@ -80,6 +81,9 @@ export function ClientDetailsPage() {
   const [profession, setProfession] = useState('');
   const [nationality, setNationality] = useState('');
 
+  // Portal PIN
+  const [portalPin, setPortalPin] = useState('');
+
   function extractNationality(notes: string | null) {
     if (!notes) return '';
     const m = notes.match(/Nacionalidade:\s*([^\n]+)/i);
@@ -116,7 +120,7 @@ export function ClientDetailsPage() {
         await getAuthedUser();
 
         const [c1, c2, tx] = await Promise.all([
-          sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep').eq('id', clientId).maybeSingle(),
+          sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep,portal_pin').eq('id', clientId).maybeSingle(),
           sb
             .from('cases')
             .select('id,title,status,process_number,area,created_at')
@@ -143,6 +147,7 @@ export function ClientDetailsPage() {
         setProfession(client?.profession || '');
         setNationality(extractNationality(client?.notes || ''));
         setCases((c2.data || []) as CaseLite[]);
+        setPortalPin(client?.portal_pin || '');
         setClientTransactions(tx || []);
 
         if (client?.user_id) {
@@ -208,6 +213,7 @@ export function ClientDetailsPage() {
           rg: rg.trim() || null,
           civil_status: civilStatus.trim() || null,
           profession: profession.trim() || null,
+          portal_pin: portalPin.trim() || null,
         })
         .eq('id', clientId);
       if (updateErr) throw new Error(updateErr.message);
@@ -413,6 +419,18 @@ export function ClientDetailsPage() {
                       <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
                     </label>
                     <div className="grid gap-3 md:grid-cols-3">
+                                          <label className="text-sm text-white/80">
+                                            Senha do Portal (PIN)
+                                            <input
+                                              className="input"
+                                              value={portalPin}
+                                              onChange={(e) => setPortalPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                              placeholder="PIN numérico (até 6 dígitos)"
+                                              inputMode="numeric"
+                                              maxLength={6}
+                                            />
+                                            <span className="text-xs text-white/50">Defina ou altere a senha numérica do portal do cliente.</span>
+                                          </label>
                       <label className="text-sm text-white/80">
                         Telefone
                         <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
