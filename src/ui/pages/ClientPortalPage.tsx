@@ -149,14 +149,12 @@ export function ClientPortalPage() {
               if (!pinInput.trim()) throw new Error('Informe sua senha numérica (PIN).');
               if (!supabase) throw new Error('Portal indisponível no momento.');
               const { data, error } = await supabase
-                .from('clients')
-                .select('id,name')
-                .eq('cpf', cpfLimpo)
-                .eq('portal_pin', pinInput.trim())
+                .rpc('login_client_portal', { p_cpf: cpfLimpo, p_pin: pinInput.trim() })
                 .maybeSingle();
               if (error) throw new Error(error.message);
-              if (!data?.id) throw new Error('CPF ou Senha incorretos.');
-              setClient({ id: data.id, name: data.name });
+              const result = data as { id: string, name: string } | null;
+              if (!result?.id) throw new Error('CPF ou Senha incorretos.');
+              setClient({ id: result.id, name: result.name });
               setState('authenticated');
             } catch (err) {
               setAuthError(getErrorMessage(err, 'CPF ou Senha incorretos.'));
