@@ -282,9 +282,9 @@ export function DashboardPage() {
         setTeamTasks((teamT.data || []) as TeamTaskRow[]);
         setTeamProfiles((teamP.data || []) as ProfileLite[]);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!alive) return;
-        setError(err?.message || 'Erro ao carregar.');
+        setError(err instanceof Error ? err.message : 'Erro ao carregar.');
         setLoading(false);
       }
     })();

@@ -1,9 +1,21 @@
-import { useRef, useState, useEffect } from 'react';
-import { Upload, Home, Folder, CreditCard, MessageCircle, Eye, EyeOff, Download, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  Eye,
+  EyeOff,
+  FileText,
+  Folder,
+  Home,
+  MessageCircle,
+  Upload,
+  User,
+} from 'lucide-react';
 import { ClientAvatar } from '@/ui/widgets/ClientAvatar';
-import { supabase } from '@/lib/supabaseClient';
-import { listClientDocuments, getDocumentDownloadUrl } from '@/lib/documents';
-import { loadClientTransactions, centsToBRL } from '@/lib/finance';
+import { listClientDocuments, type DocumentRow } from '@/lib/documents';
+import { loadClientTransactions, centsToBRL, type FinanceTx } from '@/lib/finance';
+import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
@@ -18,6 +30,17 @@ type PortalClient = {
   avatar_path?: string | null;
 };
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
+type PortalMeeting = {
+  id: string;
+  title: string;
+  start_at: string;
+};
+type PortalMessage = {
+  id: string;
+  sender: string;
+  content: string;
+  created_at: string;
+};
 
 export function ClientPortalPage() {
   // Utilitários
@@ -41,7 +64,11 @@ export function ClientPortalPage() {
     }
     return 'login';
   });
-  const [client, setClient] = useState<PortalClient | null>(null);
+  const [client, setClient] = useState<PortalClient | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const storedClientId = sessionStorage.getItem('clientPortalId');
+    return storedClientId ? { id: storedClientId, name: 'Cliente' } : null;
+  });
   const [cpfInput, setCpfInput] = useState('');
   const [pinInput, setPinInput] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -53,83 +80,83 @@ export function ClientPortalPage() {
 
   // Home
   const [clientNotes, setClientNotes] = useState<string | null>(null);
-  const [nextMeeting, setNextMeeting] = useState<any>(null);
+  const [nextMeeting, setNextMeeting] = useState<PortalMeeting | null>(null);
   // Drive
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-<<<<<<< HEAD
-=======
-  const fileRef = useRef<HTMLInputElement>(null);
->>>>>>> 923f268 (Portal do Cliente: visual premium, dados completos, avatar, histórico de mensagens e layout elegante)
   // Financeiro
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<FinanceTx[]>([]);
   const [financeLoading, setFinanceLoading] = useState(false);
   // Mensagens
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<PortalMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+  const clientId = client?.id ?? null;
+  const showLegacyCards =
+    typeof window !== 'undefined'
+      && Boolean((window as Window & { __portalLegacyCards?: boolean }).__portalLegacyCards);
 
   // Fetch dados do cliente ao autenticar
   useEffect(() => {
-    if (state === 'authenticated' && client?.id && supabase) {
+    if (state === 'authenticated' && clientId && supabase) {
       supabase
         .from('clients')
         .select('id,name,phone,whatsapp,email,avatar_path,notes')
-        .eq('id', client.id)
+        .eq('id', clientId)
         .maybeSingle()
         .then(({ data }) => {
           if (data) {
-            setClient((prev) => ({ ...prev, ...data }));
+            setClient((prev) => (prev ? { ...prev, ...data } : data));
             setClientNotes(data.notes || null);
           }
         });
       supabase
         .from('agenda_items')
         .select('id,title,start_at')
-        .eq('client_id', client.id)
+        .eq('client_id', clientId)
         .gt('start_at', new Date().toISOString())
         .order('start_at', { ascending: true })
         .limit(1)
         .maybeSingle()
         .then(({ data }) => setNextMeeting(data || null));
     }
-  }, [state, client]);
+  }, [state, clientId]);
 
   // Fetch documentos
   useEffect(() => {
-    if (tab === 'drive' && client?.id) {
+    if (tab === 'drive' && clientId) {
       setDocsLoading(true);
-      listClientDocuments(client.id)
+      listClientDocuments(clientId)
         .then(setDocuments)
         .catch(() => setDocuments([]))
         .finally(() => setDocsLoading(false));
     }
-  }, [tab, client]);
+  }, [tab, clientId]);
 
   // Fetch transações financeiras
   useEffect(() => {
-    if (tab === 'finance' && client?.id) {
+    if (tab === 'finance' && clientId) {
       setFinanceLoading(true);
-      loadClientTransactions(client.id)
+      loadClientTransactions(clientId)
         .then(setTransactions)
         .catch(() => setTransactions([]))
         .finally(() => setFinanceLoading(false));
     }
-  }, [tab, client]);
+  }, [tab, clientId]);
 
   // Fetch mensagens
   useEffect(() => {
-    if (tab === 'messages' && client?.id && supabase) {
+    if (tab === 'messages' && clientId && supabase) {
       supabase.from('client_messages')
         .select('id,sender,content,created_at')
-        .eq('client_id', client.id)
+        .eq('client_id', clientId)
         .order('created_at', { ascending: true })
-        .then(({ data }) => setMessages(data || []));
+        .then(({ data }) => setMessages((data || []) as PortalMessage[]));
     }
-  }, [tab, client]);
+  }, [tab, clientId]);
 
   // Upload de arquivos
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -173,8 +200,8 @@ export function ClientPortalPage() {
           : `${files.length} documentos recebidos com sucesso!`,
       );
       if (fileRef.current) fileRef.current.value = '';
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Falha ao enviar documento.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err, 'Falha ao enviar documento.'));
     } finally {
       setUploading(false);
     }
@@ -182,15 +209,14 @@ export function ClientPortalPage() {
 
   // Mantém sessão autenticada
   useEffect(() => {
-    if (state === 'authenticated' && client?.id) {
-      sessionStorage.setItem('clientPortalId', client.id);
+    if (state === 'authenticated' && clientId) {
+      sessionStorage.setItem('clientPortalId', clientId);
     }
     if (state === 'login') {
       sessionStorage.removeItem('clientPortalId');
     }
-  }, [state, client]);
+  }, [state, clientId]);
 
-<<<<<<< HEAD
   function getErrorMessage(err: unknown, fallback: string) {
     if (err instanceof Error && err.message) return err.message;
     return fallback;
@@ -292,8 +318,6 @@ export function ClientPortalPage() {
   }
 
   // --- Layout com Abas ---
-=======
->>>>>>> 923f268 (Portal do Cliente: visual premium, dados completos, avatar, histórico de mensagens e layout elegante)
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] flex flex-col items-center px-0 py-0">
       <img src="/brand/logo.jpg" alt="Lima, Lopes & Diógenes" className="h-20 w-auto rounded-2xl shadow-2xl mt-10 mb-4 border-2 border-white/10" />
@@ -322,7 +346,7 @@ export function ClientPortalPage() {
           <button className={`flex flex-col items-center gap-1 px-2 ${tab === 'messages' ? 'text-amber-300' : 'text-white/60'}`} onClick={() => setTab('messages')}><MessageCircle className="size-6" /><span className="text-xs">Mensagens</span></button>
         </nav>
         <div className="flex-1 w-full px-4 py-6 md:rounded-2xl md:border md:border-white/10 md:bg-white/5 md:mt-4 md:mb-4 min-h-[60vh]">
-          {state === 'login' && (
+          {showLegacyCards && (
             <div className="space-y-6">
               <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
                 <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
@@ -332,14 +356,14 @@ export function ClientPortalPage() {
                 <div className="font-semibold text-white mb-1">Próxima Consulta/Reunião</div>
                 {nextMeeting ? (
                   <div className="text-sm text-white/80">
-                    <span className="font-medium">{nextMeeting.title}</span><br />
-                    <span className="text-xs text-white/60">{new Date(nextMeeting.start_at).toLocaleString('pt-BR')}</span>
+                    <span className="font-medium">{nextMeeting?.title}</span><br />
+                    <span className="text-xs text-white/60">{new Date(nextMeeting?.start_at ?? '').toLocaleString('pt-BR')}</span>
                   </div>
                 ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
               </div>
             </div>
           )}
-          {state === 'authenticated' && (
+          {showLegacyCards && (
             <div className="space-y-6">
               <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
                 <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
@@ -349,8 +373,8 @@ export function ClientPortalPage() {
                 <div className="font-semibold text-white mb-1">Próxima Consulta/Reunião</div>
                 {nextMeeting ? (
                   <div className="text-sm text-white/80">
-                    <span className="font-medium">{nextMeeting.title}</span><br />
-                    <span className="text-xs text-white/60">{new Date(nextMeeting.start_at).toLocaleString('pt-BR')}</span>
+                    <span className="font-medium">{nextMeeting?.title}</span><br />
+                    <span className="text-xs text-white/60">{new Date(nextMeeting?.start_at ?? '').toLocaleString('pt-BR')}</span>
                   </div>
                 ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
               </div>
@@ -400,7 +424,7 @@ export function ClientPortalPage() {
                 <div className="font-semibold text-white mb-2">Meus Arquivos</div>
                 {docsLoading ? <div className="text-white/40 text-sm">Carregando...</div> : documents.length > 0 ? (
                   <ul className="space-y-2">
-                    {documents.map((doc: any) => (
+                    {documents.map((doc) => (
                       <li key={doc.id} className="flex items-center gap-2 text-sm text-white/80">
                         <FileText className="size-4 text-amber-300" />
                         <span className="truncate">{doc.title}</span>
@@ -417,14 +441,16 @@ export function ClientPortalPage() {
                 <div className="font-semibold text-white mb-2">Financeiro</div>
                 {financeLoading ? <div className="text-white/40 text-sm">Carregando...</div> : transactions.length > 0 ? (
                   <ul className="space-y-3">
-                    {transactions.map((tx: any) => (
+                    {transactions.map((tx) => (
                       <li key={tx.id} className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
                         <div>
                           <div className="text-white/80">{tx.description || 'Parcela'}</div>
-                          <div className="text-xs text-white/40">{new Date(tx.due_date).toLocaleDateString('pt-BR')}</div>
+                          <div className="text-xs text-white/40">
+                            {tx.due_date ? new Date(tx.due_date).toLocaleDateString('pt-BR') : 'Sem vencimento'}
+                          </div>
                         </div>
                         <div className={`font-medium ${tx.status === 'paid' ? 'text-green-400' : 'text-amber-400'}`}>
-                          R$ {tx.amount.toFixed(2)}
+                          {centsToBRL(tx.amount_cents)}
                         </div>
                       </li>
                     ))}
@@ -435,18 +461,6 @@ export function ClientPortalPage() {
           )}
           {tab === 'messages' && (
             <div className="flex flex-col h-full min-h-[50vh]">
-<<<<<<< HEAD
-              <div className="flex-1 overflow-y-auto space-y-2 mb-2 p-2">
-                {messages.length > 0 ? messages.map((m: any) => (
-                  <div key={m.id} className={`p-3 rounded-xl max-w-[80%] text-sm ${m.sender === 'client' ? 'bg-amber-400/20 text-white ml-auto rounded-br-none' : 'bg-white/10 text-white/80 mr-auto rounded-bl-none'}`}>
-                    {m.content}
-                  </div>
-                )) : <div className="text-white/40 text-sm text-center mt-4">Nenhuma mensagem.</div>}
-              </div>
-              <form className="flex gap-2 mt-auto" onSubmit={(e) => { e.preventDefault(); setSendingMsg(true); setTimeout(() => setSendingMsg(false), 1000); setMessageInput(''); }}>
-                <input className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-amber-300/50" placeholder="Digite sua mensagem..." value={messageInput} onChange={e => setMessageInput(e.target.value)} disabled={sendingMsg} />
-                <button type="submit" className="btn-primary" disabled={!messageInput.trim() || sendingMsg}>Enviar</button>
-=======
               <div className="flex-1 overflow-y-auto space-y-3 mb-2 pr-1 max-h-[50vh]">
                 {messages.length === 0 && (
                   <div className="text-white/40 text-sm">Nenhuma mensagem.</div>
@@ -485,7 +499,7 @@ export function ClientPortalPage() {
                     .eq('client_id', client.id)
                     .order('created_at', { ascending: true });
                   setMessages(data || []);
-                } catch (err) {
+                } catch {
                   // erro opcional
                 } finally {
                   setSendingMsg(false);
@@ -499,7 +513,6 @@ export function ClientPortalPage() {
                   disabled={sendingMsg}
                 />
                 <button type="submit" className="btn-primary" disabled={sendingMsg || !messageInput.trim()}>Enviar</button>
->>>>>>> 923f268 (Portal do Cliente: visual premium, dados completos, avatar, histórico de mensagens e layout elegante)
               </form>
             </div>
           )}
