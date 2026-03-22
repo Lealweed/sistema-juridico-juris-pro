@@ -132,7 +132,7 @@ export function LandingPage() {
                   </button>
                 </a>
                 <Link
-                  to="/app/login"
+                  to="/portal"
                   className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-brand-gold/30 bg-transparent px-8 py-4 text-sm font-semibold text-brand-gold transition-all hover:bg-brand-gold/10 hover:border-brand-gold/50 sm:w-auto"
                 >
                   Acessar Portal
