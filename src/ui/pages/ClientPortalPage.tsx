@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
 import { Upload, Home, Folder, CreditCard, MessageCircle } from 'lucide-react';
-import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
-import { listClientDocuments, getDocumentDownloadUrl } from '@/lib/documents';
-import { loadClientTransactions, centsToBRL } from '@/lib/finance';
+import { supabase } from '@/lib/supabaseClient';
+import { listClientDocuments } from '@/lib/documents';
+import { loadClientTransactions } from '@/lib/finance';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
@@ -12,48 +12,38 @@ type PortalClient = { id: string; name: string };
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
 
 export function ClientPortalPage() {
+  // Utilitários
   function onlyDigits(value: string) {
     return value.replace(/\D/g, '');
   }
-  function formatCpfMask(value: string) {
-    const digits = onlyDigits(value).slice(0, 11);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-  }
 
-  const [state, setState] = useState<PortalState>(() => {
+  // Estados principais
+  const [state] = useState<PortalState>(() => {
     if (typeof window !== 'undefined' && sessionStorage.getItem('clientPortalId')) {
       return 'authenticated';
     }
     return 'login';
   });
-  const [client, setClient] = useState<PortalClient | null>(null);
-  const [cpfInput, setCpfInput] = useState('');
-  const [pinInput, setPinInput] = useState('');
-  const [showPin, setShowPin] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [client] = useState<PortalClient | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<TabKey>('home');
 
   // Home
-  const [clientNotes, setClientNotes] = useState<string | null>(null);
-  const [nextMeeting, setNextMeeting] = useState<any>(null);
+  const [clientNotes] = useState<string | null>(null);
+  const [nextMeeting] = useState<any>(null);
   // Drive
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [documents] = useState<any[]>([]);
+  const [docsLoading] = useState(false);
+  const [uploading] = useState(false);
+  const [successMsg] = useState<string | null>(null);
+  const [errorMsg] = useState<string | null>(null);
   // Financeiro
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [financeLoading, setFinanceLoading] = useState(false);
+  const [transactions] = useState<any[]>([]);
+  const [financeLoading] = useState(false);
   // Mensagens
-  const [messages, setMessages] = useState<any[]>([]);
-  const [messageInput, setMessageInput] = useState('');
-  const [sendingMsg, setSendingMsg] = useState(false);
+  const [messages] = useState<any[]>([]);
+  const [messageInput] = useState('');
+  const [sendingMsg] = useState(false);
 
   // Fetch dados do cliente ao autenticar
   useEffect(() => {
