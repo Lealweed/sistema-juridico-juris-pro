@@ -1,10 +1,8 @@
-
 import { useRef, useState, useEffect } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, FileText, Home, Folder, CreditCard, MessageCircle, Eye, EyeOff, Download } from 'lucide-react';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 import { listClientDocuments, getDocumentDownloadUrl } from '@/lib/documents';
 import { loadClientTransactions, centsToBRL } from '@/lib/finance';
-
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
@@ -19,9 +17,7 @@ const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
 //   created_at timestamptz DEFAULT now()
 // );
 
-
 type PortalState = 'login' | 'authenticated';
-
 
 type PortalClient = {
   id: string;
@@ -29,9 +25,6 @@ type PortalClient = {
 };
 
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
-
-
-
 
 export function ClientPortalPage() {
   function onlyDigits(value: string) {
@@ -55,6 +48,7 @@ export function ClientPortalPage() {
   const [client, setClient] = useState<PortalClient | null>(null);
   const [cpfInput, setCpfInput] = useState('');
   const [pinInput, setPinInput] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -95,202 +89,6 @@ export function ClientPortalPage() {
       sessionStorage.removeItem('clientPortalId');
     }
   }, [state, client]);
-
-
-
-  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files?.length || !client?.id || !supabase) return;
-
-    setUploading(true);
-    setSuccessMsg(null);
-    setErrorMsg(null);
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file.size > MAX_UPLOAD_BYTES) {
-          throw new Error(`"${file.name}" excede 25 MB.`);
-        }
-
-        const docId = crypto.randomUUID();
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `clients/${client.id}/portal/${docId}_${safeName}`;
-
-        const { error: upErr } = await supabase.storage
-          .from('documents')
-          .upload(path, file, { upsert: false, contentType: file.type || undefined });
-        if (upErr) throw new Error(upErr.message);
-
-        const { error: insErr } = await supabase.from('documents').insert({
-          id: docId,
-          user_id: PORTAL_USER_ID,
-          client_id: client.id,
-          kind: 'personal',
-          title: `Portal: ${file.name}`,
-          file_path: path,
-          mime_type: file.type || null,
-          size_bytes: file.size || null,
-          is_public: true,
-        });
-
-        if (insErr) {
-          await supabase.storage.from('documents').remove([path]).catch(() => null);
-          throw new Error(insErr.message);
-        }
-      }
-
-      setSuccessMsg(
-        files.length === 1
-          ? 'Documento recebido com sucesso!'
-          : `${files.length} documentos recebidos com sucesso!`,
-      );
-      if (fileRef.current) fileRef.current.value = '';
-    } catch (err: unknown) {
-      setErrorMsg(getErrorMessage(err, 'Falha ao enviar documento.'));
-    } finally {
-      setUploading(false);
-    }
-  }
-
-
-  // Fetch dados do cliente ao autenticar
-  useEffect(() => {
-    if (state === 'authenticated' && client?.id && supabase) {
-      // Buscar notas do cliente
-      supabase.from('clients').select('notes').eq('id', client.id).maybeSingle().then(({ data }) => {
-        setClientNotes(data?.notes || null);
-      });
-      // Buscar próxima consulta/reunião
-      supabase.from('agenda_items')
-        .select('id,title,start_at')
-        .eq('client_id', client.id)
-        .gt('start_at', new Date().toISOString())
-        .order('start_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-        .then(({ data }) => setNextMeeting(data || null));
-    }
-  }, [state, client]);
-
-  // Fetch documentos
-  useEffect(() => {
-    if (tab === 'drive' && client?.id) {
-      setDocsLoading(true);
-      listClientDocuments(client.id)
-        .then(setDocuments)
-        .catch(() => setDocuments([]))
-        .finally(() => setDocsLoading(false));
-    }
-  }, [tab, client]);
-
-  // Fetch transações financeiras
-  useEffect(() => {
-    if (tab === 'finance' && client?.id) {
-      setFinanceLoading(true);
-      loadClientTransactions(client.id)
-        .then(setTransactions)
-        .catch(() => setTransactions([]))
-        .finally(() => setFinanceLoading(false));
-    }
-  }, [tab, client]);
-
-  // Fetch mensagens (placeholder)
-  useEffect(() => {
-    if (tab === 'messages' && client?.id && supabase) {
-      supabase.from('client_messages')
-        .select('id,sender,content,created_at')
-        .eq('client_id', client.id)
-        .order('created_at', { ascending: true })
-        .then(({ data }) => setMessages(data || []));
-    }
-  }, [tab, client]);
-
-  if (!hasSupabaseEnv || !supabase) {
-    return (
-      <div className="min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4">
-        <AlertTriangle className="size-12 text-red-400" />
-        <h1 className="text-xl font-semibold text-white">Portal Indisponível</h1>
-        <p className="text-sm text-white/50 text-center max-w-sm">
-          Configuração de ambiente não encontrada para acessar o portal do cliente.
-        </p>
-      </div>
-    );
-  }
-
-  if (state === 'login') {
-    return (
-      <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
-        <img
-          src="/brand/logo.jpg"
-          alt="Lima, Lopes & Diógenes"
-          className="h-16 w-auto rounded-xl shadow-lg"
-        />
-        <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h1 className="text-xl font-semibold text-white">Acessar Meu Portal</h1>
-          <p className="mt-2 text-sm text-white/60">Informe seu CPF e sua Senha Numérica (PIN) para acessar o portal.</p>
-
-          <form className="mt-5 grid gap-3" onSubmit={async (e) => {
-            e.preventDefault();
-            setAuthLoading(true);
-            setAuthError(null);
-            try {
-              const cpfLimpo = onlyDigits(cpfInput);
-              if (cpfLimpo.length !== 11) throw new Error('CPF inválido.');
-              if (!pinInput.trim()) throw new Error('Informe sua senha numérica (PIN).');
-              const { data, error } = await supabase
-                .from('clients')
-                .select('id,name')
-                .eq('cpf', cpfLimpo)
-                .eq('portal_pin', pinInput.trim())
-                .maybeSingle();
-              if (error) throw new Error(error.message);
-              if (!data?.id) throw new Error('CPF ou Senha incorretos.');
-              setClient({ id: data.id, name: data.name });
-              setState('authenticated');
-            } catch (err) {
-              setAuthError(getErrorMessage(err, 'CPF ou Senha incorretos.'));
-            } finally {
-              setAuthLoading(false);
-            }
-          }}>
-            <label className="text-sm text-white/80">
-              CPF
-              <input
-                className="input mt-1"
-                value={cpfInput}
-                onChange={(e) => setCpfInput(formatCpfMask(e.target.value))}
-                inputMode="numeric"
-                maxLength={14}
-                placeholder="000.000.000-00"
-                autoFocus
-              />
-            </label>
-            <label className="text-sm text-white/80">
-              Senha (PIN)
-              <input
-                className="input mt-1"
-                value={pinInput}
-                onChange={(e) => setPinInput(onlyDigits(e.target.value).slice(0, 6))}
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="PIN numérico"
-                type="password"
-              />
-            </label>
-            {authError ? (
-              <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{authError}</div>
-            ) : null}
-            <button className="btn-primary mt-1" type="submit" disabled={authLoading}>
-              {authLoading ? 'Acessando...' : 'Acessar meu Portal'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-
 
   // --- Layout com Abas ---
   return (
