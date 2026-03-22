@@ -1,14 +1,22 @@
 import { useRef, useState, useEffect } from 'react';
-import { Upload, Home, Folder, CreditCard, MessageCircle, AlertTriangle, Eye, EyeOff, FileText, CheckCircle2 } from 'lucide-react';
-import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
-import { listClientDocuments } from '@/lib/documents';
-import { loadClientTransactions } from '@/lib/finance';
+import { Upload, Home, Folder, CreditCard, MessageCircle, Eye, EyeOff, Download, User } from 'lucide-react';
+import { ClientAvatar } from '@/ui/widgets/ClientAvatar';
+import { supabase } from '@/lib/supabaseClient';
+import { listClientDocuments, getDocumentDownloadUrl } from '@/lib/documents';
+import { loadClientTransactions, centsToBRL } from '@/lib/finance';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 type PortalState = 'login' | 'authenticated';
-type PortalClient = { id: string; name: string };
+type PortalClient = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  avatar_path?: string | null;
+};
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
 
 export function ClientPortalPage() {
@@ -16,6 +24,7 @@ export function ClientPortalPage() {
   function onlyDigits(value: string) {
     return value.replace(/\D/g, '');
   }
+
 
   function formatCpfMask(value: string) {
     const digits = onlyDigits(value).slice(0, 11);
@@ -33,15 +42,14 @@ export function ClientPortalPage() {
     return 'login';
   });
   const [client, setClient] = useState<PortalClient | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<TabKey>('home');
-
-  // Login
   const [cpfInput, setCpfInput] = useState('');
   const [pinInput, setPinInput] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [tab, setTab] = useState<TabKey>('home');
 
   // Home
   const [clientNotes, setClientNotes] = useState<string | null>(null);
@@ -52,6 +60,10 @@ export function ClientPortalPage() {
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+<<<<<<< HEAD
+=======
+  const fileRef = useRef<HTMLInputElement>(null);
+>>>>>>> 923f268 (Portal do Cliente: visual premium, dados completos, avatar, histórico de mensagens e layout elegante)
   // Financeiro
   const [transactions, setTransactions] = useState<any[]>([]);
   const [financeLoading, setFinanceLoading] = useState(false);
@@ -63,10 +75,19 @@ export function ClientPortalPage() {
   // Fetch dados do cliente ao autenticar
   useEffect(() => {
     if (state === 'authenticated' && client?.id && supabase) {
-      supabase.from('clients').select('notes').eq('id', client.id).maybeSingle().then(({ data }) => {
-        setClientNotes(data?.notes || null);
-      });
-      supabase.from('agenda_items')
+      supabase
+        .from('clients')
+        .select('id,name,phone,whatsapp,email,avatar_path,notes')
+        .eq('id', client.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setClient((prev) => ({ ...prev, ...data }));
+            setClientNotes(data.notes || null);
+          }
+        });
+      supabase
+        .from('agenda_items')
         .select('id,title,start_at')
         .eq('client_id', client.id)
         .gt('start_at', new Date().toISOString())
@@ -169,6 +190,7 @@ export function ClientPortalPage() {
     }
   }, [state, client]);
 
+<<<<<<< HEAD
   function getErrorMessage(err: unknown, fallback: string) {
     if (err instanceof Error && err.message) return err.message;
     return fallback;
@@ -270,24 +292,75 @@ export function ClientPortalPage() {
   }
 
   // --- Layout com Abas ---
+=======
+>>>>>>> 923f268 (Portal do Cliente: visual premium, dados completos, avatar, histórico de mensagens e layout elegante)
   return (
-    <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-0 py-0">
-      <img src="/brand/logo.jpg" alt="Lima, Lopes & Diógenes" className="h-16 w-auto rounded-xl shadow-lg mt-6" />
-      <div className="flex-1 w-full max-w-md mx-auto flex flex-col mt-4">
-        {/* Abas */}
-        <nav className="fixed bottom-0 left-0 right-0 z-10 flex justify-around bg-black/70 backdrop-blur border-t border-white/10 py-2 md:static md:rounded-2xl md:border md:bg-white/5 md:mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] flex flex-col items-center px-0 py-0">
+      <img src="/brand/logo.jpg" alt="Lima, Lopes & Diógenes" className="h-20 w-auto rounded-2xl shadow-2xl mt-10 mb-4 border-2 border-white/10" />
+      {/* Dados do cliente no topo */}
+      {state === 'authenticated' && client && (
+        <div className="flex flex-col items-center gap-3 mt-2 mb-6">
+          <div className="flex items-center gap-4">
+            {/* Avatar do cliente */}
+            <ClientAvatar name={client.name} avatarPath={client.avatar_path} size={72} />
+            <div>
+              <div className="text-2xl font-bold text-white font-[Space_Grotesk] drop-shadow-lg">{client.name}</div>
+              <div className="text-sm text-white/70 font-[Inter]">{client.email || '—'}</div>
+            </div>
+          </div>
+          <div className="flex gap-6 text-base text-white/90 mt-2 font-[Inter]">
+            <span className="flex items-center gap-1"><span className="text-amber-300">📱</span> {client.phone || '—'}</span>
+            <span className="flex items-center gap-1"><span className="text-amber-300">💬</span> {client.whatsapp || '—'}</span>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 w-full max-w-xl mx-auto flex flex-col mt-2">
+        <nav className="fixed bottom-0 left-0 right-0 z-10 flex justify-around bg-black/70 backdrop-blur border-t border-white/10 py-3 md:static md:rounded-2xl md:border md:bg-white/5 md:mb-6">
           <button className={`flex flex-col items-center gap-1 px-2 ${tab === 'home' ? 'text-amber-300' : 'text-white/60'}`} onClick={() => setTab('home')}><Home className="size-6" /><span className="text-xs">Início</span></button>
           <button className={`flex flex-col items-center gap-1 px-2 ${tab === 'drive' ? 'text-amber-300' : 'text-white/60'}`} onClick={() => setTab('drive')}><Folder className="size-6" /><span className="text-xs">Arquivos</span></button>
           <button className={`flex flex-col items-center gap-1 px-2 ${tab === 'finance' ? 'text-amber-300' : 'text-white/60'}`} onClick={() => setTab('finance')}><CreditCard className="size-6" /><span className="text-xs">Financeiro</span></button>
           <button className={`flex flex-col items-center gap-1 px-2 ${tab === 'messages' ? 'text-amber-300' : 'text-white/60'}`} onClick={() => setTab('messages')}><MessageCircle className="size-6" /><span className="text-xs">Mensagens</span></button>
         </nav>
         <div className="flex-1 w-full px-4 py-6 md:rounded-2xl md:border md:border-white/10 md:bg-white/5 md:mt-4 md:mb-4 min-h-[60vh]">
-          {/* Conteúdo das Abas */}
+          {state === 'login' && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
+                <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
+                <div className="text-sm text-white/80 min-h-[32px]">{clientNotes}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="font-semibold text-white mb-1">Próxima Consulta/Reunião</div>
+                {nextMeeting ? (
+                  <div className="text-sm text-white/80">
+                    <span className="font-medium">{nextMeeting.title}</span><br />
+                    <span className="text-xs text-white/60">{new Date(nextMeeting.start_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
+              </div>
+            </div>
+          )}
+          {state === 'authenticated' && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
+                <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
+                <div className="text-sm text-white/80 min-h-[32px]">{clientNotes}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="font-semibold text-white mb-1">Próxima Consulta/Reunião</div>
+                {nextMeeting ? (
+                  <div className="text-sm text-white/80">
+                    <span className="font-medium">{nextMeeting.title}</span><br />
+                    <span className="text-xs text-white/60">{new Date(nextMeeting.start_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
+              </div>
+            </div>
+          )}
           {tab === 'home' && (
             <div className="space-y-6">
               <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
                 <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
-                <div className="text-sm text-white/80 min-h-[32px]">{clientNotes || 'Nenhum recado no momento.'}</div>
+                <div className="text-sm text-white/80 min-h-[32px]">{clientNotes}</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-1">Próxima Consulta/Reunião</div>
@@ -362,6 +435,7 @@ export function ClientPortalPage() {
           )}
           {tab === 'messages' && (
             <div className="flex flex-col h-full min-h-[50vh]">
+<<<<<<< HEAD
               <div className="flex-1 overflow-y-auto space-y-2 mb-2 p-2">
                 {messages.length > 0 ? messages.map((m: any) => (
                   <div key={m.id} className={`p-3 rounded-xl max-w-[80%] text-sm ${m.sender === 'client' ? 'bg-amber-400/20 text-white ml-auto rounded-br-none' : 'bg-white/10 text-white/80 mr-auto rounded-bl-none'}`}>
@@ -372,6 +446,60 @@ export function ClientPortalPage() {
               <form className="flex gap-2 mt-auto" onSubmit={(e) => { e.preventDefault(); setSendingMsg(true); setTimeout(() => setSendingMsg(false), 1000); setMessageInput(''); }}>
                 <input className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-amber-300/50" placeholder="Digite sua mensagem..." value={messageInput} onChange={e => setMessageInput(e.target.value)} disabled={sendingMsg} />
                 <button type="submit" className="btn-primary" disabled={!messageInput.trim() || sendingMsg}>Enviar</button>
+=======
+              <div className="flex-1 overflow-y-auto space-y-3 mb-2 pr-1 max-h-[50vh]">
+                {messages.length === 0 && (
+                  <div className="text-white/40 text-sm">Nenhuma mensagem.</div>
+                )}
+                {messages.map((msg) => (
+                  <div key={msg.id} className={`flex items-start gap-2 ${msg.sender === 'client' ? 'flex-row-reverse' : ''}`}>
+                    {msg.sender === 'client' ? (
+                      <ClientAvatar name={client?.name || 'Cliente'} avatarPath={client?.avatar_path} size={32} />
+                    ) : (
+                      <div className="rounded-full bg-amber-300/80 flex items-center justify-center w-8 h-8">
+                        <User className="text-black/80 w-5 h-5" />
+                      </div>
+                    )}
+                    <div className={`rounded-2xl px-4 py-2 max-w-[70%] text-sm shadow ${msg.sender === 'client' ? 'bg-amber-400/20 text-white/90' : 'bg-white/10 text-white/80'}`}>
+                      <div>{msg.content}</div>
+                      <div className="text-xs text-white/40 mt-1 text-right">{new Date(msg.created_at).toLocaleString('pt-BR')}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <form className="flex gap-2 mt-auto" onSubmit={async (e) => {
+                e.preventDefault();
+                if (!messageInput.trim() || !client?.id || !supabase) return;
+                setSendingMsg(true);
+                try {
+                  const { error } = await supabase.from('client_messages').insert({
+                    client_id: client.id,
+                    sender: 'client',
+                    content: messageInput.trim(),
+                  });
+                  if (error) throw new Error(error.message);
+                  setMessageInput('');
+                  // Refetch messages
+                  const { data } = await supabase.from('client_messages')
+                    .select('id,sender,content,created_at')
+                    .eq('client_id', client.id)
+                    .order('created_at', { ascending: true });
+                  setMessages(data || []);
+                } catch (err) {
+                  // erro opcional
+                } finally {
+                  setSendingMsg(false);
+                }
+              }}>
+                <input
+                  className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-white placeholder:text-white/40"
+                  placeholder="Digite sua mensagem..."
+                  value={messageInput}
+                  onChange={e => setMessageInput(e.target.value)}
+                  disabled={sendingMsg}
+                />
+                <button type="submit" className="btn-primary" disabled={sendingMsg || !messageInput.trim()}>Enviar</button>
+>>>>>>> 923f268 (Portal do Cliente: visual premium, dados completos, avatar, histórico de mensagens e layout elegante)
               </form>
             </div>
           )}
