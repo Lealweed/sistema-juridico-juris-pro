@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
-import { Upload, Home, Folder, CreditCard, MessageCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { Upload, Home, Folder, CreditCard, MessageCircle, AlertTriangle, Eye, EyeOff, FileText, CheckCircle2 } from 'lucide-react';
+import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 import { listClientDocuments } from '@/lib/documents';
 import { loadClientTransactions } from '@/lib/finance';
 
@@ -17,33 +17,48 @@ export function ClientPortalPage() {
     return value.replace(/\D/g, '');
   }
 
+  function formatCpfMask(value: string) {
+    const digits = onlyDigits(value).slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
+
   // Estados principais
-  const [state] = useState<PortalState>(() => {
+  const [state, setState] = useState<PortalState>(() => {
     if (typeof window !== 'undefined' && sessionStorage.getItem('clientPortalId')) {
       return 'authenticated';
     }
     return 'login';
   });
-  const [client] = useState<PortalClient | null>(null);
+  const [client, setClient] = useState<PortalClient | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<TabKey>('home');
 
+  // Login
+  const [cpfInput, setCpfInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   // Home
-  const [clientNotes] = useState<string | null>(null);
-  const [nextMeeting] = useState<any>(null);
+  const [clientNotes, setClientNotes] = useState<string | null>(null);
+  const [nextMeeting, setNextMeeting] = useState<any>(null);
   // Drive
-  const [documents] = useState<any[]>([]);
-  const [docsLoading] = useState(false);
-  const [uploading] = useState(false);
-  const [successMsg] = useState<string | null>(null);
-  const [errorMsg] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Financeiro
-  const [transactions] = useState<any[]>([]);
-  const [financeLoading] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [financeLoading, setFinanceLoading] = useState(false);
   // Mensagens
-  const [messages] = useState<any[]>([]);
-  const [messageInput] = useState('');
-  const [sendingMsg] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   // Fetch dados do cliente ao autenticar
   useEffect(() => {
@@ -154,6 +169,106 @@ export function ClientPortalPage() {
     }
   }, [state, client]);
 
+  function getErrorMessage(err: unknown, fallback: string) {
+    if (err instanceof Error && err.message) return err.message;
+    return fallback;
+  }
+
+  /* ── Layout ── */
+
+  if (!hasSupabaseEnv || !supabase) {
+    return (
+      <div className="min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4">
+        <AlertTriangle className="size-12 text-red-400" />
+        <h1 className="text-xl font-semibold text-white">Portal Indisponível</h1>
+        <p className="text-sm text-white/50 text-center max-w-sm">
+          Configuração de ambiente não encontrada para acessar o portal do cliente.
+        </p>
+      </div>
+    );
+  }
+
+  if (state === 'login') {
+    return (
+      <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
+        <img
+          src="/brand/logo.jpg"
+          alt="Lima, Lopes & Diógenes"
+          className="h-16 w-auto rounded-xl shadow-lg"
+        />
+        <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
+          <h1 className="text-xl font-semibold text-white">Acessar Meu Portal</h1>
+          <p className="mt-2 text-sm text-white/60">Informe seu CPF e sua Senha Numérica (PIN) para acessar o portal.</p>
+
+          <form className="mt-5 grid gap-3" onSubmit={async (e) => {
+            e.preventDefault();
+            setAuthLoading(true);
+            setAuthError(null);
+            try {
+              const cpfLimpo = onlyDigits(cpfInput);
+              if (cpfLimpo.length !== 11) throw new Error('CPF inválido.');
+              if (!pinInput.trim()) throw new Error('Informe sua senha numérica (PIN).');
+              if (!supabase) throw new Error('Portal indisponível no momento.');
+              const { data, error } = await supabase
+                .rpc('login_client_portal', { p_cpf: cpfLimpo, p_pin: pinInput.trim() })
+                .maybeSingle();
+              if (error) throw new Error(error.message);
+              const result = data as { id: string, name: string } | null;
+              if (!result?.id) throw new Error('CPF ou Senha incorretos.');
+              setClient({ id: result.id, name: result.name });
+              setState('authenticated');
+            } catch (err) {
+              setAuthError(getErrorMessage(err, 'CPF ou Senha incorretos.'));
+            } finally {
+              setAuthLoading(false);
+            }
+          }}>
+            <label className="text-sm text-white/80">
+              CPF
+              <input
+                className="input mt-1"
+                value={cpfInput}
+                onChange={(e) => setCpfInput(formatCpfMask(e.target.value))}
+                inputMode="numeric"
+                maxLength={14}
+                placeholder="000.000.000-00"
+                autoFocus
+              />
+            </label>
+            <label className="text-sm text-white/80">
+              Senha (PIN)
+              <div className="relative mt-1">
+                <input
+                  className="input w-full pr-10"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(onlyDigits(e.target.value).slice(0, 6))}
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="PIN numérico"
+                  type={showPin ? "text" : "password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/40 hover:text-white/80"
+                  tabIndex={-1}
+                >
+                  {showPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </label>
+            {authError ? (
+              <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{authError}</div>
+            ) : null}
+            <button className="btn-primary mt-1" type="submit" disabled={authLoading}>
+              {authLoading ? 'Acessando...' : 'Acessar meu Portal'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   // --- Layout com Abas ---
   return (
     <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-0 py-0">
@@ -187,15 +302,39 @@ export function ClientPortalPage() {
           )}
           {tab === 'drive' && (
             <div className="space-y-6">
-              <label className={`relative flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center transition-colors`}>
-                <Upload className="size-8 text-white/40" />
-                <span className="text-sm font-medium text-white">Anexar Documentos</span>
+              <label className={`relative flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${uploading ? 'border-amber-400/40 bg-amber-400/5' : 'border-white/15 bg-white/5 hover:border-amber-300/40 hover:bg-white/10'}`}>
+                <Upload className={`size-8 ${uploading ? 'animate-bounce text-amber-400' : 'text-white/40'}`} />
+                <span className="text-sm font-medium text-white">{uploading ? 'Enviando...' : 'Anexar Documentos'}</span>
                 <span className="text-xs text-white/40">Imagens ou PDF • Máx. 25 MB cada</span>
-                <input ref={fileRef} type="file" accept="image/*,.pdf" multiple className="absolute inset-0 cursor-pointer opacity-0" disabled />
+                <input ref={fileRef} type="file" accept="image/*,.pdf" multiple className="absolute inset-0 cursor-pointer opacity-0" onChange={handleFiles} disabled={uploading} />
               </label>
+
+              {successMsg && (
+                <div className="flex items-center gap-3 rounded-xl border border-green-400/30 bg-green-400/10 p-4">
+                  <CheckCircle2 className="size-5 shrink-0 text-green-300" />
+                  <span className="text-sm text-green-200">{successMsg}</span>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div className="flex items-center gap-3 rounded-xl border border-red-400/30 bg-red-400/10 p-4">
+                  <AlertTriangle className="size-5 shrink-0 text-red-300" />
+                  <span className="text-sm text-red-200">{errorMsg}</span>
+                </div>
+              )}
+
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-2">Meus Arquivos</div>
-                <div className="text-white/40 text-sm">Nenhum arquivo enviado.</div>
+                {docsLoading ? <div className="text-white/40 text-sm">Carregando...</div> : documents.length > 0 ? (
+                  <ul className="space-y-2">
+                    {documents.map((doc: any) => (
+                      <li key={doc.id} className="flex items-center gap-2 text-sm text-white/80">
+                        <FileText className="size-4 text-amber-300" />
+                        <span className="truncate">{doc.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <div className="text-white/40 text-sm">Nenhum arquivo enviado.</div>}
               </div>
             </div>
           )}
@@ -203,18 +342,36 @@ export function ClientPortalPage() {
             <div className="space-y-6">
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-2">Financeiro</div>
-                <div className="text-white/40 text-sm">Nenhuma movimentação encontrada.</div>
+                {financeLoading ? <div className="text-white/40 text-sm">Carregando...</div> : transactions.length > 0 ? (
+                  <ul className="space-y-3">
+                    {transactions.map((tx: any) => (
+                      <li key={tx.id} className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                        <div>
+                          <div className="text-white/80">{tx.description || 'Parcela'}</div>
+                          <div className="text-xs text-white/40">{new Date(tx.due_date).toLocaleDateString('pt-BR')}</div>
+                        </div>
+                        <div className={`font-medium ${tx.status === 'paid' ? 'text-green-400' : 'text-amber-400'}`}>
+                          R$ {tx.amount.toFixed(2)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <div className="text-white/40 text-sm">Nenhuma movimentação encontrada.</div>}
               </div>
             </div>
           )}
           {tab === 'messages' && (
             <div className="flex flex-col h-full min-h-[50vh]">
-              <div className="flex-1 overflow-y-auto space-y-2 mb-2">
-                <div className="text-white/40 text-sm">Nenhuma mensagem.</div>
+              <div className="flex-1 overflow-y-auto space-y-2 mb-2 p-2">
+                {messages.length > 0 ? messages.map((m: any) => (
+                  <div key={m.id} className={`p-3 rounded-xl max-w-[80%] text-sm ${m.sender === 'client' ? 'bg-amber-400/20 text-white ml-auto rounded-br-none' : 'bg-white/10 text-white/80 mr-auto rounded-bl-none'}`}>
+                    {m.content}
+                  </div>
+                )) : <div className="text-white/40 text-sm text-center mt-4">Nenhuma mensagem.</div>}
               </div>
-              <form className="flex gap-2 mt-auto">
-                <input className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-white placeholder:text-white/40" placeholder="Digite sua mensagem..." disabled />
-                <button type="submit" className="btn-primary" disabled>Enviar</button>
+              <form className="flex gap-2 mt-auto" onSubmit={(e) => { e.preventDefault(); setSendingMsg(true); setTimeout(() => setSendingMsg(false), 1000); setMessageInput(''); }}>
+                <input className="flex-1 rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-amber-300/50" placeholder="Digite sua mensagem..." value={messageInput} onChange={e => setMessageInput(e.target.value)} disabled={sendingMsg} />
+                <button type="submit" className="btn-primary" disabled={!messageInput.trim() || sendingMsg}>Enviar</button>
               </form>
             </div>
           )}
