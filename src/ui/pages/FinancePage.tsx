@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeRole } from '@/lib/roles';
@@ -28,9 +28,14 @@ function pdvStorageKey(date: string) {
   return `castrocrm.pdv.${date}`;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 const FinanceChartsLazy = lazy(() => import('@/ui/widgets/FinanceCharts').then((m) => ({ default: m.FinanceCharts })));
 
 export function FinancePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<FinanceTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +63,8 @@ export function FinancePage() {
   const [openingAmount, setOpeningAmount] = useState('');
   const [pdvAmount, setPdvAmount] = useState('');
   const [pdvDesc, setPdvDesc] = useState('');
+  const clientFilterId = searchParams.get('clientId')?.trim() || '';
+  const clientFilterName = searchParams.get('clientName')?.trim() || '';
 
   async function load() {
     setLoading(true);
@@ -69,15 +76,14 @@ export function FinancePage() {
       setMeId(me.id);
       setRows(data);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar financeiro.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar financeiro.'));
       setLoading(false);
     }
   }
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -111,36 +117,52 @@ export function FinancePage() {
     };
   }, [type]);
 
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+
+    setCreateOpen(true);
+    setType('income');
+    setStatus('planned');
+    setDescription((prev) => prev || (clientFilterName ? `Cobrança - ${clientFilterName}` : 'Nova cobrança'));
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [clientFilterName, searchParams, setSearchParams]);
+
   const isAdmin = myRole === 'admin' || myRole === 'owner';
   const isFinance = myRole === 'finance';
   const isOperator = myRole === 'staff' || myRole === 'secretary' || myRole === 'assistant';
   const canSeeFullFinance = isAdmin || isFinance;
-
   const roleScopedRows = useMemo(() => {
     if (canSeeFullFinance) return rows;
-    // advogado/member/staff só veem o que lançaram
     return rows.filter((r) => r.user_id === meId);
   }, [rows, canSeeFullFinance, meId]);
 
+  const clientScopedRows = useMemo(() => {
+    if (!clientFilterId) return roleScopedRows;
+    return roleScopedRows.filter((r) => r.client_id === clientFilterId);
+  }, [clientFilterId, roleScopedRows]);
+
   const summary = useMemo(() => {
-    const plannedIncome = roleScopedRows
+    const plannedIncome = clientScopedRows
       .filter((r) => r.type === 'income' && r.status === 'planned')
       .reduce((a, r) => a + r.amount_cents, 0);
-    const plannedExpense = roleScopedRows
+    const plannedExpense = clientScopedRows
       .filter((r) => r.type === 'expense' && r.status === 'planned')
       .reduce((a, r) => a + r.amount_cents, 0);
-    const paidIncome = roleScopedRows
+    const paidIncome = clientScopedRows
       .filter((r) => r.type === 'income' && r.status === 'paid')
       .reduce((a, r) => a + r.amount_cents, 0);
-    const paidExpense = roleScopedRows
+    const paidExpense = clientScopedRows
       .filter((r) => r.type === 'expense' && r.status === 'paid')
       .reduce((a, r) => a + r.amount_cents, 0);
     const netPaid = paidIncome - paidExpense;
     return { plannedIncome, plannedExpense, paidIncome, paidExpense, netPaid };
-  }, [roleScopedRows]);
+  }, [clientScopedRows]);
 
   const filteredRows = useMemo(() => {
-    let out = roleScopedRows;
+    let out = clientScopedRows;
 
     if (statusFilter !== 'all') {
       out = out.filter((r) => r.status === statusFilter);
@@ -152,7 +174,7 @@ export function FinancePage() {
     }
 
     return out;
-  }, [roleScopedRows, statusFilter, search]);
+  }, [clientScopedRows, statusFilter, search]);
 
   const pdvSummary = useMemo(() => {
     const today = todayStr();
@@ -198,6 +220,7 @@ export function FinancePage() {
         status,
         occurred_on: occurredOn,
         due_date: effectiveDueDate,
+        client_id: clientFilterId || null,
         category_id: catId,
         description: description.trim(),
         amount_cents: cents,
@@ -218,8 +241,8 @@ export function FinancePage() {
       setDueDate(todayStr());
       setSaving(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao criar lançamento.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao criar lançamento.'));
       setSaving(false);
     }
   }
@@ -276,8 +299,8 @@ export function FinancePage() {
       setPdvAmount('');
       setPdvDesc('');
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha no lançamento rápido.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha no lançamento rápido.'));
     } finally {
       setSaving(false);
     }
@@ -316,6 +339,22 @@ export function FinancePage() {
       </div>
 
       {error ? <div className="text-sm text-red-200">{error}</div> : null}
+
+      {clientFilterId ? (
+        <Card className="border-amber-300/20 bg-gradient-to-r from-amber-400/10 to-white/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-white">Financeiro filtrado por cliente</div>
+              <div className="text-xs text-white/60">
+                {clientFilterName || 'Cliente selecionado'} · novos lançamentos ficarão vinculados a este cadastro.
+              </div>
+            </div>
+            <Link to="/app/financeiro" className="btn-ghost">
+              Ver financeiro completo
+            </Link>
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="border-white/15 bg-gradient-to-b from-white/10 to-white/5">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -419,6 +458,12 @@ export function FinancePage() {
         <Card>
           <div className="grid gap-4">
             <div className="text-sm font-semibold text-white">Novo lançamento</div>
+
+            {clientFilterId ? (
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                Cliente vinculado: <strong>{clientFilterName || 'Cliente selecionado'}</strong>
+              </div>
+            ) : null}
 
             <div className="grid gap-3 md:grid-cols-3">
               <label className="text-sm text-white/80">

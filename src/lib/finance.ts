@@ -9,6 +9,7 @@ export type FinanceCategory = {
 export type FinanceTx = {
   id: string;
   user_id: string;
+  client_id?: string | null;
   type: 'income' | 'expense' | string;
   status: 'planned' | 'paid' | 'cancelled' | string;
   occurred_on: string;
@@ -43,7 +44,7 @@ export async function listFinanceTx(limit = 50): Promise<FinanceTx[]> {
   const { data, error } = await sb
     .from('finance_transactions')
     .select(
-      'id,user_id,type,status,occurred_on,due_date,description,amount_cents,payment_method,notes,reminder_1d_sent_at,category_id,category:finance_categories(name),created_at',
+      'id,user_id,client_id,type,status,occurred_on,due_date,description,amount_cents,payment_method,notes,reminder_1d_sent_at,category_id,category:finance_categories(name),created_at',
     )
     .order('occurred_on', { ascending: false })
     .order('created_at', { ascending: false })
@@ -59,7 +60,7 @@ export async function loadClientTransactions(clientId: string): Promise<FinanceT
   const { data, error } = await sb
     .from('finance_transactions')
     .select(
-      'id,user_id,type,status,occurred_on,due_date,description,amount_cents,payment_method,notes,reminder_1d_sent_at,category_id,category:finance_categories(name),created_at',
+      'id,user_id,client_id,type,status,occurred_on,due_date,description,amount_cents,payment_method,notes,reminder_1d_sent_at,category_id,category:finance_categories(name),created_at',
     )
     .eq('client_id', clientId)
     .order('due_date', { ascending: true, nullsFirst: false })
@@ -106,6 +107,7 @@ export async function createFinanceTx(payload: {
   status: 'planned' | 'paid';
   occurred_on: string;
   due_date?: string | null;
+  client_id?: string | null;
   category_id?: string | null;
   description: string;
   amount_cents: number;
@@ -118,6 +120,7 @@ export async function createFinanceTx(payload: {
   const { error } = await sb.from('finance_transactions').insert({
     user_id: user.id,
     ...payload,
+    client_id: payload.client_id || null,
     due_date: payload.due_date || null,
     category_id: payload.category_id || null,
     payment_method: payload.payment_method || null,

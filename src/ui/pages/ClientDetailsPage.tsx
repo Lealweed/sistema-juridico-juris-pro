@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { CalendarPlus, DollarSign, Megaphone, MessageSquareText, SendHorizontal } from 'lucide-react';
 
 import { Card } from '@/ui/widgets/Card';
 import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
@@ -17,9 +18,27 @@ function extractSourceFromNotes(notes: string | null) {
   return m?.[1]?.trim()?.toLowerCase() || null;
 }
 
+function extractSourceTag(notes: string | null) {
+  if (!notes) return '';
+  return notes.match(/\[#origem:[^\]]+\]/i)?.[0] || '';
+}
+
 function cleanNotes(notes: string | null) {
   if (!notes) return null;
-  return notes.replace(/\[#origem:[^\]]+\]\s*/gi, '').trim() || null;
+  return notes
+    .replace(/\[#origem:[^\]]+\]\s*/gi, '')
+    .replace(/Nacionalidade:\s*[^\n]+\n?/gi, '')
+    .trim() || null;
+}
+
+function buildClientNotes(existingNotes: string | null, notice: string, nationality: string) {
+  const parts = [extractSourceTag(existingNotes), notice.trim(), nationality.trim() ? `Nacionalidade: ${nationality.trim()}` : '']
+    .filter(Boolean);
+  return parts.length ? parts.join('\n') : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 type ClientRow = {
@@ -55,6 +74,13 @@ type CaseLite = {
   created_at: string;
 };
 
+type ClientMessageRow = {
+  id: string;
+  sender: string;
+  content: string;
+  created_at: string;
+};
+
 export function ClientDetailsPage() {
   const { clientId } = useParams();
   const [row, setRow] = useState<ClientRow | null>(null);
@@ -83,21 +109,16 @@ export function ClientDetailsPage() {
 
   // Portal PIN
   const [portalPin, setPortalPin] = useState('');
+  const [portalNoticeSaving, setPortalNoticeSaving] = useState(false);
+  const [portalMessages, setPortalMessages] = useState<ClientMessageRow[]>([]);
+  const [portalMessagesLoading, setPortalMessagesLoading] = useState(false);
+  const [portalReply, setPortalReply] = useState('');
+  const [portalReplySaving, setPortalReplySaving] = useState(false);
 
   function extractNationality(notes: string | null) {
     if (!notes) return '';
     const m = notes.match(/Nacionalidade:\s*([^\n]+)/i);
     return m?.[1]?.trim() || '';
-  }
-
-  function mergeNationality(notes: string, nationality: string) {
-    let n = notes || '';
-    // Remove linha antiga
-    n = n.replace(/Nacionalidade:\s*[^\n]+\n?/i, '');
-    if (nationality.trim()) {
-      n = (n + '\nNacionalidade: ' + nationality.trim()).trim();
-    }
-    return n.trim();
   }
   const [feesModalOpen, setFeesModalOpen] = useState(false);
   const [feesSaving, setFeesSaving] = useState(false);
@@ -113,13 +134,14 @@ export function ClientDetailsPage() {
       try {
         setLoading(true);
         setTxLoading(true);
+        setPortalMessagesLoading(true);
         setError(null);
         if (!clientId) throw new Error('Cliente inválido.');
 
         const sb = requireSupabase();
         await getAuthedUser();
 
-        const [c1, c2, tx] = await Promise.all([
+        const [c1, c2, tx, messagesRes] = await Promise.all([
           sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep,portal_pin').eq('id', clientId).maybeSingle(),
           sb
             .from('cases')
@@ -127,10 +149,16 @@ export function ClientDetailsPage() {
             .eq('client_id', clientId)
             .order('created_at', { ascending: false }),
           loadClientTransactions(clientId),
+          sb
+            .from('client_messages')
+            .select('id,sender,content,created_at')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true }),
         ]);
 
         if (c1.error) throw new Error(c1.error.message);
         if (c2.error) throw new Error(c2.error.message);
+        if (messagesRes.error) throw new Error(messagesRes.error.message);
 
         if (!alive) return;
         const client = c1.data || null;
@@ -140,7 +168,7 @@ export function ClientDetailsPage() {
         setWhatsapp(client?.whatsapp || '');
         setEmail(client?.email || '');
         setBirthDate(client?.birth_date || '');
-        setNotes(client?.notes || '');
+        setNotes(cleanNotes(client?.notes) || '');
         setCpf(client?.cpf || '');
         setRg(client?.rg || '');
         setCivilStatus(client?.civil_status || '');
@@ -149,6 +177,7 @@ export function ClientDetailsPage() {
         setCases((c2.data || []) as CaseLite[]);
         setPortalPin(client?.portal_pin || '');
         setClientTransactions(tx || []);
+        setPortalMessages((messagesRes.data || []) as ClientMessageRow[]);
 
         if (client?.user_id) {
           const p = await sb
@@ -167,11 +196,13 @@ export function ClientDetailsPage() {
 
         setLoading(false);
         setTxLoading(false);
-      } catch (err: any) {
+        setPortalMessagesLoading(false);
+      } catch (err: unknown) {
         if (!alive) return;
-        setError(err?.message || 'Falha ao carregar.');
+        setError(getErrorMessage(err, 'Falha ao carregar.'));
         setLoading(false);
         setTxLoading(false);
+        setPortalMessagesLoading(false);
       }
     })();
 
@@ -199,7 +230,7 @@ export function ClientDetailsPage() {
     setError(null);
     try {
       const sb = requireSupabase();
-      const notesWithNationality = mergeNationality(notes.trim(), nationality);
+      const notesWithNationality = buildClientNotes(row?.notes || null, notes, nationality);
       const { error: updateErr } = await sb
         .from('clients')
         .update({
@@ -232,8 +263,8 @@ export function ClientDetailsPage() {
         profession: profession.trim() || null,
       } : prev);
       setEditing(false);
-    } catch (e: any) {
-      setError(e.message || 'Falha ao salvar');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao salvar'));
     } finally {
       setSaving(false);
     }
@@ -261,10 +292,73 @@ export function ClientDetailsPage() {
     try {
       const tx = await loadClientTransactions(clientId);
       setClientTransactions(tx);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar honorários.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar honorários.'));
     } finally {
       setTxLoading(false);
+    }
+  }
+
+  async function refreshPortalMessages() {
+    if (!clientId) return;
+    setPortalMessagesLoading(true);
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
+      const { data, error: messagesError } = await sb
+        .from('client_messages')
+        .select('id,sender,content,created_at')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: true });
+      if (messagesError) throw new Error(messagesError.message);
+      setPortalMessages((data || []) as ClientMessageRow[]);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar mensagens do portal.'));
+    } finally {
+      setPortalMessagesLoading(false);
+    }
+  }
+
+  async function handleSavePortalNotice() {
+    if (!clientId) return;
+    setPortalNoticeSaving(true);
+    setError(null);
+    try {
+      const sb = requireSupabase();
+      const nextNotes = buildClientNotes(row?.notes || null, notes, nationality);
+      const { error: updateErr } = await sb
+        .from('clients')
+        .update({ notes: nextNotes })
+        .eq('id', clientId);
+      if (updateErr) throw new Error(updateErr.message);
+
+      setRow((prev) => (prev ? { ...prev, notes: nextNotes } : prev));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao salvar aviso do portal.'));
+    } finally {
+      setPortalNoticeSaving(false);
+    }
+  }
+
+  async function handleSendPortalReply() {
+    if (!clientId || !portalReply.trim()) return;
+    setPortalReplySaving(true);
+    setError(null);
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
+      const { error: insertErr } = await sb.from('client_messages').insert({
+        client_id: clientId,
+        sender: 'office',
+        content: portalReply.trim(),
+      });
+      if (insertErr) throw new Error(insertErr.message);
+      setPortalReply('');
+      await refreshPortalMessages();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao enviar resposta no portal.'));
+    } finally {
+      setPortalReplySaving(false);
     }
   }
 
@@ -330,12 +424,19 @@ export function ClientDetailsPage() {
       setFeeTotal('');
       setFeeInstallments(1);
       setFeeFirstDueDate(new Date().toISOString().slice(0, 10));
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao lançar honorários.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao lançar honorários.'));
     } finally {
       setFeesSaving(false);
     }
   }
+
+  const agendaQuickLink = clientId
+    ? `/app/agenda?new=1&clientId=${clientId}${row?.name ? `&clientName=${encodeURIComponent(row.name)}` : ''}`
+    : '/app/agenda';
+  const financeQuickLink = clientId
+    ? `/app/financeiro?new=1&clientId=${clientId}${row?.name ? `&clientName=${encodeURIComponent(row.name)}` : ''}`
+    : '/app/financeiro';
 
   return (
     <div className="space-y-6">
@@ -383,8 +484,8 @@ export function ClientDetailsPage() {
                 try {
                   const data = buildProcuracaoData(row);
                   await generateProcuracaoDocx(data);
-                } catch (err: any) {
-                  alert(err?.message || 'Falha ao gerar procuração.');
+                } catch (err: unknown) {
+                  alert(getErrorMessage(err, 'Falha ao gerar procuração.'));
                 } finally {
                   setGeneratingDocx(false);
                 }
@@ -495,7 +596,7 @@ export function ClientDetailsPage() {
                         setWhatsapp(row.whatsapp || '');
                         setEmail(row.email || '');
                         setBirthDate(row.birth_date || '');
-                        setNotes(row.notes || '');
+                        setNotes(cleanNotes(row.notes) || '');
                         setCpf(row.cpf || '');
                         setRg(row.rg || '');
                         setCivilStatus(row.civil_status || '');
@@ -575,6 +676,122 @@ export function ClientDetailsPage() {
 
         {!loading && !error && !row ? <div className="text-sm text-white/70">Não encontrado.</div> : null}
       </Card>
+
+      {!loading && !error && row ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-white">Ações rápidas</div>
+              <div className="text-xs text-white/60">Atalhos para operar o portal e o relacionamento com este cliente.</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link to={agendaQuickLink} className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-amber-300">
+                <CalendarPlus className="h-4 w-4" />
+                Agendar Reunião
+              </Link>
+              <Link to={financeQuickLink} className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20">
+                <DollarSign className="h-4 w-4" />
+                Adicionar Cobrança
+              </Link>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {!loading && !error && row ? (
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <Megaphone className="h-4 w-4 text-amber-300" />
+                Mural / Aviso
+              </div>
+              <div className="mt-1 text-xs text-white/60">Este texto aparece no bloco "Aviso do Advogado" dentro do portal do cliente.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleSavePortalNotice()}
+              disabled={portalNoticeSaving}
+              className="btn-primary !rounded-lg !px-3 !py-1.5 !text-xs"
+            >
+              {portalNoticeSaving ? 'Salvando...' : 'Salvar Aviso'}
+            </button>
+          </div>
+          <textarea
+            className="input mt-4 min-h-[120px]"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Escreva aqui o aviso que o cliente verá no portal."
+          />
+        </Card>
+      ) : null}
+
+      {!loading && !error && row ? (
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <MessageSquareText className="h-4 w-4 text-sky-300" />
+                Chat do Portal
+              </div>
+              <div className="mt-1 text-xs text-white/60">Mensagens trocadas pelo cliente no portal. As respostas do escritório ficam salvas no histórico.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshPortalMessages()}
+              disabled={portalMessagesLoading}
+              className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+            >
+              {portalMessagesLoading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
+
+          <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-4">
+            {portalMessagesLoading ? <div className="text-sm text-white/60">Carregando mensagens...</div> : null}
+            {!portalMessagesLoading && portalMessages.length === 0 ? (
+              <div className="text-sm text-white/60">Nenhuma mensagem trocada pelo portal ainda.</div>
+            ) : null}
+            {portalMessages.map((message) => {
+              const fromClient = message.sender === 'client';
+              return (
+                <div key={message.id} className={`flex ${fromClient ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${fromClient ? 'bg-white/10 text-white/85' : 'bg-amber-400/15 text-amber-50'}`}>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                      {fromClient ? row.name : 'Advogado'}
+                    </div>
+                    <div className="whitespace-pre-wrap">{message.content}</div>
+                    <div className="mt-2 text-[11px] text-white/40">{new Date(message.created_at).toLocaleString('pt-BR')}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <form
+            className="mt-4 flex flex-col gap-3 md:flex-row"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await handleSendPortalReply();
+            }}
+          >
+            <input
+              className="input flex-1"
+              value={portalReply}
+              onChange={(e) => setPortalReply(e.target.value)}
+              placeholder="Responder como advogado..."
+              disabled={portalReplySaving}
+            />
+            <button
+              type="submit"
+              disabled={portalReplySaving || !portalReply.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <SendHorizontal className="h-4 w-4" />
+              {portalReplySaving ? 'Enviando...' : 'Enviar Resposta'}
+            </button>
+          </form>
+        </Card>
+      ) : null}
 
       <Card>
         <div className="flex items-center justify-between">

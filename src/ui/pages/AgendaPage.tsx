@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeRole } from '@/lib/roles';
@@ -84,6 +85,7 @@ function toDatetimeLocalValue(d: Date) {
 }
 
 export function AgendaPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +140,8 @@ export function AgendaPage() {
 
   const [delegatingItemId, setDelegatingItemId] = useState<string | null>(null);
   const [delegateTo, setDelegateTo] = useState('');
+  const linkedClientId = searchParams.get('clientId')?.trim() || '';
+  const linkedClientName = searchParams.get('clientName')?.trim() || '';
 
   const range = useMemo(() => {
     const now = new Date();
@@ -237,6 +241,27 @@ export function AgendaPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, monthCursor.getTime(), selectedAgendaIds.join('|'), scope]);
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || !linkedClientId) return;
+
+    const base = new Date();
+    base.setMinutes(0, 0, 0);
+    base.setHours(Math.max(base.getHours() + 1, 9));
+    const end = new Date(base);
+    end.setHours(base.getHours() + 1);
+
+    setCreateOpen(true);
+    setKind('commitment');
+    setLinkClientId(linkedClientId);
+    setTitle((prev) => prev || (linkedClientName ? `Reunião com ${linkedClientName}` : 'Reunião com cliente'));
+    setStartsAt((prev) => prev || toDatetimeLocalValue(base));
+    setEndsAt((prev) => prev || toDatetimeLocalValue(end));
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [linkedClientId, linkedClientName, searchParams, setSearchParams]);
 
   async function onCreate() {
     if (!title.trim()) return;

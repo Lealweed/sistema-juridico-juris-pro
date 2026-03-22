@@ -8,6 +8,7 @@ import {
   FileText,
   Folder,
   Home,
+  LogOut,
   MessageCircle,
   Upload,
   User,
@@ -39,6 +40,14 @@ export function ClientPortalPage() {
   // Utilitários
   function onlyDigits(value: string) {
     return value.replace(/\D/g, '');
+  }
+
+  function cleanPortalNotice(value: string | null | undefined) {
+    if (!value) return null;
+    return value
+      .replace(/\[#origem:[^\]]+\]\s*/gi, '')
+      .replace(/Nacionalidade:\s*[^\n]+\n?/gi, '')
+      .trim() || null;
   }
 
 
@@ -109,7 +118,7 @@ export function ClientPortalPage() {
       .then(({ client: portalClient, nextMeeting }) => {
         setAuthError(null);
         setClient(portalClient);
-        setClientNotes(portalClient.notes || null);
+        setClientNotes(cleanPortalNotice(portalClient.notes));
         setNextMeeting(nextMeeting);
       })
       .catch((err) => {
@@ -216,6 +225,7 @@ export function ClientPortalPage() {
       }
     }
     if (state === 'login') {
+      sessionStorage.removeItem('clientPortalId');
       sessionStorage.removeItem('clientPortalSessionToken');
       sessionStorage.removeItem('clientPortalClient');
     }
@@ -227,6 +237,26 @@ export function ClientPortalPage() {
   }
 
   /* ── Layout ── */
+
+  function handlePortalExit() {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('clientPortalId');
+      sessionStorage.removeItem('clientPortalSessionToken');
+      sessionStorage.removeItem('clientPortalClient');
+    }
+    setPortalSessionToken(null);
+    setClient(null);
+    setClientNotes(null);
+    setNextMeeting(null);
+    setMessages([]);
+    setDocuments([]);
+    setTransactions([]);
+    setTab('home');
+    setState('login');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+  }
 
   if (!hasSupabaseEnv || !supabase) {
     return (
@@ -263,7 +293,7 @@ export function ClientPortalPage() {
               const portalLogin = await loginClientPortal(cpfLimpo, pinInput.trim());
               setPortalSessionToken(portalLogin.sessionToken);
               setClient(portalLogin.client);
-              setClientNotes(portalLogin.client.notes || null);
+              setClientNotes(cleanPortalNotice(portalLogin.client.notes));
               setState('authenticated');
               return;
               if (cpfLimpo.length !== 11) throw new Error('CPF inválido.');
@@ -332,7 +362,17 @@ export function ClientPortalPage() {
   // --- Layout com Abas ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] flex flex-col items-center px-0 py-0">
-      <img src="/brand/logo.jpg" alt="Lima, Lopes & Diógenes" className="h-20 w-auto rounded-2xl shadow-2xl mt-10 mb-4 border-2 border-white/10" />
+      <div className="mt-10 mb-4 flex w-full max-w-xl items-center justify-between gap-4 px-4">
+        <img src="/brand/logo.jpg" alt="Lima, Lopes & Diógenes" className="h-20 w-auto rounded-2xl border-2 border-white/10 shadow-2xl" />
+        <button
+          type="button"
+          onClick={handlePortalExit}
+          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        >
+          <LogOut className="size-4" />
+          Sair
+        </button>
+      </div>
       {/* Dados do cliente no topo */}
       {state === 'authenticated' && client && (
         <div className="flex flex-col items-center gap-3 mt-2 mb-6">
