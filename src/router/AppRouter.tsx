@@ -84,6 +84,7 @@ export function AppRouter() {
               <Route path="/app/financeiro/parceiros" element={<PartnersPage />} />
               <Route path="/app/financeiro/a-pagar" element={<PayablesPage />} />
               <Route path="/app/financeiro/:txId" element={<FinanceTxDetailsPage />} />
+              <Route path="/app/portal" element={<Navigate to="/portal" replace />} />
 
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />

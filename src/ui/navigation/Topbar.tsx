@@ -1,5 +1,5 @@
 import { Search, Bell, Moon, Sun, Menu, X, LayoutDashboard, Users, Briefcase, Calendar, CheckSquare, Coins, Sparkles, Building2, Cog, HardDrive, BellRing } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useAuth } from '@/auth/authStore';
@@ -16,18 +16,14 @@ const mobileItems = [
   { to: '/app/financeiro', label: 'Financeiro', icon: Coins },
   { to: '/app/drive', label: 'Smart Drive', icon: HardDrive },
   { to: '/app/relatorios-ia', label: 'Relatórios com IA', icon: Sparkles },
-  { to: '/app/portal', label: 'Portal do Cliente', icon: Building2 },
+  { to: '/portal', label: 'Portal do Cliente', icon: Building2 },
   { to: '/app/configuracoes', label: 'Configurações', icon: Cog },
 ];
 
 export function Topbar() {
   const auth = useAuth();
-  const [theme, setThemeState] = useState<AppTheme>('dark');
+  const [theme, setThemeState] = useState<AppTheme>(() => getStoredTheme());
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    setThemeState(getStoredTheme());
-  }, []);
 
   function onToggleTheme() {
     const next: AppTheme = theme === 'dark' ? 'light' : 'dark';

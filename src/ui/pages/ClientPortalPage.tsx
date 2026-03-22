@@ -12,35 +12,28 @@ import {
   Upload,
   User,
 } from 'lucide-react';
+import {
+  getPortalClientContext,
+  getPortalRpcError,
+  listPortalClientDocuments,
+  listPortalClientMessages,
+  listPortalClientTransactions,
+  loginClientPortal,
+  sendPortalClientMessage,
+  type PortalClient,
+  type PortalMeeting,
+  type PortalMessage,
+} from '@/lib/clientPortal';
 import { ClientAvatar } from '@/ui/widgets/ClientAvatar';
-import { listClientDocuments, type DocumentRow } from '@/lib/documents';
-import { loadClientTransactions, centsToBRL, type FinanceTx } from '@/lib/finance';
+import type { DocumentRow } from '@/lib/documents';
+import { centsToBRL, type FinanceTx } from '@/lib/finance';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 type PortalState = 'login' | 'authenticated';
-type PortalClient = {
-  id: string;
-  name: string;
-  phone?: string | null;
-  whatsapp?: string | null;
-  email?: string | null;
-  avatar_path?: string | null;
-};
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
-type PortalMeeting = {
-  id: string;
-  title: string;
-  start_at: string;
-};
-type PortalMessage = {
-  id: string;
-  sender: string;
-  content: string;
-  created_at: string;
-};
 
 export function ClientPortalPage() {
   // Utilitários
@@ -59,15 +52,24 @@ export function ClientPortalPage() {
 
   // Estados principais
   const [state, setState] = useState<PortalState>(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('clientPortalId')) {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('clientPortalSessionToken')) {
       return 'authenticated';
     }
     return 'login';
   });
+  const [portalSessionToken, setPortalSessionToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('clientPortalSessionToken');
+  });
   const [client, setClient] = useState<PortalClient | null>(() => {
     if (typeof window === 'undefined') return null;
-    const storedClientId = sessionStorage.getItem('clientPortalId');
-    return storedClientId ? { id: storedClientId, name: 'Cliente' } : null;
+    const storedClient = sessionStorage.getItem('clientPortalClient');
+    if (!storedClient) return null;
+    try {
+      return JSON.parse(storedClient) as PortalClient;
+    } catch {
+      return null;
+    }
   });
   const [cpfInput, setCpfInput] = useState('');
   const [pinInput, setPinInput] = useState('');
@@ -94,69 +96,67 @@ export function ClientPortalPage() {
   const [messages, setMessages] = useState<PortalMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
-  const clientId = client?.id ?? null;
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const showLegacyCards =
     typeof window !== 'undefined'
       && Boolean((window as Window & { __portalLegacyCards?: boolean }).__portalLegacyCards);
 
   // Fetch dados do cliente ao autenticar
   useEffect(() => {
-    if (state === 'authenticated' && clientId && supabase) {
-      supabase
-        .from('clients')
-        .select('id,name,phone,whatsapp,email,avatar_path,notes')
-        .eq('id', clientId)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            setClient((prev) => (prev ? { ...prev, ...data } : data));
-            setClientNotes(data.notes || null);
-          }
-        });
-      supabase
-        .from('agenda_items')
-        .select('id,title,start_at')
-        .eq('client_id', clientId)
-        .gt('start_at', new Date().toISOString())
-        .order('start_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-        .then(({ data }) => setNextMeeting(data || null));
-    }
-  }, [state, clientId]);
+    if (state !== 'authenticated' || !portalSessionToken) return;
+
+    getPortalClientContext(portalSessionToken)
+      .then(({ client: portalClient, nextMeeting }) => {
+        setAuthError(null);
+        setClient(portalClient);
+        setClientNotes(portalClient.notes || null);
+        setNextMeeting(nextMeeting);
+      })
+      .catch((err) => {
+        setAuthError(getPortalRpcError(err, 'Sessao do portal invalida. Faca login novamente.'));
+        setPortalSessionToken(null);
+        setClient(null);
+        setClientNotes(null);
+        setNextMeeting(null);
+        setMessages([]);
+        setState('login');
+      });
+  }, [state, portalSessionToken]);
 
   // Fetch documentos
   useEffect(() => {
-    if (tab === 'drive' && clientId) {
-      setDocsLoading(true);
-      listClientDocuments(clientId)
-        .then(setDocuments)
-        .catch(() => setDocuments([]))
-        .finally(() => setDocsLoading(false));
-    }
-  }, [tab, clientId]);
+    if (tab !== 'drive' || !portalSessionToken) return;
+
+    setDocsLoading(true);
+    listPortalClientDocuments(portalSessionToken)
+      .then(setDocuments)
+      .catch(() => setDocuments([]))
+      .finally(() => setDocsLoading(false));
+  }, [tab, portalSessionToken]);
 
   // Fetch transações financeiras
   useEffect(() => {
-    if (tab === 'finance' && clientId) {
-      setFinanceLoading(true);
-      loadClientTransactions(clientId)
-        .then(setTransactions)
-        .catch(() => setTransactions([]))
-        .finally(() => setFinanceLoading(false));
-    }
-  }, [tab, clientId]);
+    if (tab !== 'finance' || !portalSessionToken) return;
+
+    setFinanceLoading(true);
+    listPortalClientTransactions(portalSessionToken)
+      .then(setTransactions)
+      .catch(() => setTransactions([]))
+      .finally(() => setFinanceLoading(false));
+  }, [tab, portalSessionToken]);
 
   // Fetch mensagens
   useEffect(() => {
-    if (tab === 'messages' && clientId && supabase) {
-      supabase.from('client_messages')
-        .select('id,sender,content,created_at')
-        .eq('client_id', clientId)
-        .order('created_at', { ascending: true })
-        .then(({ data }) => setMessages((data || []) as PortalMessage[]));
-    }
-  }, [tab, clientId]);
+    if (tab !== 'messages' || !portalSessionToken) return;
+
+    setMessagesError(null);
+    listPortalClientMessages(portalSessionToken)
+      .then(setMessages)
+      .catch((err) => {
+        setMessages([]);
+        setMessagesError(getPortalRpcError(err, 'Nao foi possivel carregar as mensagens.'));
+      });
+  }, [tab, portalSessionToken]);
 
   // Upload de arquivos
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -209,13 +209,17 @@ export function ClientPortalPage() {
 
   // Mantém sessão autenticada
   useEffect(() => {
-    if (state === 'authenticated' && clientId) {
-      sessionStorage.setItem('clientPortalId', clientId);
+    if (state === 'authenticated' && portalSessionToken) {
+      sessionStorage.setItem('clientPortalSessionToken', portalSessionToken);
+      if (client) {
+        sessionStorage.setItem('clientPortalClient', JSON.stringify(client));
+      }
     }
     if (state === 'login') {
-      sessionStorage.removeItem('clientPortalId');
+      sessionStorage.removeItem('clientPortalSessionToken');
+      sessionStorage.removeItem('clientPortalClient');
     }
-  }, [state, clientId]);
+  }, [state, portalSessionToken, client]);
 
   function getErrorMessage(err: unknown, fallback: string) {
     if (err instanceof Error && err.message) return err.message;
@@ -254,16 +258,24 @@ export function ClientPortalPage() {
             setAuthError(null);
             try {
               const cpfLimpo = onlyDigits(cpfInput);
+              if (cpfLimpo.length !== 11) throw new Error('CPF invÃ¡lido.');
+              if (!pinInput.trim()) throw new Error('Informe sua senha numÃ©rica (PIN).');
+              const portalLogin = await loginClientPortal(cpfLimpo, pinInput.trim());
+              setPortalSessionToken(portalLogin.sessionToken);
+              setClient(portalLogin.client);
+              setClientNotes(portalLogin.client.notes || null);
+              setState('authenticated');
+              return;
               if (cpfLimpo.length !== 11) throw new Error('CPF inválido.');
               if (!pinInput.trim()) throw new Error('Informe sua senha numérica (PIN).');
               if (!supabase) throw new Error('Portal indisponível no momento.');
-              const { data, error } = await supabase
+              const { data, error } = await (supabase as NonNullable<typeof supabase>)
                 .rpc('login_client_portal', { p_cpf: cpfLimpo, p_pin: pinInput.trim() })
                 .maybeSingle();
-              if (error) throw new Error(error.message);
+              if (error) throw new Error(error?.message || 'CPF ou Senha incorretos.');
               const result = data as { id: string, name: string } | null;
               if (!result?.id) throw new Error('CPF ou Senha incorretos.');
-              setClient({ id: result.id, name: result.name });
+              setClient({ id: result?.id || '', name: result?.name || '' });
               setState('authenticated');
             } catch (err) {
               setAuthError(getErrorMessage(err, 'CPF ou Senha incorretos.'));
@@ -357,7 +369,7 @@ export function ClientPortalPage() {
                 {nextMeeting ? (
                   <div className="text-sm text-white/80">
                     <span className="font-medium">{nextMeeting?.title}</span><br />
-                    <span className="text-xs text-white/60">{new Date(nextMeeting?.start_at ?? '').toLocaleString('pt-BR')}</span>
+                    <span className="text-xs text-white/60">{new Date(nextMeeting?.starts_at ?? '').toLocaleString('pt-BR')}</span>
                   </div>
                 ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
               </div>
@@ -374,7 +386,7 @@ export function ClientPortalPage() {
                 {nextMeeting ? (
                   <div className="text-sm text-white/80">
                     <span className="font-medium">{nextMeeting?.title}</span><br />
-                    <span className="text-xs text-white/60">{new Date(nextMeeting?.start_at ?? '').toLocaleString('pt-BR')}</span>
+                    <span className="text-xs text-white/60">{new Date(nextMeeting?.starts_at ?? '').toLocaleString('pt-BR')}</span>
                   </div>
                 ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
               </div>
@@ -391,7 +403,7 @@ export function ClientPortalPage() {
                 {nextMeeting ? (
                   <div className="text-sm text-white/80">
                     <span className="font-medium">{nextMeeting.title}</span><br />
-                    <span className="text-xs text-white/60">{new Date(nextMeeting.start_at).toLocaleString('pt-BR')}</span>
+                    <span className="text-xs text-white/60">{new Date(nextMeeting.starts_at).toLocaleString('pt-BR')}</span>
                   </div>
                 ) : <div className="text-sm text-white/40">Nenhuma consulta agendada.</div>}
               </div>
@@ -462,6 +474,11 @@ export function ClientPortalPage() {
           {tab === 'messages' && (
             <div className="flex flex-col h-full min-h-[50vh]">
               <div className="flex-1 overflow-y-auto space-y-3 mb-2 pr-1 max-h-[50vh]">
+                {messagesError && (
+                  <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">
+                    {messagesError}
+                  </div>
+                )}
                 {messages.length === 0 && (
                   <div className="text-white/40 text-sm">Nenhuma mensagem.</div>
                 )}
@@ -483,24 +500,15 @@ export function ClientPortalPage() {
               </div>
               <form className="flex gap-2 mt-auto" onSubmit={async (e) => {
                 e.preventDefault();
-                if (!messageInput.trim() || !client?.id || !supabase) return;
+                if (!messageInput.trim() || !portalSessionToken) return;
                 setSendingMsg(true);
+                setMessagesError(null);
                 try {
-                  const { error } = await supabase.from('client_messages').insert({
-                    client_id: client.id,
-                    sender: 'client',
-                    content: messageInput.trim(),
-                  });
-                  if (error) throw new Error(error.message);
+                  await sendPortalClientMessage(portalSessionToken, messageInput.trim());
                   setMessageInput('');
-                  // Refetch messages
-                  const { data } = await supabase.from('client_messages')
-                    .select('id,sender,content,created_at')
-                    .eq('client_id', client.id)
-                    .order('created_at', { ascending: true });
-                  setMessages(data || []);
-                } catch {
-                  // erro opcional
+                  setMessages(await listPortalClientMessages(portalSessionToken));
+                } catch (err) {
+                  setMessagesError(getPortalRpcError(err, 'Nao foi possivel enviar sua mensagem.'));
                 } finally {
                   setSendingMsg(false);
                 }
