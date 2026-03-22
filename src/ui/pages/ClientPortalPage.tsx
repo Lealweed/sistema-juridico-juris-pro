@@ -12,18 +12,6 @@ type PortalClient = {
   name: string;
 };
 
-type OtpRequestResponse = {
-  ok: true;
-  challenge: string;
-  client: PortalClient;
-};
-
-type OtpVerifyResponse = {
-  ok: true;
-  client: PortalClient;
-};
-
-
 export function ClientPortalPage() {
   function onlyDigits(value: string) {
     return value.replace(/\D/g, '');
@@ -68,92 +56,6 @@ export function ClientPortalPage() {
       sessionStorage.removeItem('clientPortalId');
     }
   }, [state, client]);
-
-  async function invokePortalOtp<T>(payload: Record<string, unknown>) {
-    if (!supabase) throw new Error('Configuração do portal indisponível no momento.');
-
-    const { data, error } = await supabase.functions.invoke<T>('portal-auth-otp', {
-      body: payload,
-    });
-
-    if (error) throw new Error(error.message || 'Falha ao processar autenticação.');
-    if (!data) throw new Error('Resposta inválida da autenticação.');
-    return data;
-  }
-
-  async function requestToken(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!hasSupabaseEnv || !supabase) {
-      setAuthError('Configuração do portal indisponível no momento.');
-      return;
-    }
-
-    const cpfLimpo = onlyDigits(cpfInput);
-    if (cpfLimpo.length !== 11) {
-      setAuthError('Informe um CPF válido.');
-      return;
-    }
-
-    setAuthLoading(true);
-    setAuthError(null);
-
-    try {
-      const data = await invokePortalOtp<OtpRequestResponse>({
-        action: 'request',
-        cpf: cpfLimpo,
-      });
-
-      if (!data.ok || !data.challenge || !data.client?.id) {
-        throw new Error('Falha ao iniciar validação de segurança.');
-      }
-
-      setChallengeToken(data.challenge);
-      setClient(data.client);
-
-      setTokenInput('');
-      setState('token');
-    } catch (err: unknown) {
-      setAuthError(getErrorMessage(err, 'Falha ao enviar código de segurança.'));
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function validateToken(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const trimmedCode = tokenInput.trim();
-    if (!challengeToken) {
-      setAuthError('Sessão de validação expirada. Solicite um novo código.');
-      return;
-    }
-    if (trimmedCode.length !== 4) {
-      setAuthError('Informe o código de 4 dígitos.');
-      return;
-    }
-
-    setAuthLoading(true);
-    setAuthError(null);
-
-    try {
-      const data = await invokePortalOtp<OtpVerifyResponse>({
-        action: 'verify',
-        challenge: challengeToken,
-        code: trimmedCode,
-      });
-
-      if (!data.ok || !data.client?.id) {
-        throw new Error('Falha ao validar código.');
-      }
-
-      setClient(data.client);
-      setState('authenticated');
-    } catch (err: unknown) {
-      setAuthError(getErrorMessage(err, 'Código inválido.'));
-    } finally {
-      setAuthLoading(false);
-    }
-  }
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -244,6 +146,7 @@ export function ClientPortalPage() {
               const cpfLimpo = onlyDigits(cpfInput);
               if (cpfLimpo.length !== 11) throw new Error('CPF inválido.');
               if (!pinInput.trim()) throw new Error('Informe sua senha numérica (PIN).');
+              if (!supabase) throw new Error('Portal indisponível no momento.');
               const { data, error } = await supabase
                 .from('clients')
                 .select('id,name')
