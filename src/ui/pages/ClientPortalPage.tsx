@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Upload, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import { Upload, CheckCircle2, AlertTriangle, FileText, Eye, EyeOff } from 'lucide-react';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -34,6 +34,7 @@ export function ClientPortalPage() {
   const [client, setClient] = useState<PortalClient | null>(null);
   const [cpfInput, setCpfInput] = useState('');
   const [pinInput, setPinInput] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -177,15 +178,25 @@ export function ClientPortalPage() {
             </label>
             <label className="text-sm text-white/80">
               Senha (PIN)
-              <input
-                className="input mt-1"
-                value={pinInput}
-                onChange={(e) => setPinInput(onlyDigits(e.target.value).slice(0, 6))}
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="PIN numérico"
-                type="password"
-              />
+              <div className="relative mt-1">
+                <input
+                  className="input w-full pr-10"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(onlyDigits(e.target.value).slice(0, 6))}
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="PIN numérico"
+                  type={showPin ? "text" : "password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/40 hover:text-white/80"
+                  tabIndex={-1}
+                >
+                  {showPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </label>
             {authError ? (
               <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{authError}</div>
