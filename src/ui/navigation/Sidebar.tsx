@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
+  Bell,
   Briefcase,
   Building2,
   Calendar,
@@ -23,6 +24,7 @@ const items = [
   { to: '/app/produtividade', label: 'Produtividade', icon: TrendingUp },
   { to: '/app/clientes', label: 'Clientes', icon: Users },
   { to: '/app/casos', label: 'Casos', icon: Briefcase },
+  { to: '/app/notificacoes', label: 'Notificacoes', icon: Bell },
   { to: '/app/publicacoes', label: 'PJe / Intimações', icon: BellRing },
   { to: '/app/agenda', label: 'Agenda', icon: Calendar },
   { to: '/app/tarefas', label: 'Tarefas', icon: CheckSquare },

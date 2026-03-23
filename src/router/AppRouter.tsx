@@ -32,6 +32,7 @@ const PartnersPage = lazy(() => import('@/ui/pages/finance/PartnersPage').then((
 const PayablesPage = lazy(() => import('@/ui/pages/finance/PayablesPage').then((m) => ({ default: m.PayablesPage })));
 const AiReportsPage = lazy(() => import('@/ui/pages/AiReportsPage').then((m) => ({ default: m.AiReportsPage })));
 const ClientPortalPage = lazy(() => import('@/ui/pages/ClientPortalPage').then((m) => ({ default: m.ClientPortalPage })));
+const NotificationsPage = lazy(() => import('@/ui/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const PublicationsPage = lazy(() => import('@/ui/pages/PublicationsPage').then((m) => ({ default: m.PublicationsPage })));
 const DrivePage = lazy(() => import('@/ui/pages/DrivePage').then((m) => ({ default: m.DrivePage })));
 const SettingsPage = lazy(() => import('@/ui/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
@@ -89,6 +90,7 @@ export function AppRouter() {
               <Route path="/app/portal" element={<Navigate to="/portal" replace />} />
 
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />
+              <Route path="/app/notificacoes" element={<NotificationsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />
               <Route path="/app/publicacoes" element={<PublicationsPage />} />
               <Route path="/app/configuracoes" element={<SettingsPage />} />
