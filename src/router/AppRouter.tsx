@@ -13,6 +13,7 @@ const HelixDemoPage = lazy(() => import('@/ui/pages/HelixDemoPage').then((m) => 
 const LoginPage = lazy(() => import('@/ui/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 
 const DashboardPage = lazy(() => import('@/ui/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const ProductivityPage = lazy(() => import('@/ui/pages/ProductivityPage').then((m) => ({ default: m.ProductivityPage })));
 const ClientsPage = lazy(() => import('@/ui/pages/ClientsPage').then((m) => ({ default: m.ClientsPage })));
 const ClientDetailsPage = lazy(() => import('@/ui/pages/ClientDetailsPage').then((m) => ({ default: m.ClientDetailsPage })));
 const CasesPage = lazy(() => import('@/ui/pages/CasesPage').then((m) => ({ default: m.CasesPage })));
@@ -65,6 +66,7 @@ export function AppRouter() {
           <Route element={<AppLayout />}>
             <Route element={<RequireAuth />}>
               <Route path="/app" element={<DashboardPage />} />
+              <Route path="/app/produtividade" element={<ProductivityPage />} />
               <Route path="/app/clientes" element={<ClientsPage />} />
               <Route path="/app/clientes/:clientId" element={<ClientDetailsPage />} />
               <Route path="/app/casos" element={<CasesPage />} />

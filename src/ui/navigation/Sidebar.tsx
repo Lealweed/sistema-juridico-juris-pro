@@ -10,6 +10,7 @@ import {
   Coins,
   LayoutDashboard,
   Sparkles,
+  TrendingUp,
   Users,
   HardDrive,
   BellRing,
@@ -19,6 +20,7 @@ import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
 const items = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/app/produtividade', label: 'Produtividade', icon: TrendingUp },
   { to: '/app/clientes', label: 'Clientes', icon: Users },
   { to: '/app/casos', label: 'Casos', icon: Briefcase },
   { to: '/app/publicacoes', label: 'PJe / Intimações', icon: BellRing },
