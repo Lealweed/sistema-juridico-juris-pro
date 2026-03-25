@@ -8,7 +8,7 @@ import { ClientLinksSection } from '@/ui/widgets/ClientLinksSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
-import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
+import { buildProcuracaoData, generateDocumentDocx } from '@/lib/docGenerator';
 import { apiFetch } from '@/lib/apiClient';
 import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
 
@@ -220,7 +220,7 @@ export function ClientDetailsPage() {
       await apiFetch('/api/messages/send', {
         method: 'POST',
         body: JSON.stringify({
-          officeId: row.office_id,
+          officeId: row.officeId,
           clientId: row.id,
           channel: 'whatsapp',
           text: msg,
