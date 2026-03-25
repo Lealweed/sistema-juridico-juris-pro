@@ -8,13 +8,8 @@ import { ClientLinksSection } from '@/ui/widgets/ClientLinksSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
-<<<<<<< HEAD
 import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
 import { apiFetch } from '@/lib/apiClient';
-=======
-import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
-import { apiFetch } from '@/lib/apiClient';
->>>>>>> 63de1ea (feat: página de documentação n8n nas configurações, remoção Evolution do frontend, endurecimento integração)
 import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
 
 function extractSourceFromNotes(notes: string | null) {
