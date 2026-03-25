@@ -63,6 +63,7 @@ type ClientRow = {
   address_state: string | null;
   address_cep: string | null;
   portal_pin?: string | null;
+  officeId?: string | null;
 };
 
 type CaseLite = {
@@ -143,7 +144,7 @@ export function ClientDetailsPage() {
         await getAuthedUser();
 
         const [c1, c2, tx, messagesRes] = await Promise.all([
-          sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep,portal_pin').eq('id', clientId).maybeSingle(),
+          sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep,portal_pin,office_id').eq('id', clientId).maybeSingle(),
           sb
             .from('cases')
             .select('id,title,status,process_number,area,created_at')
