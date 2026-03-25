@@ -297,42 +297,48 @@ export function TeamPage() {
                           id={`oab_uf_${selectedMember.id}`}
                         />
                       </label>
-                      <label className="text-xs text-white/60 flex-1 min-w-[140px]">
-                        Telefone
-                        <input 
-                          className="input mt-1 !py-2 !text-sm" 
-                          placeholder="Ex: 1132223333" 
-                          inputMode="tel"
-                          defaultValue={selectedMember.phone || ''}
-                          id={`phone_${selectedMember.id}`}
-                        />
-                      </label>
-                      <label className="text-xs text-white/60 flex-1 min-w-[160px]">
-                        WhatsApp (notificações n8n)
-                        <input 
-                          className="input mt-1 !py-2 !text-sm" 
-                          placeholder="Ex: 5511999999999" 
-                          inputMode="tel"
-                          defaultValue={selectedMember.whatsapp || ''}
-                          id={`whatsapp_${selectedMember.id}`}
-                        />
-                      </label>
-                      <button 
-                        onClick={() => {
-                          const num = (document.getElementById(`oab_number_${selectedMember.id}`) as HTMLInputElement)?.value;
-                          const uf = (document.getElementById(`oab_uf_${selectedMember.id}`) as HTMLInputElement)?.value;
-                          const ph = (document.getElementById(`phone_${selectedMember.id}`) as HTMLInputElement)?.value;
-                          const wa = (document.getElementById(`whatsapp_${selectedMember.id}`) as HTMLInputElement)?.value;
-                          updateProfile(selectedMember.user_id, num, uf, ph, wa);
-                        }}
-                        className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0"
-                      >
-                        Salvar Perfil
-                      </button>
                     </div>
                     <p className="text-[10px] text-white/40 mt-2">Ao preencher, o sistema fará a varredura automática do Diário de Justiça Eletrônico Nacional vinculando as intimações ao perfil.</p>
                   </div>
                 )}
+
+                <div className="mb-5 bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-sm font-semibold text-white/80 mb-2">Dados de Contato (Para N8N / Automações)</div>
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <label className="text-xs text-white/60 flex-1 min-w-[140px]">
+                      Telefone
+                      <input 
+                        className="input mt-1 !py-2 !text-sm" 
+                        placeholder="Ex: 1132223333" 
+                        inputMode="tel"
+                        defaultValue={selectedMember.phone || ''}
+                        id={`phone_${selectedMember.id}`}
+                      />
+                    </label>
+                    <label className="text-xs text-white/60 flex-1 min-w-[160px]">
+                      WhatsApp (notificações n8n)
+                      <input 
+                        className="input mt-1 !py-2 !text-sm" 
+                        placeholder="Ex: 5511999999999" 
+                        inputMode="tel"
+                        defaultValue={selectedMember.whatsapp || ''}
+                        id={`whatsapp_${selectedMember.id}`}
+                      />
+                    </label>
+                    <button 
+                      onClick={() => {
+                        const num = (document.getElementById(`oab_number_${selectedMember.id}`) as HTMLInputElement)?.value || selectedMember.oab_number || '';
+                        const uf = (document.getElementById(`oab_uf_${selectedMember.id}`) as HTMLInputElement)?.value || selectedMember.oab_uf || '';
+                        const ph = (document.getElementById(`phone_${selectedMember.id}`) as HTMLInputElement)?.value || '';
+                        const wa = (document.getElementById(`whatsapp_${selectedMember.id}`) as HTMLInputElement)?.value || '';
+                        updateProfile(selectedMember.user_id, num, uf, ph, wa);
+                      }}
+                      className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0"
+                    >
+                      Salvar Perfil
+                    </button>
+                  </div>
+                </div>
 
                 <div className="bg-black/30 rounded-xl p-4 border border-white/5">
                   <div className="flex items-center gap-2 mb-3">
