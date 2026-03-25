@@ -5,21 +5,26 @@ import { serve } from 'std/server';
 import { insertWhatsappMessage, insertIntegrationOutbox } from './supabase.ts';
 import { normalizePhone } from '../../../src/lib/normalizePhone.ts';
 
-// Utilitário para validação JWT via Supabase Edge Functions
-async function validateJwtAndMembership(req: Request, officeId: string): Promise<{ userId: string }> {
+// Utilitário para validação de autenticação (JWT ou SECRET interno)
+async function validateAuth(req: Request, officeId: string): Promise<{ userId?: string, n8n?: boolean }> {
   const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw { status: 401, error: 'unauthorized' };
   }
-  const jwt = authHeader.replace('Bearer ', '');
-  // Valida JWT via Supabase Auth API
+  const token = authHeader.replace('Bearer ', '');
+  const N8N_SECRET = Deno.env.get('N8N_MESSAGES_SEND_SECRET');
+  if (N8N_SECRET && token === N8N_SECRET) {
+    // Autorização técnica para automação n8n
+    return { n8n: true };
+  }
+  // Validação JWT padrão
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw { status: 500, error: 'supabase_env_not_set' };
   const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
       apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${jwt}`,
+      Authorization: `Bearer ${token}`,
     },
   });
   if (!userRes.ok) throw { status: 401, error: 'invalid_jwt' };
@@ -59,11 +64,13 @@ serve(async (req) => {
 
 
 
-  // --- Validação JWT e membership ---
-  let userId: string;
+  // --- Validação de autenticação (JWT ou SECRET) ---
+  let userId: string | undefined;
+  let n8n: boolean | undefined;
   try {
-    const result = await validateJwtAndMembership(req, String(officeId));
+    const result = await validateAuth(req, String(officeId));
     userId = result.userId;
+    n8n = result.n8n;
   } catch (err: any) {
     const status = err?.status || 401;
     const error = err?.error || 'unauthorized';
