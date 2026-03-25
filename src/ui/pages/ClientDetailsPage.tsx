@@ -689,10 +689,10 @@ export function ClientDetailsPage() {
                 <CalendarPlus className="h-4 w-4" />
                 Agendar Reunião
               </Link>
-              <Link to={financeQuickLink} className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20">
+              <button onClick={() => setFeesModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20">
                 <DollarSign className="h-4 w-4" />
                 Adicionar Cobrança
-              </Link>
+              </button>
             </div>
           </div>
         </Card>
