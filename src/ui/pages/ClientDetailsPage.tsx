@@ -8,7 +8,7 @@ import { ClientLinksSection } from '@/ui/widgets/ClientLinksSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
-import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
+import { generateDocumentDocx, buildProcuracaoData } from '@/lib/docGenerator';
 import { sendWhatsAppText } from '@/lib/evolutionApi';
 import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
 
@@ -95,6 +95,7 @@ export function ClientDetailsPage() {
   const [saving, setSaving] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [generatingDocx, setGeneratingDocx] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('PROCURAÇÃO.docx');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -434,9 +435,6 @@ export function ClientDetailsPage() {
   const agendaQuickLink = clientId
     ? `/app/agenda?new=1&clientId=${clientId}${row?.name ? `&clientName=${encodeURIComponent(row.name)}` : ''}`
     : '/app/agenda';
-  const financeQuickLink = clientId
-    ? `/app/financeiro?new=1&clientId=${clientId}${row?.name ? `&clientName=${encodeURIComponent(row.name)}` : ''}`
-    : '/app/financeiro';
 
   return (
     <div className="space-y-6">
@@ -476,28 +474,41 @@ export function ClientDetailsPage() {
             </button>
           )}
           {row && (
-            <button
-              disabled={generatingDocx}
-              onClick={async () => {
-                if (!row) return;
-                setGeneratingDocx(true);
-                try {
-                  const data = buildProcuracaoData(row);
-                  await generateProcuracaoDocx(data);
-                } catch (err: unknown) {
-                  alert(getErrorMessage(err, 'Falha ao gerar procuração.'));
-                } finally {
-                  setGeneratingDocx(false);
-                }
-              }}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
-                         bg-gradient-to-r from-sky-600 to-sky-500 text-white
-                         hover:from-sky-500 hover:to-sky-400
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-              {generatingDocx ? 'Gerando…' : 'Gerar Procuração (Word)'}
-            </button>
+            <div className="flex items-center gap-2">
+              <select 
+                className="input !py-2 !px-3 !text-sm bg-neutral-900 border-white/10"
+                value={selectedTemplate}
+                onChange={(e) => setSelectedTemplate(e.target.value)}
+                disabled={generatingDocx}
+              >
+                <option value="PROCURAÇÃO.docx">Procuração Ad Judicia</option>
+                <option value="CONTRATO_MODELO_AUX_POR_INCAP_TEMPORARIA.docx">Contrato - Auxílio Doença</option>
+                <option value="CONTRATO_MODELO_BPC-LOAS.docx">Contrato - BPC / LOAS</option>
+                <option value="CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx">Contrato - Trabalhista</option>
+              </select>
+              <button
+                disabled={generatingDocx}
+                onClick={async () => {
+                  if (!row) return;
+                  setGeneratingDocx(true);
+                  try {
+                    const data = buildProcuracaoData(row);
+                    await generateDocumentDocx(data, selectedTemplate);
+                  } catch (err: unknown) {
+                    alert(getErrorMessage(err, 'Falha ao gerar documento.'));
+                  } finally {
+                    setGeneratingDocx(false);
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
+                           bg-gradient-to-r from-sky-600 to-sky-500 text-white
+                           hover:from-sky-500 hover:to-sky-400
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                {generatingDocx ? 'Gerando…' : 'Gerar'}
+              </button>
+            </div>
           )}
           <Link to="/app/clientes" className="btn-ghost">
             Voltar

@@ -49,11 +49,11 @@ export function buildProcuracaoData(client: {
   };
 }
 
-export async function generateProcuracaoDocx(data: ProcuracaoData): Promise<void> {
-  const resp = await fetch('/templates/procuracao_template.docx');
+export async function generateDocumentDocx(data: ProcuracaoData, templateName: string): Promise<void> {
+  const resp = await fetch(`/templates/${templateName}`);
   if (!resp.ok) {
     throw new Error(
-      'Template não encontrado. Coloque o arquivo procuracao_template.docx em public/templates/.',
+      `Template não encontrado. Verifique se o arquivo ${templateName} existe na pasta public/templates/.`,
     );
   }
 
@@ -81,5 +81,6 @@ export async function generateProcuracaoDocx(data: ProcuracaoData): Promise<void
   });
 
   const safeName = data.nome.replace(/[^a-zA-Z0-9À-ÿ ]/g, '').replace(/\s+/g, '_');
-  saveAs(out, `Procuracao_${safeName}.docx`);
+  const docTitle = templateName.replace('.docx', '');
+  saveAs(out, `${docTitle}_${safeName}.docx`);
 }
