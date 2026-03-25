@@ -8,8 +8,13 @@ import { ClientLinksSection } from '@/ui/widgets/ClientLinksSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
-import { generateDocumentDocx, buildProcuracaoData } from '@/lib/docGenerator';
-import { sendWhatsAppText } from '@/lib/evolutionApi';
+<<<<<<< HEAD
+import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
+import { apiFetch } from '@/lib/apiClient';
+=======
+import { generateProcuracaoDocx, buildProcuracaoData } from '@/lib/docGenerator';
+import { apiFetch } from '@/lib/apiClient';
+>>>>>>> 63de1ea (feat: página de documentação n8n nas configurações, remoção Evolution do frontend, endurecimento integração)
 import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
 
 function extractSourceFromNotes(notes: string | null) {
@@ -217,7 +222,15 @@ export function ClientDetailsPage() {
     const msg = prompt('Mensagem para enviar via WhatsApp:');
     if (!msg) return;
     try {
-      await sendWhatsAppText(row.whatsapp, msg);
+      await apiFetch('/api/messages/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          officeId: row.office_id,
+          clientId: row.id,
+          channel: 'whatsapp',
+          text: msg,
+        }),
+      });
       alert('✅ Mensagem enviada com sucesso!');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Falha ao enviar WhatsApp.';

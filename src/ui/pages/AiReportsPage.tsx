@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { Card } from '@/ui/widgets/Card';
-import { sendWhatsAppText } from '@/lib/evolutionApi';
+import { apiFetch } from '@/lib/apiClient';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
 type TaskLite = {
@@ -275,7 +275,14 @@ export function AiReportsPage() {
       setSendingWeekly(true);
       setWeeklyError(null);
       setWeeklyFeedback(null);
-      await sendWhatsAppText(target.trim(), weeklySummaryText);
+      await apiFetch('/api/messages/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          channel: 'whatsapp',
+          destination: target.trim(),
+          text: weeklySummaryText,
+        }),
+      });
       setWeeklyFeedback('Resumo enviado com sucesso no WhatsApp.');
     } catch (e: any) {
       setWeeklyError(e?.message || 'Falha ao enviar o resumo no WhatsApp.');

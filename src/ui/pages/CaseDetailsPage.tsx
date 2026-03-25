@@ -7,7 +7,7 @@ import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { fetchProcessoEscavador } from '@/lib/escavadorApi';
 import { formatBrPhone } from '@/lib/phone';
-import { notifyClientBilling, notifyClientCaseUpdate } from '@/lib/evolutionApi';
+import { apiFetch } from '@/lib/apiClient';
 import { parseMoneyInput, formatBRL } from '@/lib/money';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
@@ -317,7 +317,15 @@ export function CaseDetailsPage() {
       if (insertErr) throw new Error(insertErr.message);
       billingCreated = true;
 
-      await notifyClientBilling(client.whatsapp, client.name, amountLabel, OFFICE_PIX_KEY);
+      await apiFetch('/api/messages/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          officeId: row.office_id,
+          clientId: client.id,
+          channel: 'whatsapp',
+          text: `Olá *${client.name}*, a sua parcela de *R$ ${amountLabel}* referente aos honorários está disponível. Por favor, realize o pagamento via PIX na chave: *${OFFICE_PIX_KEY}*. Agradecemos a confiança!`,
+        }),
+      });
 
       setBillingModalOpen(false);
       setBillingAmount('');
@@ -359,7 +367,24 @@ export function CaseDetailsPage() {
               if (!first?.whatsapp) { setActionMsg({ type: 'err', text: 'Nenhum cliente com WhatsApp cadastrado neste caso.' }); return; }
               setWppSending(true); setActionMsg(null);
               try {
-                await notifyClientCaseUpdate(first.whatsapp, first.name, row.title);
+                await apiFetch('/api/messages/send', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    officeId: row.office_id,
+                    clientId: first.id,
+                    channel: 'whatsapp',
+                    text: [
+                      `Prezado(a) ${first.name},`,
+                      '',
+                      `Informamos que houve uma atualização no seu processo "${row.title}".`,
+                      '',
+                      'Para mais detalhes, entre em contato com o escritório.',
+                      '',
+                      'Atenciosamente,',
+                      'Lima, Lopes & Diógenes Advogados',
+                    ].join('\n'),
+                  }),
+                });
                 setActionMsg({ type: 'ok', text: `Notificação enviada para ${first.name}!` });
               } catch (err: any) {
                 setActionMsg({ type: 'err', text: err?.message || 'Falha ao enviar WhatsApp.' });

@@ -505,6 +505,16 @@ export function SettingsPage() {
 
           {!office ? <div className="mt-3 text-xs text-white/60">Aceite um convite para entrar em um escritório.</div> : null}
         </Card>
+
+        <Card>
+          <div className="text-sm font-semibold text-white">Integração n8n</div>
+          <div className="mt-3 grid gap-3">
+            <p className="text-xs text-white/60 mb-2">Veja como conectar o n8n ao sistema, acessar endpoints e obter o secret de autenticação.</p>
+            <Link className="btn-primary !text-sm" to="/app/configuracoes/n8n-docs">
+              📄 Documentação de Integração n8n
+            </Link>
+          </div>
+        </Card>
       </div>
     </div>
   );
