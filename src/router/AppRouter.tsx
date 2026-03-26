@@ -36,6 +36,7 @@ const NotificationsPage = lazy(() => import('@/ui/pages/NotificationsPage').then
 const PublicationsPage = lazy(() => import('@/ui/pages/PublicationsPage').then((m) => ({ default: m.PublicationsPage })));
 const DrivePage = lazy(() => import('@/ui/pages/DrivePage').then((m) => ({ default: m.DrivePage })));
 const SettingsPage = lazy(() => import('@/ui/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const SettingsN8nDocsPage = lazy(() => import('@/ui/pages/SettingsN8nDocsPage').then((m) => ({ default: m.SettingsN8nDocsPage })));
 const TeamPage = lazy(() => import('@/ui/pages/TeamPage').then((m) => ({ default: m.TeamPage })));
 const AuditPage = lazy(() => import('@/ui/pages/AuditPage').then((m) => ({ default: m.AuditPage })));
 
@@ -94,6 +95,7 @@ export function AppRouter() {
               <Route path="/app/drive" element={<DrivePage />} />
               <Route path="/app/publicacoes" element={<PublicationsPage />} />
               <Route path="/app/configuracoes" element={<SettingsPage />} />
+              <Route path="/app/configuracoes/n8n-docs" element={<SettingsN8nDocsPage />} />
 
               <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/configuracoes/equipe" element={<TeamPage />} />
