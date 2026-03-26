@@ -129,6 +129,12 @@ export function ClientDetailsPage() {
   const [feeInstallments, setFeeInstallments] = useState(1);
   const [feeFirstDueDate, setFeeFirstDueDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  const [agendaModalOpen, setAgendaModalOpen] = useState(false);
+  const [agendaSaving, setAgendaSaving] = useState(false);
+  const [agendaTitle, setAgendaTitle] = useState('');
+  const [agendaDate, setAgendaDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [agendaTime, setAgendaTime] = useState('09:00');
+
   useEffect(() => {
     let alive = true;
 
@@ -369,6 +375,41 @@ export function ClientDetailsPage() {
       setError(getErrorMessage(err, 'Falha ao enviar resposta no portal.'));
     } finally {
       setPortalReplySaving(false);
+    }
+  }
+
+  async function handleLaunchAgenda() {
+    if (!clientId) return;
+    if (!agendaTitle.trim()) { setError('Informe o título do agendamento.'); return; }
+    if (!agendaDate) { setError('Informe a data.'); return; }
+    
+    setAgendaSaving(true);
+    setError(null);
+    try {
+      const sb = requireSupabase();
+      const user = await getAuthedUser();
+      if (!user?.office_id) throw new Error('Office não encontrado');
+
+      const fullDatetime = new Date(`${agendaDate}T${agendaTime}:00`).toISOString();
+
+      const { error: iErr } = await sb.from('agenda').insert({
+        office_id: user.office_id,
+        created_by: user.id,
+        client_id: clientId,
+        title: agendaTitle.trim(),
+        start_time: fullDatetime,
+        end_time: fullDatetime,
+      });
+
+      if (iErr) throw new Error(iErr.message);
+
+      setAgendaModalOpen(false);
+      setAgendaTitle('');
+      alert('Agendamento salvo com sucesso!');
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setAgendaSaving(false);
     }
   }
 
@@ -705,10 +746,10 @@ export function ClientDetailsPage() {
               <div className="text-xs text-white/60">Atalhos para operar o portal e o relacionamento com este cliente.</div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link to={agendaQuickLink} className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-amber-300">
+              <button onClick={() => setAgendaModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-amber-300">
                 <CalendarPlus className="h-4 w-4" />
                 Agendar Reunião
-              </Link>
+              </button>
               <button onClick={() => setFeesModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20">
                 <DollarSign className="h-4 w-4" />
                 Adicionar Cobrança
@@ -912,6 +953,43 @@ export function ClientDetailsPage() {
           })}
         </div>
       </Card>
+
+      {agendaModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-white">Agendar Reunião</h2>
+              <button onClick={() => !agendaSaving && setAgendaModalOpen(false)} className="rounded-md px-2 py-1 text-sm text-white/70 hover:bg-white/10">
+                Fechar
+              </button>
+            </div>
+            <div className="grid gap-4">
+              <label className="block text-sm text-white/80">
+                Título / Assunto
+                <input type="text" className="input mt-1" value={agendaTitle} onChange={(e) => setAgendaTitle(e.target.value)} placeholder="Ex: Reunião Inicial" disabled={agendaSaving} />
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <label className="block text-sm text-white/80">
+                  Data
+                  <input type="date" className="input mt-1" value={agendaDate} onChange={(e) => setAgendaDate(e.target.value)} disabled={agendaSaving} />
+                </label>
+                <label className="block text-sm text-white/80">
+                  Hora
+                  <input type="time" className="input mt-1" value={agendaTime} onChange={(e) => setAgendaTime(e.target.value)} disabled={agendaSaving} />
+                </label>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setAgendaModalOpen(false)} disabled={agendaSaving} className="btn-ghost !px-3 !py-1.5 text-xs">
+                Cancelar
+              </button>
+              <button onClick={() => void handleLaunchAgenda()} disabled={agendaSaving} className="btn-primary !px-3 !py-1.5 text-xs">
+                {agendaSaving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {feesModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
