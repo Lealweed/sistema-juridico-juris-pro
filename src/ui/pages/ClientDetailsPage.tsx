@@ -388,12 +388,12 @@ export function ClientDetailsPage() {
     try {
       const sb = requireSupabase();
       const user = await getAuthedUser();
-      if (!user?.office_id) throw new Error('Office não encontrado');
+      if (!(row as any)?.office_id) throw new Error('Office não encontrado');
 
       const fullDatetime = new Date(`${agendaDate}T${agendaTime}:00`).toISOString();
 
       const { error: iErr } = await sb.from('agenda').insert({
-        office_id: user.office_id,
+        office_id: (row as any).office_id,
         created_by: user.id,
         client_id: clientId,
         title: agendaTitle.trim(),
@@ -482,9 +482,7 @@ export function ClientDetailsPage() {
     }
   }
 
-  const agendaQuickLink = clientId
-    ? `/app/agenda?new=1&clientId=${clientId}${row?.name ? `&clientName=${encodeURIComponent(row.name)}` : ''}`
-    : '/app/agenda';
+
 
   return (
     <div className="space-y-6">
