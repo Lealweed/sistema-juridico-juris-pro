@@ -490,6 +490,7 @@ export function ProductivityPage() {
                   min={0}
                   className="input mt-1"
                   value={petitionsFiled}
+                  disabled={currentStatus === 'submitted' || saving}
                   onChange={(event) => setPetitionsFiled(Math.max(0, Number(event.target.value || 0)))}
                 />
               </label>
@@ -501,6 +502,7 @@ export function ProductivityPage() {
                   min={0}
                   className="input mt-1"
                   value={hearingsAttended}
+                  disabled={currentStatus === 'submitted' || saving}
                   onChange={(event) => setHearingsAttended(Math.max(0, Number(event.target.value || 0)))}
                 />
               </label>
@@ -512,6 +514,7 @@ export function ProductivityPage() {
                   min={0}
                   className="input mt-1"
                   value={clientsServed}
+                  disabled={currentStatus === 'submitted' || saving}
                   onChange={(event) => setClientsServed(Math.max(0, Number(event.target.value || 0)))}
                 />
               </label>
@@ -521,31 +524,42 @@ export function ProductivityPage() {
                 <textarea
                   className="input mt-1 min-h-[140px]"
                   value={notes}
+                  disabled={currentStatus === 'submitted' || saving}
                   onChange={(event) => setNotes(event.target.value)}
                   placeholder="Descreva entregas, gargalos, avancos importantes ou pendencias da semana."
                 />
               </label>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => void saveReport('draft')}
-                disabled={saving}
-                className="btn-ghost"
-              >
-                {saving ? 'Salvando...' : 'Salvar como Rascunho'}
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveReport('submitted')}
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Send className="h-4 w-4" />
-                {saving ? 'Enviando...' : 'Enviar Relatorio Final'}
-              </button>
-            </div>
+            {currentStatus !== 'submitted' ? (
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void saveReport('draft')}
+                  disabled={saving}
+                  className="btn-ghost"
+                >
+                  {saving ? 'Salvando...' : 'Salvar como Rascunho'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Tem certeza? Apos enviar, voce nao podera alterar os dados desta semana.')) {
+                      void saveReport('submitted');
+                    }
+                  }}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  {saving ? 'Enviando...' : 'Enviar Relatorio Final'}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                Relatorio final enviado e bloqueado para edicao.
+              </div>
+            )}
           </Card>
 
           <Card>
