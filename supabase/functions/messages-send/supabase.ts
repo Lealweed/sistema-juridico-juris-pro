@@ -1,12 +1,27 @@
 // Utilitário para inserir registros nas tabelas de integração do Supabase
 // Funções auxiliares para uso em Edge Functions
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export type JsonObject = { [key: string]: JsonValue };
+
+type InsertRow = { id?: string } & Record<string, unknown>;
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
+  throw new Error("SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados");
 }
+
+const supabaseUrl = SUPABASE_URL as string;
+const serviceRoleKey = SUPABASE_SERVICE_ROLE_KEY as string;
 
 export async function insertWhatsappMessage({
   office_id,
@@ -16,7 +31,7 @@ export async function insertWhatsappMessage({
   to_number,
   text_body,
   provider_message_id,
-  status = 'sent',
+  status = "sent",
   raw_payload = null,
 }: {
   office_id: string;
@@ -27,38 +42,40 @@ export async function insertWhatsappMessage({
   text_body: string;
   provider_message_id?: string | null;
   status?: string;
-  raw_payload?: any;
-}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
-    method: 'POST',
+  raw_payload?: JsonValue | null;
+}): Promise<InsertRow> {
+  const res = await fetch(`${supabaseUrl}/rest/v1/whatsapp_messages`, {
+    method: "POST",
     headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
     },
     body: JSON.stringify([
       {
         office_id,
         client_id,
         conversation_id,
-        direction: 'outbound',
-        provider: 'evolution',
+        direction: "outbound",
+        provider: "evolution",
         provider_message_id,
         from_number,
         to_number,
-        message_type: 'text',
+        message_type: "text",
         text_body,
         status,
         raw_payload,
       },
     ]),
   });
+
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Erro ao inserir whatsapp_message: ${err}`);
   }
-  return (await res.json())[0];
+
+  return ((await res.json()) as InsertRow[])[0];
 }
 
 export async function insertIntegrationOutbox({
@@ -67,24 +84,24 @@ export async function insertIntegrationOutbox({
   event_type,
   destination,
   payload,
-  status = 'pending',
+  status = "pending",
   idempotency_key = null,
 }: {
   office_id?: string | null;
   channel: string;
   event_type: string;
   destination?: string | null;
-  payload: any;
+  payload: JsonObject;
   status?: string;
   idempotency_key?: string | null;
-}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/integration_outbox`, {
-    method: 'POST',
+}): Promise<InsertRow> {
+  const res = await fetch(`${supabaseUrl}/rest/v1/integration_outbox`, {
+    method: "POST",
     headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
     },
     body: JSON.stringify([
       {
@@ -98,9 +115,11 @@ export async function insertIntegrationOutbox({
       },
     ]),
   });
+
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Erro ao inserir integration_outbox: ${err}`);
   }
-  return (await res.json())[0];
+
+  return ((await res.json()) as InsertRow[])[0];
 }
