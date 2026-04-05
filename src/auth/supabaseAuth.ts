@@ -2,6 +2,8 @@ import type { Session } from '@supabase/supabase-js';
 
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 
+type ResetPasswordOptions = Parameters<ReturnType<typeof ensure>['auth']['resetPasswordForEmail']>[1];
+
 function ensure() {
   if (!hasSupabaseEnv || !supabase) {
     throw new Error('Supabase não configurado (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)');
@@ -13,7 +15,7 @@ export async function signInWithPassword(email: string, password: string) {
   return ensure().auth.signInWithPassword({ email, password });
 }
 
-export async function resetPasswordForEmail(email: string, options?: any) {
+export async function resetPasswordForEmail(email: string, options?: ResetPasswordOptions) {
   return ensure().auth.resetPasswordForEmail(email, options);
 }
 

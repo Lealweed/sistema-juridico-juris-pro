@@ -178,7 +178,6 @@ export async function deleteDocument(doc: { id: string; file_path: string }) {
   const { error: delFileErr } = await sb.storage.from('documents').remove([doc.file_path]);
   if (delFileErr) {
     // Not fatal; file might already be gone.
-    // eslint-disable-next-line no-console
     console.warn('Failed to delete file from storage:', delFileErr.message);
   }
 }

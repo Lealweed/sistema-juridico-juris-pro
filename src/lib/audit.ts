@@ -1,5 +1,8 @@
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
+type AuditJson = Record<string, unknown>;
+type ProfileRow = { user_id: string; email: string | null; display_name: string | null };
+
 export type AuditLogRow = {
   id: string;
   office_id: string | null;
@@ -11,8 +14,8 @@ export type AuditLogRow = {
   case_id: string | null;
   task_id: string | null;
   created_at: string;
-  before_data: any | null;
-  after_data: any | null;
+  before_data: AuditJson | null;
+  after_data: AuditJson | null;
   profile?: {
     email: string | null;
     display_name: string | null;
@@ -61,7 +64,7 @@ export async function listAuditLogs(args?: {
 
   if (pErr) return rows;
 
-  const map = new Map((profs || []).map((p: any) => [p.user_id, p]));
+  const map = new Map((profs || []).map((p: ProfileRow) => [p.user_id, p]));
   return rows.map((r) => {
     const p = r.user_id ? map.get(r.user_id) : null;
     return {

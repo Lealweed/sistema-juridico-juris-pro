@@ -94,6 +94,7 @@ export function AppRouter() {
               <Route path="/app/notificacoes" element={<NotificationsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />
               <Route path="/app/publicacoes" element={<PublicationsPage />} />
+
               <Route path="/app/configuracoes" element={<SettingsPage />} />
               <Route path="/app/configuracoes/n8n-docs" element={<SettingsN8nDocsPage />} />
 

@@ -1,5 +1,7 @@
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
+type OfficeMemberRow = { user_id: string | null };
+
 let _cachedOfficeId: string | null = null;
 let _cachedOfficeAt = 0;
 
@@ -33,7 +35,8 @@ export async function listOfficeMemberProfiles(officeId: string): Promise<Office
   const { data: ms, error: mErr } = await sb.from('office_members').select('user_id').eq('office_id', officeId).limit(500);
   if (mErr) throw new Error(mErr.message);
 
-  const ids = Array.from(new Set((ms || []).map((m: any) => m.user_id).filter(Boolean)));
+  const memberRows = (ms || []) as OfficeMemberRow[];
+  const ids = Array.from(new Set(memberRows.map((member) => member.user_id).filter((value): value is string => Boolean(value))));
   if (!ids.length) return [];
 
   const { data: profs, error: pErr } = await sb.from('user_profiles').select('user_id,email,display_name').in('user_id', ids).limit(500);

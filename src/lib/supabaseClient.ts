@@ -5,7 +5,6 @@ import { env } from '@/env';
 export const hasSupabaseEnv = Boolean(env.supabaseUrl && env.supabaseAnonKey);
 
 if (!hasSupabaseEnv) {
-  // eslint-disable-next-line no-console
   console.warn('Supabase env vars are missing: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY');
 }
 

@@ -3,7 +3,7 @@ import type React from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { KernelSize } from 'postprocessing';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import BlurEffect from 'react-progressive-blur';
 
@@ -49,7 +49,7 @@ const HelixRings: React.FC<HelixRingsProps & { quality?: 'low' | 'high' }> = ({
     const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     geometry.translate(0, 0, -depth / 2);
     return geometry;
-  }, []);
+  }, [quality]);
 
   const elements = [] as { id: string; y: number; rotation: number }[];
   for (let i = -levelsDown; i <= levelsUp; i++) {
@@ -135,13 +135,11 @@ export interface HeroProps {
 
 // Full-screen, light hero (as provided in the integration request)
 export const Hero: React.FC<HeroProps> = ({ title, description }) => {
-  const [quality, setQuality] = useState<'low' | 'high'>('high');
-
-  useEffect(() => {
+  const [quality] = useState<'low' | 'high'>(() => {
     const isCoarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
     const isSmall = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
-    if (isCoarse || isSmall) setQuality('low');
-  }, []);
+    return isCoarse || isSmall ? 'low' : 'high';
+  });
 
   return (
     <section className="relative h-screen w-screen overflow-hidden bg-white font-sans tracking-tight text-gray-900">

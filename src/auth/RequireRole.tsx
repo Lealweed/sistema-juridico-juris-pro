@@ -31,7 +31,7 @@ export function RequireRole({ allowed }: { allowed: string[] }) {
     return () => {
       alive = false;
     };
-  }, [allowed.join('|')]);
+  }, [allowed]);
 
   if (ok === null) {
     return <div className="p-4 text-sm text-white/70">Verificando permissões…</div>;
