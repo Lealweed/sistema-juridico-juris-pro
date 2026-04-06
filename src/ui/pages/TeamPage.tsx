@@ -22,6 +22,13 @@ type Member = {
   };
 };
 
+type ProfileForm = {
+  oabNumber: string;
+  oabUf: string;
+  phone: string;
+  whatsapp: string;
+};
+
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ['Acesso total', 'Financeiro', 'Excluir casos', 'Gerenciar equipe'],
   lawyer: ['Criar/Editar casos', 'Gerenciar tarefas', 'Ver clientes', 'Adicionar andamentos'],
@@ -36,10 +43,33 @@ export function TeamPage() {
   const [inviteRole, setInviteRole] = useState('lawyer');
   const [inviting, setInviting] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [profileForm, setProfileForm] = useState<ProfileForm>({
+    oabNumber: '',
+    oabUf: '',
+    phone: '',
+    whatsapp: '',
+  });
 
   useEffect(() => {
     loadTeam();
   }, []);
+
+  useEffect(() => {
+    if (!selectedMember) {
+      setProfileForm({ oabNumber: '', oabUf: '', phone: '', whatsapp: '' });
+      return;
+    }
+
+    setProfileForm({
+      oabNumber: selectedMember.oab_number || '',
+      oabUf: selectedMember.oab_uf || '',
+      phone: selectedMember.phone || '',
+      whatsapp: selectedMember.whatsapp || '',
+    });
+    setProfileFeedback(null);
+  }, [selectedMember]);
 
   async function loadTeam() {
     try {
@@ -135,17 +165,36 @@ export function TeamPage() {
   }
 
   async function updateProfile(userId: string, oabNumber: string, oabUf: string, phone: string, whatsapp: string) {
-    const sb = requireSupabase();
-    const { error } = await sb
-      .from('user_profiles')
-      .update({ oab_number: oabNumber, oab_uf: oabUf, phone: phone.trim() || null, whatsapp: whatsapp.trim() || null })
-      .eq('user_id', userId);
+    try {
+      setSavingProfile(true);
+      setProfileFeedback(null);
 
-    if (error) {
-      alert('Erro ao atualizar perfil: ' + error.message);
-    } else {
-      alert('Perfil salvo com sucesso!');
-      loadTeam();
+      const sb = requireSupabase();
+      const normalizedOabUf = oabUf.trim().toUpperCase();
+      const { data: updatedProfile, error } = await sb
+        .from('user_profiles')
+        .update({
+          oab_number: oabNumber.trim() || null,
+          oab_uf: normalizedOabUf || null,
+          phone: phone.trim() || null,
+          whatsapp: whatsapp.trim() || null,
+        })
+        .eq('user_id', userId)
+        .select('user_id')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!updatedProfile) {
+        throw new Error('Nenhum perfil foi atualizado. Verifique as permissoes RLS da tabela user_profiles.');
+      }
+
+      setProfileFeedback({ type: 'ok', text: 'Perfil salvo com sucesso.' });
+      await loadTeam();
+    } catch (err: any) {
+      const message = err?.message || 'Erro ao atualizar perfil.';
+      setProfileFeedback({ type: 'err', text: message });
+    } finally {
+      setSavingProfile(false);
     }
   }
 
@@ -280,21 +329,27 @@ export function TeamPage() {
                     <div className="flex flex-wrap gap-3 items-end">
                       <label className="text-xs text-white/60 flex-1 min-w-[120px]">
                         Número OAB
-                        <input 
-                          className="input mt-1 !py-2 !text-sm" 
-                          placeholder="Ex: 12345" 
-                          defaultValue={selectedMember.oab_number || ''}
-                          id={`oab_number_${selectedMember.id}`}
+                        <input
+                          className="input mt-1 !py-2 !text-sm"
+                          placeholder="Ex: 12345"
+                          value={profileForm.oabNumber}
+                          onChange={(e) => {
+                            setProfileForm((current) => ({ ...current, oabNumber: e.target.value }));
+                            setProfileFeedback(null);
+                          }}
                         />
                       </label>
                       <label className="text-xs text-white/60 w-24">
                         UF OAB
-                        <input 
-                          className="input mt-1 !py-2 !text-sm uppercase" 
-                          placeholder="Ex: SP" 
+                        <input
+                          className="input mt-1 !py-2 !text-sm uppercase"
+                          placeholder="Ex: SP"
                           maxLength={2}
-                          defaultValue={selectedMember.oab_uf || ''}
-                          id={`oab_uf_${selectedMember.id}`}
+                          value={profileForm.oabUf}
+                          onChange={(e) => {
+                            setProfileForm((current) => ({ ...current, oabUf: e.target.value.toUpperCase() }));
+                            setProfileFeedback(null);
+                          }}
                         />
                       </label>
                     </div>
@@ -304,38 +359,50 @@ export function TeamPage() {
 
                 <div className="mb-5 bg-white/5 border border-white/10 rounded-xl p-4">
                   <div className="text-sm font-semibold text-white/80 mb-2">Dados de Contato (Para N8N / Automações)</div>
+                  {profileFeedback ? (
+                    <div
+                      className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                        profileFeedback.type === 'ok'
+                          ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+                          : 'border-red-400/30 bg-red-500/10 text-red-100'
+                      }`}
+                    >
+                      {profileFeedback.text}
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap gap-3 items-end">
                     <label className="text-xs text-white/60 flex-1 min-w-[140px]">
                       Telefone
-                      <input 
-                        className="input mt-1 !py-2 !text-sm" 
-                        placeholder="Ex: 1132223333" 
+                      <input
+                        className="input mt-1 !py-2 !text-sm"
+                        placeholder="Ex: 1132223333"
                         inputMode="tel"
-                        defaultValue={selectedMember.phone || ''}
-                        id={`phone_${selectedMember.id}`}
+                        value={profileForm.phone}
+                        onChange={(e) => {
+                          setProfileForm((current) => ({ ...current, phone: e.target.value }));
+                          setProfileFeedback(null);
+                        }}
                       />
                     </label>
                     <label className="text-xs text-white/60 flex-1 min-w-[160px]">
                       WhatsApp (notificações n8n)
-                      <input 
-                        className="input mt-1 !py-2 !text-sm" 
-                        placeholder="Ex: 5511999999999" 
+                      <input
+                        className="input mt-1 !py-2 !text-sm"
+                        placeholder="Ex: 5511999999999"
                         inputMode="tel"
-                        defaultValue={selectedMember.whatsapp || ''}
-                        id={`whatsapp_${selectedMember.id}`}
+                        value={profileForm.whatsapp}
+                        onChange={(e) => {
+                          setProfileForm((current) => ({ ...current, whatsapp: e.target.value }));
+                          setProfileFeedback(null);
+                        }}
                       />
                     </label>
-                    <button 
-                      onClick={() => {
-                        const num = (document.getElementById(`oab_number_${selectedMember.id}`) as HTMLInputElement)?.value || selectedMember.oab_number || '';
-                        const uf = (document.getElementById(`oab_uf_${selectedMember.id}`) as HTMLInputElement)?.value || selectedMember.oab_uf || '';
-                        const ph = (document.getElementById(`phone_${selectedMember.id}`) as HTMLInputElement)?.value || '';
-                        const wa = (document.getElementById(`whatsapp_${selectedMember.id}`) as HTMLInputElement)?.value || '';
-                        updateProfile(selectedMember.user_id, num, uf, ph, wa);
-                      }}
-                      className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0"
+                    <button
+                      onClick={() => void updateProfile(selectedMember.user_id, profileForm.oabNumber, profileForm.oabUf, profileForm.phone, profileForm.whatsapp)}
+                      disabled={savingProfile}
+                      className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Salvar Perfil
+                      {savingProfile ? 'Salvando...' : 'Salvar Perfil'}
                     </button>
                   </div>
                 </div>

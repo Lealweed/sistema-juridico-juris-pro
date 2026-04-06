@@ -72,6 +72,7 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [myWhatsapp, setMyWhatsapp] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [profileNotice, setProfileNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const myMember = useMemo(() => members.find((m) => m.user_id === meId) || null, [members, meId]);
   const isAdmin = myMember?.role === 'admin';
@@ -245,15 +246,25 @@ export function SettingsPage() {
     if (!meId) return;
     setSavingProfile(true);
     setError(null);
+    setProfileNotice(null);
     try {
       const sb = requireSupabase();
-      const { error: uErr } = await sb
+      const normalizedWhatsapp = myWhatsapp.trim();
+      const { data: updatedProfile, error: uErr } = await sb
         .from('user_profiles')
-        .update({ whatsapp: myWhatsapp.trim() || null })
-        .eq('user_id', meId);
+        .update({ whatsapp: normalizedWhatsapp || null })
+        .eq('user_id', meId)
+        .select('user_id')
+        .maybeSingle();
       if (uErr) throw new Error(uErr.message);
+      if (!updatedProfile) {
+        throw new Error('Nao foi possivel atualizar seu WhatsApp. Verifique as permissoes RLS da tabela user_profiles.');
+      }
+      setProfileNotice({ type: 'ok', text: 'WhatsApp salvo com sucesso.' });
     } catch (e: any) {
-      setError(e?.message || String(e));
+      const message = e?.message || String(e);
+      setError(message);
+      setProfileNotice({ type: 'err', text: message });
     } finally {
       setSavingProfile(false);
     }
@@ -325,11 +336,25 @@ export function SettingsPage() {
                 className="input"
                 inputMode="tel"
                 value={myWhatsapp}
-                onChange={(e) => setMyWhatsapp(e.target.value)}
+                onChange={(e) => {
+                  setMyWhatsapp(e.target.value);
+                  setProfileNotice(null);
+                }}
                 placeholder="Ex: 5511999999999"
               />
             </label>
             <p className="text-xs text-white/50">Formato internacional sem espaços ou hífen. Usado pelo n8n para cobrança de tarefas.</p>
+            {profileNotice ? (
+              <div
+                className={`rounded-xl border px-3 py-2 text-sm ${
+                  profileNotice.type === 'ok'
+                    ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+                    : 'border-red-400/30 bg-red-500/10 text-red-100'
+                }`}
+              >
+                {profileNotice.text}
+              </div>
+            ) : null}
             <button
               className="btn-primary !text-sm"
               disabled={savingProfile}
