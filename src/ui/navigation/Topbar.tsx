@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   BellRing,
@@ -20,11 +19,11 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 import { useAuth } from '@/auth/authStore';
-import { countUnreadNotifications, notificationKeys } from '@/lib/notifications';
 import { getStoredTheme, setTheme, type AppTheme } from '@/lib/theme';
+import { NotificationsBell } from '@/ui/components/NotificationsBell';
 import { cn } from '@/ui/utils/cn';
 
 const mobileItems = [
@@ -47,21 +46,6 @@ export function Topbar() {
   const auth = useAuth();
   const [theme, setThemeState] = useState<AppTheme>(() => getStoredTheme());
   const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const unreadCountQuery = useQuery({
-    queryKey: notificationKeys.unreadCount(),
-    queryFn: countUnreadNotifications,
-    enabled: auth.isAuthenticated,
-    staleTime: 15_000,
-    refetchInterval: auth.isAuthenticated ? 60_000 : false,
-    refetchOnWindowFocus: true,
-  });
-
-  const unreadCount = unreadCountQuery.data || 0;
-  const hasUnread = unreadCount > 0;
-  const notificationsLabel = hasUnread ? `Notificacoes, ${unreadCount} nao lidas` : 'Notificacoes';
-  const notificationsActive = location.pathname === '/app/notificacoes';
 
   function onToggleTheme() {
     const next: AppTheme = theme === 'dark' ? 'light' : 'dark';
@@ -105,23 +89,7 @@ export function Topbar() {
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
 
-            <button
-              className={cn(
-                'relative rounded-xl border p-2 text-white/80 transition-colors hover:bg-white/10',
-                notificationsActive
-                  ? 'border-amber-400/30 bg-amber-400/10 text-white'
-                  : 'border-white/10 bg-white/5',
-              )}
-              aria-label={notificationsLabel}
-              onClick={() => navigate('/app/notificacoes')}
-            >
-              <Bell className="h-4 w-4" />
-              {hasUnread ? (
-                <span className="absolute -right-1 -top-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-5 text-white shadow-[0_0_12px_rgba(239,68,68,0.45)]">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              ) : null}
-            </button>
+            {auth.isAuthenticated ? <NotificationsBell /> : null}
 
             {auth.isAuthenticated ? (
               <button

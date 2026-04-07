@@ -1,8 +1,10 @@
+import { getMyOfficeId } from '@/lib/officeContext';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
 export type SystemNotification = {
   id: string;
   user_id: string | null;
+  office_id: string | null;
   title: string;
   message: string;
   type: string | null;
@@ -11,8 +13,8 @@ export type SystemNotification = {
 };
 
 export const notificationKeys = {
-  all: ['system_notifications'] as const,
-  list: () => [...notificationKeys.all, 'list'] as const,
+  all: ['notifications'] as const,
+  list: (limit?: number) => [...notificationKeys.all, 'list', limit ?? 'all'] as const,
   unreadCount: () => [...notificationKeys.all, 'unread-count'] as const,
 };
 
@@ -35,7 +37,20 @@ function capitalize(text: string) {
 async function getNotificationContext() {
   const sb = requireSupabase();
   const user = await getAuthedUser();
-  return { sb, userId: user.id };
+  const officeId = await getMyOfficeId().catch(() => null);
+  return { sb, userId: user.id, officeId };
+}
+
+function applyNotificationScope<TQuery extends { eq: (...args: any[]) => any; or: (...args: any[]) => any }>(
+  query: TQuery,
+  userId: string,
+  officeId: string | null,
+) {
+  if (officeId) {
+    return query.or(`user_id.eq.${userId},office_id.eq.${officeId}`);
+  }
+
+  return query.eq('user_id', userId);
 }
 
 export function formatNotificationRelativeTime(iso: string) {
@@ -82,7 +97,7 @@ export function getNotificationTypeMeta(type: string | null | undefined) {
       };
     case 'alert':
       return {
-        label: 'Alert',
+        label: 'Alerta',
         className: 'border-red-400/25 bg-red-500/10 text-red-200',
       };
     default:
@@ -93,41 +108,72 @@ export function getNotificationTypeMeta(type: string | null | undefined) {
   }
 }
 
-export async function listSystemNotifications(limit = 100): Promise<SystemNotification[]> {
-  const { sb, userId } = await getNotificationContext();
+export async function listSystemNotifications(limit = 50): Promise<SystemNotification[]> {
+  const { sb, userId, officeId } = await getNotificationContext();
 
-  const { data, error } = await sb
-    .from('system_notifications')
-    .select('id,user_id,title,message,type,is_read,created_at')
-    .eq('user_id', userId)
+  let query = sb
+    .from('notifications')
+    .select('id,user_id,office_id,title,message,type,is_read,created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
 
+  query = applyNotificationScope(query, userId, officeId);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []) as SystemNotification[];
+}
+
+export async function listUnreadNotifications(limit = 20): Promise<SystemNotification[]> {
+  const { sb, userId, officeId } = await getNotificationContext();
+
+  let query = sb
+    .from('notifications')
+    .select('id,user_id,office_id,title,message,type,is_read,created_at')
+    .eq('is_read', false)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  query = applyNotificationScope(query, userId, officeId);
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data || []) as SystemNotification[];
 }
 
 export async function countUnreadNotifications(): Promise<number> {
-  const { sb, userId } = await getNotificationContext();
+  const { sb, userId, officeId } = await getNotificationContext();
 
-  const { count, error } = await sb
-    .from('system_notifications')
+  let query = sb
+    .from('notifications')
     .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
     .eq('is_read', false);
 
+  query = applyNotificationScope(query, userId, officeId);
+
+  const { count, error } = await query;
   if (error) throw new Error(error.message);
   return count || 0;
 }
 
-export async function markAllNotificationsAsRead() {
-  const { sb, userId } = await getNotificationContext();
+export async function markNotificationAsRead(notificationId: string) {
+  const { sb, userId, officeId } = await getNotificationContext();
 
-  const { error } = await sb
-    .from('system_notifications')
+  let query = sb
+    .from('notifications')
     .update({ is_read: true })
-    .eq('user_id', userId)
-    .eq('is_read', false);
+    .eq('id', notificationId);
 
+  query = applyNotificationScope(query, userId, officeId);
+
+  const { data, error } = await query.select('id').maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) {
+    throw new Error('Notificacao nao encontrada ou sem permissao para atualiza-la.');
+  }
+}
+
+export async function markAllNotificationsAsRead() {
+  const unreadNotifications = await listUnreadNotifications(200);
+  await Promise.all(unreadNotifications.map((notification) => markNotificationAsRead(notification.id)));
 }
