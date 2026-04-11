@@ -15,6 +15,7 @@ import {
   Users,
   HardDrive,
   BellRing,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/ui/utils/cn';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
@@ -23,6 +24,7 @@ const items = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/app/produtividade', label: 'Produtividade', icon: TrendingUp },
   { to: '/app/clientes', label: 'Clientes', icon: Users },
+  { to: '/app/triagem', label: 'Triagem / Leads', icon: ClipboardList },
   { to: '/app/casos', label: 'Casos', icon: Briefcase },
   { to: '/app/notificacoes', label: 'Notificacoes', icon: Bell },
   { to: '/app/publicacoes', label: 'PJe / Intimações', icon: BellRing },

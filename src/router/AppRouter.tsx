@@ -15,6 +15,7 @@ const LoginPage = lazy(() => import('@/ui/pages/LoginPage').then((m) => ({ defau
 const DashboardPage = lazy(() => import('@/ui/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const ProductivityPage = lazy(() => import('@/ui/pages/ProductivityPage').then((m) => ({ default: m.ProductivityPage })));
 const ClientsPage = lazy(() => import('@/ui/pages/ClientsPage').then((m) => ({ default: m.ClientsPage })));
+const TriagePage = lazy(() => import('@/ui/pages/TriagePage').then((m) => ({ default: m.TriagePage })));
 const ClientDetailsPage = lazy(() => import('@/ui/pages/ClientDetailsPage').then((m) => ({ default: m.ClientDetailsPage })));
 const CasesPage = lazy(() => import('@/ui/pages/CasesPage').then((m) => ({ default: m.CasesPage })));
 const CaseDetailsPage = lazy(() => import('@/ui/pages/CaseDetailsPage').then((m) => ({ default: m.CaseDetailsPage })));
@@ -70,6 +71,7 @@ export function AppRouter() {
               <Route path="/app" element={<DashboardPage />} />
               <Route path="/app/produtividade" element={<ProductivityPage />} />
               <Route path="/app/clientes" element={<ClientsPage />} />
+              <Route path="/app/triagem" element={<TriagePage />} />
               <Route path="/app/clientes/:clientId" element={<ClientDetailsPage />} />
               <Route path="/app/casos" element={<CasesPage />} />
               <Route path="/app/casos/:caseId" element={<CaseDetailsPage />} />
