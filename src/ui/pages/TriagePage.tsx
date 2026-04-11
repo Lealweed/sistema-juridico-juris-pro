@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Mail, Phone, RefreshCw, UserRound, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { formatCpf } from '@/lib/cpf';
 import { formatBrPhone } from '@/lib/phone';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
@@ -44,7 +45,7 @@ function DataTable({
 }) {
   return (
     <div className="w-full overflow-x-auto">
-      <table className="min-w-[1200px] w-full border-separate border-spacing-0 text-left text-sm text-white/85">
+      <table className="min-w-[1320px] w-full border-separate border-spacing-0 text-left text-sm text-white/85">
         <thead className="bg-white/5 text-[11px] uppercase tracking-[0.18em] text-white/55">
           <tr>
             <th className="min-w-[200px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium first:rounded-tl-2xl">Nome</th>
@@ -53,13 +54,14 @@ function DataTable({
             <th className="min-w-[180px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Área</th>
             <th className="min-w-[300px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Caso</th>
             <th className="min-w-[170px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Data/Hora</th>
-            <th className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium last:rounded-tr-2xl">CPF</th>
+            <th className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">CPF</th>
+            <th className="sticky right-0 min-w-[150px] whitespace-nowrap border-b border-white/10 bg-neutral-950 px-4 py-3 font-medium last:rounded-tr-2xl">AÇÕES</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={7} className="px-4 py-8 text-center text-sm text-white/60">
+              <td colSpan={8} className="px-4 py-8 text-center text-sm text-white/60">
                 Carregando leads...
               </td>
             </tr>
@@ -67,7 +69,7 @@ function DataTable({
 
           {!loading && rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-8 text-center text-sm text-white/60">
+              <td colSpan={8} className="px-4 py-8 text-center text-sm text-white/60">
                 Nenhum lead encontrado na fila de triagem.
               </td>
             </tr>
@@ -98,6 +100,19 @@ function DataTable({
                     {formatDateTime(row.created_at)}
                   </td>
                   <td className="min-w-[160px] border-b border-white/10 px-4 py-3 text-white/80">{row.cpf ? formatCpf(row.cpf) : '—'}</td>
+                  <td className="sticky right-0 min-w-[150px] border-b border-white/10 bg-neutral-950/95 px-4 py-3 text-white/80">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelect(row);
+                      }}
+                    >
+                      Ver Detalhes
+                    </Button>
+                  </td>
                 </tr>
               ))
             : null}
@@ -299,6 +314,7 @@ export function TriagePage() {
         <div className="border-b border-white/10 px-4 py-4 sm:px-5">
           <div className="text-sm font-semibold text-white">Fila em modo planilha</div>
           <div className="mt-1 text-xs text-white/55">Ordenação automática por data de cadastro mais recente.</div>
+          <div className="mt-2 text-xs text-amber-200/80">(Deslize a tabela para o lado para ver mais colunas)</div>
         </div>
 
         <div className="w-full overflow-x-auto">
