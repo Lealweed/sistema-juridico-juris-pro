@@ -35,17 +35,17 @@ function resolveLeadPhone(row: TriageLeadRow) {
 
 function DataTable({ rows, loading }: { rows: TriageLeadRow[]; loading: boolean }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm text-white/85">
+    <div className="w-full overflow-x-auto">
+      <table className="min-w-[1200px] w-full border-separate border-spacing-0 text-left text-sm text-white/85">
         <thead className="bg-white/5 text-[11px] uppercase tracking-[0.18em] text-white/55">
           <tr>
-            <th className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium first:rounded-tl-2xl">Nome</th>
+            <th className="min-w-[200px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium first:rounded-tl-2xl">Nome</th>
             <th className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Telefone</th>
-            <th className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium">E-mail</th>
-            <th className="min-w-[180px] border-b border-white/10 px-4 py-3 font-medium">Área</th>
-            <th className="min-w-[300px] border-b border-white/10 px-4 py-3 font-medium">Caso</th>
+            <th className="min-w-[200px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">E-mail</th>
+            <th className="min-w-[180px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Área</th>
+            <th className="min-w-[300px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Caso</th>
             <th className="min-w-[170px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Data/Hora</th>
-            <th className="min-w-[160px] border-b border-white/10 px-4 py-3 font-medium last:rounded-tr-2xl">CPF</th>
+            <th className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium last:rounded-tr-2xl">CPF</th>
           </tr>
         </thead>
         <tbody>
@@ -182,13 +182,15 @@ export function TriagePage() {
 
       {error ? <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">{error}</div> : null}
 
-      <Card className="overflow-hidden px-0 py-0">
+      <Card className="px-0 py-0">
         <div className="border-b border-white/10 px-4 py-4 sm:px-5">
           <div className="text-sm font-semibold text-white">Fila em modo planilha</div>
           <div className="mt-1 text-xs text-white/55">Ordenação automática por data de cadastro mais recente.</div>
         </div>
 
-        <DataTable rows={rows} loading={loading} />
+        <div className="w-full overflow-x-auto">
+          <DataTable rows={rows} loading={loading} />
+        </div>
       </Card>
     </div>
   );
