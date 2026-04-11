@@ -36,14 +36,16 @@ function resolveLeadPhone(row: TriageLeadRow) {
 function DataTable({ rows, loading }: { rows: TriageLeadRow[]; loading: boolean }) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[1120px] w-full border-separate border-spacing-0 text-left text-sm text-white/85">
+      <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm text-white/85">
         <thead className="bg-white/5 text-[11px] uppercase tracking-[0.18em] text-white/55">
           <tr>
-            {['Nome', 'Telefone', 'E-mail', 'Área', 'Caso', 'Data/Hora', 'CPF'].map((label) => (
-              <th key={label} className="border-b border-white/10 px-4 py-3 font-medium first:rounded-tl-2xl last:rounded-tr-2xl">
-                {label}
-              </th>
-            ))}
+            <th className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium first:rounded-tl-2xl">Nome</th>
+            <th className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Telefone</th>
+            <th className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium">E-mail</th>
+            <th className="min-w-[180px] border-b border-white/10 px-4 py-3 font-medium">Área</th>
+            <th className="min-w-[300px] border-b border-white/10 px-4 py-3 font-medium">Caso</th>
+            <th className="min-w-[170px] whitespace-nowrap border-b border-white/10 px-4 py-3 font-medium">Data/Hora</th>
+            <th className="min-w-[160px] border-b border-white/10 px-4 py-3 font-medium last:rounded-tr-2xl">CPF</th>
           </tr>
         </thead>
         <tbody>
@@ -65,22 +67,26 @@ function DataTable({ rows, loading }: { rows: TriageLeadRow[]; loading: boolean 
 
           {!loading
             ? rows.map((row) => (
-                <tr key={row.id} className="bg-transparent transition-colors hover:bg-white/5">
-                  <td className="border-b border-white/10 px-4 py-3 font-medium text-white">
+                <tr key={row.id} className="bg-transparent align-top transition-colors hover:bg-white/5">
+                  <td className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium text-white">
                     <Link className="hover:text-amber-300" to={`/app/clientes/${row.id}`}>
                       {row.name || 'Sem nome'}
                     </Link>
                   </td>
-                  <td className="border-b border-white/10 px-4 py-3 text-white/80">{formatBrPhone(resolveLeadPhone(row)) || '—'}</td>
-                  <td className="border-b border-white/10 px-4 py-3 text-white/80">{row.email || '—'}</td>
-                  <td className="border-b border-white/10 px-4 py-3 text-white/80">{row.legal_area || '—'}</td>
-                  <td className="border-b border-white/10 px-4 py-3 text-white/80">
-                    <div className="max-w-[360px] truncate" title={row.case_description || ''}>
+                  <td className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 text-white/80">
+                    {formatBrPhone(resolveLeadPhone(row)) || '—'}
+                  </td>
+                  <td className="min-w-[200px] border-b border-white/10 px-4 py-3 text-white/80">{row.email || '—'}</td>
+                  <td className="min-w-[180px] border-b border-white/10 px-4 py-3 text-white/80">{row.legal_area || '—'}</td>
+                  <td className="min-w-[300px] border-b border-white/10 px-4 py-3 text-white/80">
+                    <div className="max-w-[320px] overflow-hidden text-ellipsis line-clamp-2" title={row.case_description || ''}>
                       {row.case_description || '—'}
                     </div>
                   </td>
-                  <td className="border-b border-white/10 px-4 py-3 text-white/80">{formatDateTime(row.created_at)}</td>
-                  <td className="border-b border-white/10 px-4 py-3 text-white/80">{row.cpf ? formatCpf(row.cpf) : '—'}</td>
+                  <td className="min-w-[170px] whitespace-nowrap border-b border-white/10 px-4 py-3 text-white/80">
+                    {formatDateTime(row.created_at)}
+                  </td>
+                  <td className="min-w-[160px] border-b border-white/10 px-4 py-3 text-white/80">{row.cpf ? formatCpf(row.cpf) : '—'}</td>
                 </tr>
               ))
             : null}
