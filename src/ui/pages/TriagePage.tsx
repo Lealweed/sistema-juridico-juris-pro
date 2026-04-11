@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, RefreshCw } from 'lucide-react';
+import { ClipboardList, Mail, Phone, RefreshCw, UserRound, X } from 'lucide-react';
 
 import { formatCpf } from '@/lib/cpf';
 import { formatBrPhone } from '@/lib/phone';
@@ -33,7 +33,15 @@ function resolveLeadPhone(row: TriageLeadRow) {
   return row.phone_e164 || row.whatsapp || row.phone || '';
 }
 
-function DataTable({ rows, loading }: { rows: TriageLeadRow[]; loading: boolean }) {
+function DataTable({
+  rows,
+  loading,
+  onSelect,
+}: {
+  rows: TriageLeadRow[];
+  loading: boolean;
+  onSelect: (row: TriageLeadRow) => void;
+}) {
   return (
     <div className="w-full overflow-x-auto">
       <table className="min-w-[1200px] w-full border-separate border-spacing-0 text-left text-sm text-white/85">
@@ -67,11 +75,14 @@ function DataTable({ rows, loading }: { rows: TriageLeadRow[]; loading: boolean 
 
           {!loading
             ? rows.map((row) => (
-                <tr key={row.id} className="bg-transparent align-top transition-colors hover:bg-white/5">
+                <tr
+                  key={row.id}
+                  onClick={() => onSelect(row)}
+                  className="cursor-pointer bg-transparent align-top transition-colors hover:bg-slate-800/50"
+                >
                   <td className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium text-white">
-                    <Link className="hover:text-amber-300" to={`/app/clientes/${row.id}`}>
-                      {row.name || 'Sem nome'}
-                    </Link>
+                    <div>{row.name || 'Sem nome'}</div>
+                    <div className="mt-1 text-[11px] font-normal text-amber-200/70">Clique para ver a ficha</div>
                   </td>
                   <td className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 text-white/80">
                     {formatBrPhone(resolveLeadPhone(row)) || '—'}
@@ -96,10 +107,101 @@ function DataTable({ rows, loading }: { rows: TriageLeadRow[]; loading: boolean 
   );
 }
 
+function LeadDetailsModal({ lead, onClose }: { lead: TriageLeadRow | null; onClose: () => void }) {
+  if (!lead) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/10 bg-neutral-950/95 shadow-[0_30px_120px_rgba(0,0,0,0.55)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sticky top-0 flex items-start justify-between gap-4 border-b border-white/10 bg-neutral-950/95 px-5 py-4 backdrop-blur sm:px-6">
+          <div>
+            <div className="text-xs uppercase tracking-[0.18em] text-amber-200/80">Ficha de Atendimento</div>
+            <h2 className="mt-1 text-xl font-semibold text-white">{lead.name || 'Lead sem nome'}</h2>
+            <p className="mt-1 text-sm text-white/60">Cadastro em {formatDateTime(lead.created_at)}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+            aria-label="Fechar detalhes"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-6 p-5 sm:p-6">
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <UserRound className="h-4 w-4 text-amber-300" />
+              Informações de Contato
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-white/45">Nome</div>
+                <div className="mt-2 text-sm text-white">{lead.name || '—'}</div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/45">
+                  <Phone className="h-3.5 w-3.5" />
+                  Telefone
+                </div>
+                <div className="mt-2 text-sm text-white">{formatBrPhone(resolveLeadPhone(lead)) || '—'}</div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/45">
+                  <Mail className="h-3.5 w-3.5" />
+                  E-mail
+                </div>
+                <div className="mt-2 break-all text-sm text-white">{lead.email || '—'}</div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-white/45">CPF</div>
+                <div className="mt-2 text-sm text-white">{lead.cpf ? formatCpf(lead.cpf) : '—'}</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-amber-200/80">Área do Direito</div>
+            <div className="mt-3">
+              <span className="inline-flex items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-sm font-medium text-amber-100">
+                {lead.legal_area || 'Não informada'}
+              </span>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-white/45">Relato Completo do Caso</div>
+            <div className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-white/85">
+              {lead.case_description || 'Nenhum relato informado até o momento.'}
+            </div>
+          </section>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-2">
+            <div className="text-sm text-white/60">Data/Hora do cadastro: {formatDateTime(lead.created_at)}</div>
+            <Link className="btn-ghost" to={`/app/clientes/${lead.id}`} onClick={onClose}>
+              Abrir cadastro completo
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TriagePage() {
   const [rows, setRows] = useState<TriageLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<TriageLeadRow | null>(null);
 
   async function load() {
     setLoading(true);
@@ -128,6 +230,17 @@ export function TriagePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selectedLead) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSelectedLead(null);
+    }
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedLead]);
 
   const stats = useMemo(() => {
     const withArea = rows.filter((row) => Boolean(row.legal_area)).length;
@@ -189,9 +302,11 @@ export function TriagePage() {
         </div>
 
         <div className="w-full overflow-x-auto">
-          <DataTable rows={rows} loading={loading} />
+          <DataTable rows={rows} loading={loading} onSelect={setSelectedLead} />
         </div>
       </Card>
+
+      <LeadDetailsModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
     </div>
   );
 }
