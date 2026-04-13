@@ -29,6 +29,7 @@ const FinancePage = lazy(() => import('@/ui/pages/FinancePage').then((m) => ({ d
 const FinanceTxDetailsPage = lazy(() =>
   import('@/ui/pages/finance/FinanceTxDetailsPage').then((m) => ({ default: m.FinanceTxDetailsPage })),
 );
+const ReceiptsPage = lazy(() => import('@/ui/pages/ReceiptsPage').then((m) => ({ default: m.ReceiptsPage })));
 const PartnersPage = lazy(() => import('@/ui/pages/finance/PartnersPage').then((m) => ({ default: m.PartnersPage })));
 const PayablesPage = lazy(() => import('@/ui/pages/finance/PayablesPage').then((m) => ({ default: m.PayablesPage })));
 const AiReportsPage = lazy(() => import('@/ui/pages/AiReportsPage').then((m) => ({ default: m.AiReportsPage })));
@@ -85,11 +86,14 @@ export function AppRouter() {
               <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/tarefas/lote/:groupId" element={<TaskGroupPage />} />
               </Route>
-              <Route path="/app/financeiro" element={<FinancePage />} />
-              <Route path="/app/f" element={<FinancePage />} />
-              <Route path="/app/financeiro/parceiros" element={<PartnersPage />} />
-              <Route path="/app/financeiro/a-pagar" element={<PayablesPage />} />
-              <Route path="/app/financeiro/:txId" element={<FinanceTxDetailsPage />} />
+              <Route path="/app/recibos" element={<ReceiptsPage />} />
+              <Route element={<RequireRole allowed={["admin", "finance", "owner", "advogado"]} />}>
+                <Route path="/app/financeiro" element={<FinancePage />} />
+                <Route path="/app/f" element={<FinancePage />} />
+                <Route path="/app/financeiro/parceiros" element={<PartnersPage />} />
+                <Route path="/app/financeiro/a-pagar" element={<PayablesPage />} />
+                <Route path="/app/financeiro/:txId" element={<FinanceTxDetailsPage />} />
+              </Route>
               <Route path="/app/portal" element={<Navigate to="/portal" replace />} />
 
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />

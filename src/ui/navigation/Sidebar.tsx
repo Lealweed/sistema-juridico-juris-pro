@@ -16,8 +16,10 @@ import {
   HardDrive,
   BellRing,
   ClipboardList,
+  ReceiptText,
 } from 'lucide-react';
 import { cn } from '@/ui/utils/cn';
+import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
 const items = [
@@ -30,6 +32,7 @@ const items = [
   { to: '/app/publicacoes', label: 'PJe / Intimações', icon: BellRing },
   { to: '/app/agenda', label: 'Agenda', icon: Calendar },
   { to: '/app/tarefas', label: 'Tarefas', icon: CheckSquare },
+  { to: '/app/recibos', label: 'Recibos', icon: ReceiptText },
   { to: '/app/financeiro', label: 'Financeiro', icon: Coins },
   { to: '/app/drive', label: 'Smart Drive', icon: HardDrive },
   { to: '/app/relatorios-ia', label: 'Relatórios com IA', icon: Sparkles },
@@ -39,12 +42,17 @@ const items = [
 
 export function Sidebar() {
   const [userName, setUserName] = useState<string>('Carregando...');
+  const [myRole, setMyRole] = useState<string>('');
+  const isCollaborator = isCollaboratorRole(myRole);
+  const visibleItems = items.filter((item) => (isCollaborator ? item.to !== '/app/financeiro' : true));
   
   useEffect(() => {
     (async () => {
       try {
         const sb = requireSupabase();
         const user = await getAuthedUser();
+        const role = await getMyOfficeRole().catch(() => '');
+        setMyRole(role || '');
         
         const { data: profile } = await sb
           .from('user_profiles')
@@ -73,7 +81,7 @@ export function Sidebar() {
       </div>
 
       <nav className="px-2 py-3">
-        {items.map((it) => (
+        {visibleItems.map((it) => (
           <NavLink
             key={it.to}
             to={it.to}

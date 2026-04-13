@@ -17,11 +17,13 @@ import {
   TrendingUp,
   Users,
   X,
+  ReceiptText,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useAuth } from '@/auth/authStore';
+import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
 import { getStoredTheme, setTheme, type AppTheme } from '@/lib/theme';
 import { NotificationsBell } from '@/ui/components/NotificationsBell';
 import { cn } from '@/ui/utils/cn';
@@ -35,6 +37,7 @@ const mobileItems = [
   { to: '/app/publicacoes', label: 'PJe / Intimacoes', icon: BellRing },
   { to: '/app/agenda', label: 'Agenda', icon: Calendar },
   { to: '/app/tarefas', label: 'Tarefas', icon: CheckSquare },
+  { to: '/app/recibos', label: 'Recibos', icon: ReceiptText },
   { to: '/app/financeiro', label: 'Financeiro', icon: Coins },
   { to: '/app/drive', label: 'Smart Drive', icon: HardDrive },
   { to: '/app/relatorios-ia', label: 'Relatorios com IA', icon: Sparkles },
@@ -46,6 +49,25 @@ export function Topbar() {
   const auth = useAuth();
   const [theme, setThemeState] = useState<AppTheme>(() => getStoredTheme());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [myRole, setMyRole] = useState('');
+  const isCollaborator = isCollaboratorRole(myRole);
+  const visibleMobileItems = useMemo(
+    () => mobileItems.filter((item) => (isCollaborator ? item.to !== '/app/financeiro' : true)),
+    [isCollaborator],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const role = await getMyOfficeRole().catch(() => '');
+      if (!alive) return;
+      setMyRole(role || '');
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   function onToggleTheme() {
     const next: AppTheme = theme === 'dark' ? 'light' : 'dark';
@@ -116,7 +138,7 @@ export function Topbar() {
               </button>
             </div>
             <nav className="flex-1 overflow-y-auto px-2 py-4">
-              {mobileItems.map((it) => (
+              {visibleMobileItems.map((it) => (
                 <NavLink
                   key={it.to}
                   to={it.to}

@@ -5,10 +5,15 @@ function normalizeRole(role: string | null | undefined) {
   const r = String(role || '').trim().toLowerCase();
   if (!r) return '';
 
-  // Backend membership roles (OWNER/ADMIN/FINANCE/...) and office roles (admin/finance/...)
-  if (r === 'owner') return 'admin';
-  if (r === 'administrator') return 'admin';
+  // Canonical app roles.
+  if (r === 'owner' || r === 'admin' || r === 'administrator') return 'admin';
+  if (r === 'advogado' || r === 'lawyer' || r === 'finance') return 'finance';
+  if (r === 'colaborador' || r === 'member' || r === 'staff' || r === 'assistant' || r === 'secretary') return 'colaborador';
   return r;
+}
+
+export function isCollaboratorRole(role: string | null | undefined) {
+  return normalizeRole(role) === 'colaborador';
 }
 
 export async function getMyOfficeRole() {
