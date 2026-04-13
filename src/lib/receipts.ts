@@ -27,7 +27,21 @@ export async function listReceipts(limit = 100): Promise<Receipt[]> {
     .limit(limit);
 
   if (error) throw new Error(error.message);
-  return (data || []) as Receipt[];
+  if (!data) return [];
+  // Tipagem segura: converte cada item explicitamente
+  return data.map((r: any) => ({
+    id: r.id,
+    office_id: r.office_id,
+    client_id: r.client_id,
+    created_by: r.created_by,
+    amount: r.amount,
+    description: r.description,
+    status: r.status,
+    issued_at: r.issued_at,
+    pdf_url: r.pdf_url,
+    created_at: r.created_at,
+    client: r.client && Array.isArray(r.client) && r.client.length > 0 ? { name: String(r.client[0].name) } : null,
+  }));
 }
 
 export async function createReceiptSecure(input: {

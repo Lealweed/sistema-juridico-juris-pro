@@ -87,9 +87,12 @@ export function AppRouter() {
                 <Route path="/app/tarefas/lote/:groupId" element={<TaskGroupPage />} />
               </Route>
               <Route path="/app/recibos" element={<ReceiptsPage />} />
-              <Route element={<RequireRole allowed={["admin", "finance", "owner", "advogado"]} />}>
+              {/* Financeiro geral: só admin */}
+              <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/financeiro" element={<FinancePage />} />
-                <Route path="/app/f" element={<FinancePage />} />
+              </Route>
+              {/* Operacionais: admin e user */}
+              <Route element={<RequireRole allowed={["admin", "user"]} />}>
                 <Route path="/app/financeiro/parceiros" element={<PartnersPage />} />
                 <Route path="/app/financeiro/a-pagar" element={<PayablesPage />} />
                 <Route path="/app/financeiro/:txId" element={<FinanceTxDetailsPage />} />

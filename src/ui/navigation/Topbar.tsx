@@ -23,7 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useAuth } from '@/auth/authStore';
-import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
+import { getMyOfficeRole } from '@/lib/roles';
 import { getStoredTheme, setTheme, type AppTheme } from '@/lib/theme';
 import { NotificationsBell } from '@/ui/components/NotificationsBell';
 import { cn } from '@/ui/utils/cn';
@@ -50,10 +50,10 @@ export function Topbar() {
   const [theme, setThemeState] = useState<AppTheme>(() => getStoredTheme());
   const [menuOpen, setMenuOpen] = useState(false);
   const [myRole, setMyRole] = useState('');
-  const isCollaborator = isCollaboratorRole(myRole);
+  const isUser = myRole === 'user';
   const visibleMobileItems = useMemo(
-    () => mobileItems.filter((item) => (isCollaborator ? item.to !== '/app/financeiro' : true)),
-    [isCollaborator],
+    () => mobileItems.filter((item) => (isUser ? item.to !== '/app/financeiro' : true)),
+    [isUser],
   );
 
   useEffect(() => {

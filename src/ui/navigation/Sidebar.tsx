@@ -19,7 +19,7 @@ import {
   ReceiptText,
 } from 'lucide-react';
 import { cn } from '@/ui/utils/cn';
-import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
+import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
 const items = [
@@ -43,8 +43,8 @@ const items = [
 export function Sidebar() {
   const [userName, setUserName] = useState<string>('Carregando...');
   const [myRole, setMyRole] = useState<string>('');
-  const isCollaborator = isCollaboratorRole(myRole);
-  const visibleItems = items.filter((item) => (isCollaborator ? item.to !== '/app/financeiro' : true));
+  const isUser = myRole === 'user';
+  const visibleItems = items.filter((item) => (isUser ? item.to !== '/app/financeiro' : true));
   
   useEffect(() => {
     (async () => {
