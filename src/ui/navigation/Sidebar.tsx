@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
@@ -18,12 +19,14 @@ import {
   ClipboardList,
   ReceiptText,
   FileText,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/ui/utils/cn';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
-const items = [
+type SidebarItem = { to: string; label: string; icon: LucideIcon; adminOnly?: boolean };
+const items: SidebarItem[] = [
     { to: '/app/documentos/gerar', label: 'Gerar Documentos', icon: FileText },
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/app/produtividade', label: 'Produtividade', icon: TrendingUp },
@@ -38,6 +41,7 @@ const items = [
   { to: '/app/financeiro', label: 'Financeiro', icon: Coins },
   { to: '/app/drive', label: 'Smart Drive', icon: HardDrive },
   { to: '/app/relatorios-ia', label: 'Relatórios com IA', icon: Sparkles },
+  { to: '/app/relatorios-equipe', label: 'Relatórios da Equipe', icon: ClipboardCheck, adminOnly: true },
   { to: '/portal', label: 'Portal do Cliente', icon: Building2 },
   { to: '/app/configuracoes', label: 'Configurações', icon: Cog },
 ];
@@ -49,7 +53,8 @@ export function Sidebar() {
   const visibleItems = items.filter((item) => {
     // Esconde Financeiro para não-admin
     if (item.to === '/app/financeiro' && !isAdmin) return false;
-    // (Opcional) Esconde outros links globais se necessário
+    // Esconde itens adminOnly para não-admin
+    if (item.adminOnly && !isAdmin) return false;
     return true;
   });
   

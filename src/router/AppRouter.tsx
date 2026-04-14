@@ -42,6 +42,7 @@ const SettingsPage = lazy(() => import('@/ui/pages/SettingsPage').then((m) => ({
 const SettingsN8nDocsPage = lazy(() => import('@/ui/pages/SettingsN8nDocsPage').then((m) => ({ default: m.SettingsN8nDocsPage })));
 const TeamPage = lazy(() => import('@/ui/pages/TeamPage').then((m) => ({ default: m.TeamPage })));
 const AuditPage = lazy(() => import('@/ui/pages/AuditPage').then((m) => ({ default: m.AuditPage })));
+const TeamReportsPage = lazy(() => import('@/ui/pages/TeamReportsPage').then((m) => ({ default: m.TeamReportsPage })));
 
 export function AppRouter() {
   return (
@@ -112,6 +113,7 @@ export function AppRouter() {
               <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/configuracoes/equipe" element={<TeamPage />} />
                 <Route path="/app/configuracoes/auditoria" element={<AuditPage />} />
+                <Route path="/app/relatorios-equipe" element={<TeamReportsPage />} />
               </Route>
             </Route>
           </Route>
