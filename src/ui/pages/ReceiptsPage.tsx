@@ -324,6 +324,31 @@ export function ReceiptsPage() {
                                   </button>
                                   <button
                                     className="btn-secondary btn-sm"
+                                    onClick={() => {
+                                      if (r.pdf_url) {
+                                        // Abre o PDF em nova aba e instrui impressão
+                                        const win = window.open(r.pdf_url, '_blank');
+                                        setTimeout(() => {
+                                          if (win) win.print();
+                                        }, 500);
+                                      } else {
+                                        // Fallback: abre HTML simples e imprime
+                                        const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: 'Cliente' };
+                                        const html = buildReceiptHtml({ receipt: r, client, officeName: 'Juris Pro' });
+                                        const printWindow = window.open('', '_blank', 'width=600,height=800');
+                                        if (printWindow) {
+                                          printWindow.document.write(html);
+                                          printWindow.document.close();
+                                          printWindow.focus();
+                                          printWindow.print();
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Imprimir
+                                  </button>
+                                  <button
+                                    className="btn-secondary btn-sm"
                                     onClick={async () => {
                                       const phone = prompt('Telefone do cliente para WhatsApp (somente números):') || '';
                                       if (!phone) return alert('Telefone não informado.');
