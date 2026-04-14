@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { brlToCents, centsToBRL } from '@/lib/finance';
 import { loadClientsLite } from '@/lib/loadClientsLite';
+import { createClientQuick } from '@/lib/clients';
 import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
 import { createReceiptSecure, listReceipts, type Receipt } from '@/lib/receipts';
 import type { ClientLite } from '@/lib/types';
@@ -28,6 +29,8 @@ export function ReceiptsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [clientId, setClientId] = useState('');
+  const [clientInput, setClientInput] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [issuedAt, setIssuedAt] = useState(todayIsoLocal());
@@ -57,6 +60,8 @@ export function ReceiptsPage() {
   useEffect(() => {
     void load();
   }, []);
+
+
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -157,14 +162,68 @@ export function ReceiptsPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <label className="text-sm text-white/80">
             Cliente
-            <select className="select" value={clientId} onChange={(e) => setClientId(e.target.value)}>
-              <option value="">Selecione...</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                className="input pr-24"
+                placeholder="Digite para buscar ou criar..."
+                value={clientInput}
+                onChange={e => {
+                  setClientInput(e.target.value);
+                  setClientId('');
+                }}
+                list="clients-list"
+                autoComplete="off"
+              />
+              <datalist id="clients-list">
+                {clients
+                  .filter(c => c.name.toLowerCase().includes(clientInput.toLowerCase()))
+                  .map(c => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+              </datalist>
+              {/* Dropdown de sugestões */}
+              {clientInput && (
+                <div className="absolute left-0 right-0 z-10 mt-1 rounded bg-white/90 text-black shadow-lg max-h-40 overflow-auto">
+                  {clients.filter(c => c.name.toLowerCase().includes(clientInput.toLowerCase())).length === 0 ? (
+                    <button
+                      className="block w-full px-3 py-2 text-left hover:bg-amber-100"
+                      disabled={creatingClient}
+                      onClick={async () => {
+                        setCreatingClient(true);
+                        try {
+                          const officeId = window.localStorage.getItem('currentOfficeId') || '';
+                          const newClient = await createClientQuick({ name: clientInput, officeId });
+                          setClients(prev => [...prev, newClient]);
+                          setClientId(newClient.id);
+                          setClientInput(newClient.name);
+                        } catch (e: any) {
+                          setError(e.message || 'Erro ao criar cliente');
+                        } finally {
+                          setCreatingClient(false);
+                        }
+                      }}
+                    >
+                      Criar cliente "{clientInput}"
+                    </button>
+                  ) : (
+                    clients
+                      .filter(c => c.name.toLowerCase().includes(clientInput.toLowerCase()))
+                      .map(c => (
+                        <button
+                          key={c.id}
+                          className={`block w-full px-3 py-2 text-left hover:bg-amber-100 ${clientId === c.id ? 'bg-amber-200 font-bold' : ''}`}
+                          onClick={() => {
+                            setClientId(c.id);
+                            setClientInput(c.name);
+                          }}
+                        >
+                          {c.name}
+                        </button>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
           </label>
 
           <label className="text-sm text-white/80">
