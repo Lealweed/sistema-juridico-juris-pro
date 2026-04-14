@@ -43,8 +43,13 @@ const items = [
 export function Sidebar() {
   const [userName, setUserName] = useState<string>('Carregando...');
   const [myRole, setMyRole] = useState<string>('');
-  const isUser = myRole === 'user';
-  const visibleItems = items.filter((item) => (isUser ? item.to !== '/app/financeiro' : true));
+  const isAdmin = myRole === 'admin';
+  const visibleItems = items.filter((item) => {
+    // Esconde Financeiro para não-admin
+    if (item.to === '/app/financeiro' && !isAdmin) return false;
+    // (Opcional) Esconde outros links globais se necessário
+    return true;
+  });
   
   useEffect(() => {
     (async () => {

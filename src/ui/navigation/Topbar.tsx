@@ -50,10 +50,13 @@ export function Topbar() {
   const [theme, setThemeState] = useState<AppTheme>(() => getStoredTheme());
   const [menuOpen, setMenuOpen] = useState(false);
   const [myRole, setMyRole] = useState('');
-  const isUser = myRole === 'user';
+  const isAdmin = myRole === 'admin';
   const visibleMobileItems = useMemo(
-    () => mobileItems.filter((item) => (isUser ? item.to !== '/app/financeiro' : true)),
-    [isUser],
+    () => mobileItems.filter((item) => {
+      if (item.to === '/app/financeiro' && !isAdmin) return false;
+      return true;
+    }),
+    [isAdmin],
   );
 
   useEffect(() => {
