@@ -125,12 +125,14 @@ function DetailsDrawer({
   const [commentError, setCommentError] = useState('');
   const [copied, setCopied] = useState(false);
   const [pendingAction, setPendingAction] = useState<'aprovado' | 'reprovado' | null>(null);
+  const [drillFilter, setDrillFilter] = useState<'total' | 'concluidas' | 'pendentes'>('total');
 
   useEffect(() => {
     setLocalStatus(report?.status || 'enviado');
     setComment(report?.manager_comment || '');
     setCommentError('');
     setPendingAction(null);
+    setDrillFilter('total');
   }, [report]);
 
   async function handleStatus(newStatus: 'aprovado' | 'reprovado') {
@@ -249,82 +251,119 @@ function DetailsDrawer({
             )}
           </div>
 
-          {/* Métricas numéricas */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Total', value: report.total_tasks },
-              { label: 'Concluídas', value: report.completed_tasks },
-              { label: 'Pendentes', value: report.pending_tasks },
-            ].map(({ label, value }) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-4 text-center">
-                <div className="text-2xl font-bold text-white">{value}</div>
-                <div className="mt-0.5 text-xs text-white/50">{label}</div>
-              </div>
-            ))}
-          </div>
+          {/* Cards clicáveis de drill-down */}
+          {(() => {
+            const drillCards: Array<{ key: 'total' | 'concluidas' | 'pendentes'; label: string; value: number; activeClass: string }> = [
+              { key: 'total', label: 'Total', value: report.total_tasks, activeClass: 'border-amber-400/50 bg-amber-400/10 ring-1 ring-amber-400/30' },
+              { key: 'concluidas', label: 'Concluídas', value: report.completed_tasks, activeClass: 'border-emerald-400/50 bg-emerald-400/10 ring-1 ring-emerald-400/30' },
+              { key: 'pendentes', label: 'Pendentes', value: report.pending_tasks, activeClass: 'border-red-400/40 bg-red-400/8 ring-1 ring-red-400/25' },
+            ];
+            const filtered = drillFilter === 'total'
+              ? report.activities
+              : drillFilter === 'concluidas'
+              ? report.activities.filter((a) => a.done)
+              : report.activities.filter((a) => !a.done);
+            const activeLabel = drillCards.find((c) => c.key === drillFilter)?.label ?? '';
 
-          {/* Atividades executadas */}
-          <section>
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Atividades Executadas ({report.activities.length})
-            </h3>
-            {report.activities.length === 0 ? (
-              <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/40">
-                Nenhuma atividade detalhada enviada.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {report.activities.map((act, idx) => (
-                  <li key={idx} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 shrink-0">
-                        {act.done
-                          ? <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                          : <Circle className="h-4 w-4 text-white/25" />
-                        }
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-white">
-                          {act.title || `Atividade ${idx + 1}`}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/50">
-                          {act.client && (
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />{String(act.client)}
-                            </span>
-                          )}
-                          {(act.process || act.processo) && (
-                            <span className="flex items-center gap-1">
-                              <FileText className="h-3 w-3" />{String(act.process || act.processo)}
-                            </span>
-                          )}
-                          {(act.category || act.type) && (
-                            <span className={cn(
-                              'rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                              categoryColor(String(act.category || act.type))
-                            )}>
-                              {String(act.category || act.type)}
-                            </span>
-                          )}
-                          {act.time && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />{String(act.time)}
-                            </span>
-                          )}
-                        </div>
-                        {(act.description || act.observation || act.observacao) && (
-                          <p className="mt-1.5 text-xs leading-relaxed text-white/55">
-                            {String(act.description || act.observation || act.observacao)}
-                          </p>
-                        )}
-                      </div>
+            return (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  {drillCards.map(({ key, label, value, activeClass }) => (
+                    <button
+                      key={key}
+                      onClick={() => setDrillFilter(key)}
+                      className={cn(
+                        'rounded-2xl border border-white/10 bg-white/5 px-3 py-4 text-center transition hover:bg-white/10',
+                        drillFilter === key && activeClass
+                      )}
+                    >
+                      <div className="text-2xl font-bold text-white">{value}</div>
+                      <div className="mt-0.5 text-xs text-white/50">{label}</div>
+                    </button>
+                  ))}
+                </div>
+
+                <section>
+                  <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {activeLabel} ({filtered.length})
+                  </h3>
+
+                  {report.activities.length === 0 ? (
+                    <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-5 text-center">
+                      <p className="text-sm text-white/40">O colaborador enviou somente resumo numérico (sem atividades detalhadas).</p>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                  ) : filtered.length === 0 ? (
+                    <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-5 text-center">
+                      <p className="text-sm text-white/40">
+                        {drillFilter === 'concluidas' ? 'Nenhuma atividade concluída.' : 'Nenhuma atividade pendente.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {filtered.map((act, idx) => (
+                        <li key={idx} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 shrink-0">
+                              {act.done
+                                ? <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                : <Circle className="h-4 w-4 text-white/25" />
+                              }
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium text-white">
+                                  {act.title || `Atividade ${idx + 1}`}
+                                </p>
+                                <span className={cn(
+                                  'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                                  act.done
+                                    ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+                                    : 'border-amber-400/30 bg-amber-400/10 text-amber-200'
+                                )}>
+                                  {act.done ? 'concluída' : 'pendente'}
+                                </span>
+                              </div>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/50">
+                                {act.client && (
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />{String(act.client)}
+                                  </span>
+                                )}
+                                {(act.process || act.processo) && (
+                                  <span className="flex items-center gap-1">
+                                    <FileText className="h-3 w-3" />{String(act.process || act.processo)}
+                                  </span>
+                                )}
+                                {(act.category || act.type) && (
+                                  <span className={cn(
+                                    'rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                                    categoryColor(String(act.category || act.type))
+                                  )}>
+                                    {String(act.category || act.type)}
+                                  </span>
+                                )}
+                                {act.time && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />{String(act.time)}
+                                  </span>
+                                )}
+                              </div>
+                              {(act.description || act.observation || act.observacao) && (
+                                <p className="mt-1.5 text-xs leading-relaxed text-white/55">
+                                  {String(act.description || act.observation || act.observacao)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </>
+            );
+          })()}
 
           {/* Produtividade por tipo */}
           {hasGrouped && (
