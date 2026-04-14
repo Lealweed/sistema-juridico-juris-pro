@@ -49,7 +49,7 @@ export function buildProcuracaoData(client: {
   };
 }
 
-export async function generateDocumentDocx(data: ProcuracaoData, templateName: string): Promise<void> {
+export async function generateDocumentDocx(data: ProcuracaoData | Record<string, string>, templateName: string): Promise<void> {
   const resp = await fetch(`/templates/${templateName}`);
   if (!resp.ok) {
     throw new Error(
@@ -65,22 +65,30 @@ export async function generateDocumentDocx(data: ProcuracaoData, templateName: s
     delimiters: { start: '{', end: '}' },
   });
 
-  doc.render({
-    NOME: data.nome,
-    NACIONALIDADE: data.nacionalidade,
-    ESTADO_CIVIL: data.estadoCivil,
-    PROFISSAO: data.profissao,
-    CPF: data.cpf,
-    RG: data.rg,
-    ENDERECO_COMPLETO: data.enderecoCompleto,
-  });
+  // Build render context: support both ProcuracaoData (legacy) and flat Record<string,string> (new)
+  const isProcuracaoData = 'nome' in data;
+  const renderCtx = isProcuracaoData
+    ? {
+        NOME: (data as ProcuracaoData).nome,
+        NACIONALIDADE: (data as ProcuracaoData).nacionalidade,
+        ESTADO_CIVIL: (data as ProcuracaoData).estadoCivil,
+        PROFISSAO: (data as ProcuracaoData).profissao,
+        CPF: (data as ProcuracaoData).cpf,
+        RG: (data as ProcuracaoData).rg,
+        ENDERECO_COMPLETO: (data as ProcuracaoData).enderecoCompleto,
+      }
+    : (data as Record<string, string>);
+
+  doc.render(renderCtx);
 
   const out = doc.getZip().generate({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
 
-  const safeName = data.nome.replace(/[^a-zA-Z0-9À-ÿ ]/g, '').replace(/\s+/g, '_');
+  const safeName = isProcuracaoData
+    ? (data as ProcuracaoData).nome.replace(/[^a-zA-Z0-9À-ÿ ]/g, '').replace(/\s+/g, '_')
+    : ((data as Record<string, string>)['NOME'] || 'documento').replace(/[^a-zA-Z0-9À-ÿ ]/g, '').replace(/\s+/g, '_');
   const docTitle = templateName.replace('.docx', '');
   saveAs(out, `${docTitle}_${safeName}.docx`);
 }
