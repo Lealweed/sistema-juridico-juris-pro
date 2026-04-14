@@ -126,8 +126,23 @@ function buildPreview(
   fields: Record<string, string>,
 ): { html: string; missing: string[] } {
   if (!template || !client) {
+    const hasClient = Boolean(client);
+    const hasTemplate = Boolean(template);
+    const step = (n: number, label: string, done: boolean) =>
+      `<li style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1e293b">
+        <span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${done ? '#064e3b' : '#0f172a'};border:1.5px solid ${done ? '#34d399' : '#334155'};font-size:10px;font-weight:700;color:${done ? '#34d399' : '#475569'};flex-shrink:0">${done ? '✓' : n}</span>
+        <span style="color:${done ? '#34d399' : '#94a3b8'};font-size:13px">${label}</span>
+      </li>`;
     return {
-      html: '<p style="color:#ffffff44;font-style:italic">Selecione um cliente e um modelo para ver o preview...</p>',
+      html: `<div style="font-family:system-ui,sans-serif">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:14px">Guia de preenchimento</div>
+        <ul style="list-style:none;padding:0;margin:0">
+          ${step(1, 'Selecione um cliente', hasClient)}
+          ${step(2, 'Selecione um modelo de documento', hasTemplate)}
+          ${step(3, 'Preencha os campos do modelo', false)}
+        </ul>
+        <p style="margin-top:16px;font-size:11px;color:#334155;font-style:italic">O preview será gerado automaticamente conforme você preenche os dados.</p>
+      </div>`,
       missing: [],
     };
   }
@@ -272,7 +287,7 @@ function ClientSearch({
       </div>
 
       {open && matches.length > 0 && (
-        <div className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
           {matches.map((c, i) => (
             <button
               key={c.id}
@@ -456,9 +471,12 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         <button
           onClick={() => void handleGenerateDocx()}
           disabled={!ready || generating}
+          title={!ready ? 'Selecione cliente e modelo' : undefined}
           className={cn(
             'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
-            ready ? 'bg-amber-400 text-neutral-950 hover:bg-amber-300' : 'bg-white/10 text-white/50',
+            ready
+              ? 'bg-amber-400 text-neutral-950 hover:bg-amber-300 active:scale-95'
+              : 'bg-white/10 text-white/40',
           )}
         >
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -467,7 +485,13 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         <button
           onClick={handlePrint}
           disabled={!ready}
-          className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          title={!ready ? 'Selecione cliente e modelo' : undefined}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
+            ready
+              ? 'border-white/20 bg-white/8 text-white hover:bg-white/15 active:scale-95'
+              : 'border-white/8 bg-white/4 text-white/40',
+          )}
         >
           <Printer className="h-4 w-4" />
           Imprimir / PDF
@@ -475,7 +499,13 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         <button
           onClick={handleCopyText}
           disabled={!ready}
-          className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          title={!ready ? 'Selecione cliente e modelo' : undefined}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
+            ready
+              ? 'border-white/20 bg-white/8 text-white hover:bg-white/15 active:scale-95'
+              : 'border-white/8 bg-white/4 text-white/40',
+          )}
         >
           <ClipboardCopy className="h-4 w-4" />
           Copiar dados
@@ -488,7 +518,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         <div className="space-y-6">
 
           {/* 1. Cliente */}
-          <Card>
+          <Card className="relative z-30">
             <div className="mb-3 flex items-center gap-2">
               <div className="rounded-full bg-amber-400/10 p-1.5">
                 <span className="text-[11px] font-bold text-amber-300">1</span>
@@ -679,7 +709,13 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
             <button
               onClick={() => void handleGenerateDocx()}
               disabled={!ready || generating}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+              title={!ready ? 'Selecione cliente e modelo' : undefined}
+              className={cn(
+                'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
+                ready
+                  ? 'bg-amber-400 text-neutral-950 hover:bg-amber-300 active:scale-95'
+                  : 'bg-white/10 text-white/40',
+              )}
             >
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {generating ? 'Gerando…' : 'Gerar DOC'}
@@ -688,7 +724,13 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
               <button
                 onClick={handlePrint}
                 disabled={!ready}
-                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+                title={!ready ? 'Selecione cliente e modelo' : undefined}
+                className={cn(
+                  'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
+                  ready
+                    ? 'border-white/20 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95'
+                    : 'border-white/8 bg-white/4 text-white/40',
+                )}
               >
                 <Printer className="h-4 w-4" />
                 Imprimir
@@ -696,7 +738,13 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
               <button
                 onClick={handleCopyText}
                 disabled={!ready}
-                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+                title={!ready ? 'Selecione cliente e modelo' : undefined}
+                className={cn(
+                  'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
+                  ready
+                    ? 'border-white/20 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95'
+                    : 'border-white/8 bg-white/4 text-white/40',
+                )}
               >
                 <ClipboardCopy className="h-4 w-4" />
                 Copiar
