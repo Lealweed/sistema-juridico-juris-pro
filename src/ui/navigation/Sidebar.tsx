@@ -49,7 +49,7 @@ const items: SidebarItem[] = [
 export function Sidebar() {
   const [userName, setUserName] = useState<string>('Carregando...');
   const [myRole, setMyRole] = useState<string>('');
-  const isAdmin = myRole === 'admin';
+  const isAdmin = myRole === 'admin' || myRole === 'owner' || myRole === 'administrator';
   const visibleItems = items.filter((item) => {
     // Esconde Financeiro para não-admin
     if (item.to === '/app/financeiro' && !isAdmin) return false;

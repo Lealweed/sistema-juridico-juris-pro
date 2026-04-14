@@ -103,6 +103,7 @@ export function AppRouter() {
               <Route path="/app/portal" element={<Navigate to="/portal" replace />} />
 
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />
+              <Route path="/app/relatorios-equipe" element={<TeamReportsPage />} />
               <Route path="/app/notificacoes" element={<NotificationsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />
               <Route path="/app/publicacoes" element={<PublicationsPage />} />
@@ -113,7 +114,6 @@ export function AppRouter() {
               <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/configuracoes/equipe" element={<TeamPage />} />
                 <Route path="/app/configuracoes/auditoria" element={<AuditPage />} />
-                <Route path="/app/relatorios-equipe" element={<TeamReportsPage />} />
               </Route>
             </Route>
           </Route>
