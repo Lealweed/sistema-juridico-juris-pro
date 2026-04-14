@@ -5,7 +5,8 @@ import { loadClientsLite } from '@/lib/loadClientsLite';
 import { createClientQuick } from '@/lib/clients';
 import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
 import { createReceiptSecure, listReceipts, updateReceiptStatusPdf, type Receipt } from '@/lib/receipts';
-import { buildReceiptHtml } from '@/lib/receiptPdf';
+import { buildReceiptHtml, buildReceiptPdfBlob } from '@/lib/receiptPdf';
+import { getMyOfficeId } from '@/lib/officeContext';
 import { supabase } from '@/lib/supabaseClient';
 import type { ClientLite } from '@/lib/types';
 import { Card } from '@/ui/widgets/Card';
@@ -110,47 +111,72 @@ export function ReceiptsPage() {
     setError(null);
 
     try {
-      // 1. Criar recibo
-      await createReceiptSecure({
+      // 1. Obter officeId e criar recibo — captura o ID retornado
+      const officeId = await getMyOfficeId();
+      if (!officeId) throw new Error('Escritório não encontrado.');
+      if (!supabase) throw new Error('Supabase não configurado.');
+
+      const receiptId = await createReceiptSecure({
         clientId: selectedClientId,
         amount: cents / 100,
         description: description.trim() || null,
         issuedAt: `${issuedAt}T12:00:00.000Z`,
       });
 
-      // 2. Buscar dados completos do recibo recém-criado
-      const [created] = await listReceipts(1);
-      if (!created) throw new Error('Recibo criado não encontrado.');
-      const client = clients.find(c => c.id === created.client_id) || { id: created.client_id, name: 'Cliente' };
+      // 2. Montar objeto local para geração do PDF (sem re-fetch)
+      const clientObj = clients.find(c => c.id === selectedClientId) || { id: selectedClientId!, name: clientQuery || 'Cliente' };
+      const localReceipt: Receipt = {
+        id: receiptId,
+        office_id: officeId,
+        client_id: selectedClientId!,
+        created_by: '',
+        amount: cents / 100,
+        description: description.trim() || null,
+        status: 'emitido',
+        issued_at: `${issuedAt}T12:00:00.000Z`,
+        pdf_url: null,
+        created_at: new Date().toISOString(),
+        client: { name: clientObj.name },
+      };
 
-      // 3. Gerar HTML do recibo
-      const html = buildReceiptHtml({ receipt: created, client, officeName: 'Juris Pro' });
+      // 3. Gerar PDF com jsPDF (sem dependência de CDN)
+      let pdfUrl: string | null = null;
+      try {
+        const pdfBlob = buildReceiptPdfBlob({ receipt: localReceipt, client: clientObj, officeName: 'Juris Pro' });
 
-      // 4. Gerar PDF (usando html2pdf.js no frontend)
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const html2pdf = (window as any).html2pdf;
-      if (!html2pdf) throw new Error('html2pdf.js não carregado.');
-      const pdfBlob: Blob = await html2pdf().from(html).outputPdf('blob');
+        // 4. Upload no Supabase Storage bucket 'receipts'
+        const storagePath = `office/${officeId}/client/${selectedClientId}/receipt-${receiptId}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(storagePath, pdfBlob, { upsert: true, contentType: 'application/pdf' });
+        if (uploadError) throw new Error('Upload: ' + uploadError.message);
 
-      // 5. Upload no Supabase Storage
-      const path = `office/${created.office_id}/client/${created.client_id}/receipt-${created.id}.pdf`;
-      if (!supabase) throw new Error('Supabase não configurado.');
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(path, pdfBlob, { upsert: true, contentType: 'application/pdf' });
-      if (uploadError) throw new Error('Falha ao fazer upload do PDF: ' + uploadError.message);
+        // 5. URL assinada de longa duração (1 ano)
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('receipts')
+          .createSignedUrl(storagePath, 31_536_000);
+        if (urlError || !urlData?.signedUrl) throw new Error('URL assinada falhou.');
+        pdfUrl = urlData.signedUrl;
 
-      // 6. Gerar URL assinada
-      const { data: urlData, error: urlError } = await supabase.storage.from('receipts').createSignedUrl(path, 60 * 60 * 24 * 7); // 7 dias
-      if (urlError || !urlData?.signedUrl) throw new Error('Falha ao gerar URL assinada do PDF.');
+        // 6. Persistir pdf_url no banco
+        await updateReceiptStatusPdf({ id: receiptId, pdfUrl });
+      } catch (pdfErr: unknown) {
+        // PDF falhou mas recibo foi criado — registra aviso sem bloquear
+        console.warn('Geração/upload do PDF falhou (recibo salvo sem pdf_url):', pdfErr);
+      }
 
-      // 7. Atualizar pdf_url no recibo
-      await updateReceiptStatusPdf({ id: created.id, pdfUrl: urlData.signedUrl });
+      // 7. Atualizar estado local sem re-fetch
+      const newRow: Receipt = { ...localReceipt, pdf_url: pdfUrl };
+      setRows(prev => [newRow, ...prev]);
 
+      // Reset form
       setAmount('');
       setDescription('');
+      setClientQuery('');
+      setSelectedClientId(null);
       setSaving(false);
-      await load();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Falha ao gerar recibo/PDF.'));
+      setError(getErrorMessage(err, 'Falha ao criar recibo.'));
       setSaving(false);
     }
   }
@@ -310,46 +336,26 @@ export function ReceiptsPage() {
                               <div className="flex flex-col items-end gap-2 w-full md:w-auto">
                                 <div className="text-sm font-semibold text-white">{Number(r.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
                                 <div className="flex flex-wrap gap-2 mt-2">
+                                  {/* Visualizar PDF — desabilitado enquanto pdf_url não existir */}
                                   <button
                                     className="btn-secondary btn-sm"
-                                    onClick={() => {
-                                      if (r.pdf_url) {
-                                        window.open(r.pdf_url, '_blank');
-                                      } else {
-                                        alert('PDF ainda não gerado.');
-                                      }
-                                    }}
+                                    disabled={!r.pdf_url}
+                                    title={r.pdf_url ? 'Abrir PDF em nova aba' : 'PDF ainda sendo gerado'}
+                                    onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}
                                   >
-                                    Visualizar PDF
+                                    {r.pdf_url ? 'Visualizar PDF' : 'PDF pendente'}
                                   </button>
-                                  <button
-                                    className="btn-secondary btn-sm"
-                                    onClick={() => {
-                                      if (r.pdf_url) {
-                                        window.open(r.pdf_url, '_blank');
-                                      } else {
-                                        // Fallback: abre HTML simples e imprime
-                                        const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: 'Cliente' };
-                                        const html = buildReceiptHtml({ receipt: r, client, officeName: 'Juris Pro' });
-                                        const printWindow = window.open('', '_blank', 'width=600,height=800');
-                                        if (printWindow) {
-                                          printWindow.document.write(html);
-                                          printWindow.document.close();
-                                          printWindow.focus();
-                                          printWindow.print();
-                                        }
-                                      }
-                                    }}
-                                  >
-                                    Imprimir
-                                  </button>
+
+                                  {/* WhatsApp */}
                                   <button
                                     className="btn-secondary btn-sm"
                                     onClick={async () => {
                                       const phone = prompt('Telefone do cliente para WhatsApp (somente números):') || '';
                                       if (!phone) return alert('Telefone não informado.');
                                       try {
-                                        const text = `Olá! Seu recibo está disponível: ${r.pdf_url || '[PDF não gerado]'}`;
+                                        const text = r.pdf_url
+                                          ? `Olá! Seu recibo está disponível: ${r.pdf_url}`
+                                          : 'Olá! Seu recibo foi emitido. Aguarde o PDF em breve.';
                                         const res = await fetch('/functions/v1/messages-send', {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },
@@ -369,6 +375,8 @@ export function ReceiptsPage() {
                                   >
                                     WhatsApp
                                   </button>
+
+                                  {/* Imprimir — via PDF se disponível, senão HTML fallback */}
                                   <button
                                     className="btn-secondary btn-sm"
                                     onClick={() => {
