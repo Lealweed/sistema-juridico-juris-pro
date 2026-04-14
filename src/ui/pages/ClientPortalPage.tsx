@@ -29,6 +29,7 @@ import { ClientAvatar } from '@/ui/widgets/ClientAvatar';
 import type { DocumentRow } from '@/lib/documents';
 import { centsToBRL, type FinanceTx } from '@/lib/finance';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
+import { listReceipts } from '@/lib/receipts';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
@@ -101,6 +102,18 @@ export function ClientPortalPage() {
   // Financeiro
   const [transactions, setTransactions] = useState<FinanceTx[]>([]);
   const [financeLoading, setFinanceLoading] = useState(false);
+  // Recibos
+  const [receipts, setReceipts] = useState<any[]>([]);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
+    // Fetch recibos do cliente autenticado
+    useEffect(() => {
+      if (tab !== 'finance' || !client?.id) return;
+      setReceiptsLoading(true);
+      listReceipts(100)
+        .then(rs => setReceipts(rs.filter(r => r.client_id === client.id)))
+        .catch(() => setReceipts([]))
+        .finally(() => setReceiptsLoading(false));
+    }, [tab, client]);
   // Mensagens
   const [messages, setMessages] = useState<PortalMessage[]>([]);
   const [messageInput, setMessageInput] = useState('');
@@ -489,6 +502,32 @@ export function ClientPortalPage() {
           )}
           {tab === 'finance' && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="font-semibold text-white mb-2">Meus Recibos</div>
+                {receiptsLoading ? <div className="text-white/40 text-sm">Carregando...</div> : receipts.length > 0 ? (
+                  <ul className="space-y-3">
+                    {receipts.map((r) => (
+                      <li key={r.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-white/5 pb-2">
+                        <div>
+                          <div className="text-white/80 font-semibold">{r.description || 'Recibo'}</div>
+                          <div className="text-xs text-white/40">
+                            Emissão: {new Date(r.issued_at).toLocaleDateString('pt-BR')}<br/>
+                            Valor: <span className="text-white/70">R$ {Number(r.amount).toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {r.pdf_url && (
+                            <a href={r.pdf_url} target="_blank" rel="noopener noreferrer" className="btn-secondary">Visualizar PDF</a>
+                          )}
+                          {r.pdf_url && (
+                            <button className="btn-secondary" onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}>Imprimir</button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <div className="text-white/40 text-sm">Nenhum recibo encontrado.</div>}
+              </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-2">Financeiro</div>
                 {financeLoading ? <div className="text-white/40 text-sm">Carregando...</div> : transactions.length > 0 ? (

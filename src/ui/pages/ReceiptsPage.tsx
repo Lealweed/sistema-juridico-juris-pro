@@ -4,7 +4,9 @@ import { brlToCents, centsToBRL } from '@/lib/finance';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import { createClientQuick } from '@/lib/clients';
 import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
-import { createReceiptSecure, listReceipts, type Receipt } from '@/lib/receipts';
+import { createReceiptSecure, listReceipts, updateReceiptStatusPdf, type Receipt } from '@/lib/receipts';
+import { buildReceiptHtml } from '@/lib/receiptPdf';
+import { supabase } from '@/lib/supabaseClient';
 import type { ClientLite } from '@/lib/types';
 import { Card } from '@/ui/widgets/Card';
 
@@ -108,6 +110,7 @@ export function ReceiptsPage() {
     setError(null);
 
     try {
+      // 1. Criar recibo
       await createReceiptSecure({
         clientId: selectedClientId,
         amount: cents / 100,
@@ -115,12 +118,39 @@ export function ReceiptsPage() {
         issuedAt: `${issuedAt}T12:00:00.000Z`,
       });
 
+      // 2. Buscar dados completos do recibo recém-criado
+      const [created] = await listReceipts(1);
+      if (!created) throw new Error('Recibo criado não encontrado.');
+      const client = clients.find(c => c.id === created.client_id) || { id: created.client_id, name: 'Cliente' };
+
+      // 3. Gerar HTML do recibo
+      const html = buildReceiptHtml({ receipt: created, client, officeName: 'Juris Pro' });
+
+      // 4. Gerar PDF (usando html2pdf.js no frontend)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const html2pdf = (window as any).html2pdf;
+      if (!html2pdf) throw new Error('html2pdf.js não carregado.');
+      const pdfBlob: Blob = await html2pdf().from(html).outputPdf('blob');
+
+      // 5. Upload no Supabase Storage
+      const path = `office/${created.office_id}/client/${created.client_id}/receipt-${created.id}.pdf`;
+      if (!supabase) throw new Error('Supabase não configurado.');
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(path, pdfBlob, { upsert: true, contentType: 'application/pdf' });
+      if (uploadError) throw new Error('Falha ao fazer upload do PDF: ' + uploadError.message);
+
+      // 6. Gerar URL assinada
+      const { data: urlData, error: urlError } = await supabase.storage.from('receipts').createSignedUrl(path, 60 * 60 * 24 * 7); // 7 dias
+      if (urlError || !urlData?.signedUrl) throw new Error('Falha ao gerar URL assinada do PDF.');
+
+      // 7. Atualizar pdf_url no recibo
+      await updateReceiptStatusPdf({ id: created.id, pdfUrl: urlData.signedUrl });
+
       setAmount('');
       setDescription('');
       setSaving(false);
       await load();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Falha ao gerar recibo.'));
+      setError(getErrorMessage(err, 'Falha ao gerar recibo/PDF.'));
       setSaving(false);
     }
   }
@@ -277,7 +307,45 @@ export function ReceiptsPage() {
                                 </div>
                                 {r.description ? <div className="mt-1 text-xs text-white/50">{r.description}</div> : null}
                               </div>
-                              <div className="text-sm font-semibold text-white">{Number(r.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+                              <div className="flex flex-col items-end gap-2">
+                                <div className="text-sm font-semibold text-white">{Number(r.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+                                <div className="flex gap-2 mt-2">
+                                  {r.pdf_url && (
+                                    <a href={r.pdf_url} target="_blank" rel="noopener noreferrer" className="btn-secondary">Visualizar PDF</a>
+                                  )}
+                                  {r.pdf_url && (
+                                    <button className="btn-secondary" onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}>Imprimir</button>
+                                  )}
+                                  {r.pdf_url && r.client?.name && (
+                                    <button
+                                      className="btn-secondary"
+                                      onClick={async () => {
+                                        try {
+                                          const phone = prompt('Telefone do cliente para WhatsApp (somente números):');
+                                          if (!phone) return;
+                                          const text = `Olá! Seu recibo está disponível: ${r.pdf_url}`;
+                                          const res = await fetch('/functions/v1/messages-send', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              officeId: r.office_id,
+                                              channel: 'whatsapp',
+                                              destination: phone,
+                                              text,
+                                            }),
+                                          });
+                                          if (!res.ok) throw new Error('Erro ao enviar WhatsApp');
+                                          alert('Enviado com sucesso!');
+                                        } catch (e: any) {
+                                          alert('Erro ao enviar WhatsApp: ' + (e.message || e));
+                                        }
+                                      }}
+                                    >
+                                      WhatsApp
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
