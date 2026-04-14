@@ -43,6 +43,7 @@ const SettingsN8nDocsPage = lazy(() => import('@/ui/pages/SettingsN8nDocsPage').
 const TeamPage = lazy(() => import('@/ui/pages/TeamPage').then((m) => ({ default: m.TeamPage })));
 const AuditPage = lazy(() => import('@/ui/pages/AuditPage').then((m) => ({ default: m.AuditPage })));
 const TeamReportsPage = lazy(() => import('@/ui/pages/TeamReportsPage').then((m) => ({ default: m.TeamReportsPage })));
+const ActivityReportPage = lazy(() => import('@/ui/pages/ActivityReportPage').then((m) => ({ default: m.ActivityReportPage })));
 
 export function AppRouter() {
   return (
@@ -104,6 +105,7 @@ export function AppRouter() {
 
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />
               <Route path="/app/relatorios-equipe" element={<TeamReportsPage />} />
+              <Route path="/app/relatorio-atividades" element={<ActivityReportPage />} />
               <Route path="/app/notificacoes" element={<NotificationsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />
               <Route path="/app/publicacoes" element={<PublicationsPage />} />

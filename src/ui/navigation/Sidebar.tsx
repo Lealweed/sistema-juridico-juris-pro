@@ -41,6 +41,7 @@ const items: SidebarItem[] = [
   { to: '/app/financeiro', label: 'Financeiro', icon: Coins },
   { to: '/app/drive', label: 'Smart Drive', icon: HardDrive },
   { to: '/app/relatorios-ia', label: 'Relatórios com IA', icon: Sparkles },
+  { to: '/app/relatorio-atividades', label: 'Meu Relatório Diário', icon: ClipboardList },
   { to: '/app/relatorios-equipe', label: 'Relatórios da Equipe', icon: ClipboardCheck, adminOnly: true },
   { to: '/portal', label: 'Portal do Cliente', icon: Building2 },
   { to: '/app/configuracoes', label: 'Configurações', icon: Cog },

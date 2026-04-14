@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  AlertCircle,
   BarChart3,
   CheckCircle2,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   ClipboardCopy,
   FileText,
   Filter,
+  Info,
   Loader2,
   MessageSquare,
   Search,
@@ -25,6 +27,7 @@ import { getMyOfficeRole } from '@/lib/roles';
 import {
   computeSummary,
   fetchTeamReports,
+  isActivityDone,
   updateReportStatus,
   type TeamReportFilters,
   type TeamReportRow,
@@ -126,6 +129,7 @@ function DetailsDrawer({
   const [copied, setCopied] = useState(false);
   const [pendingAction, setPendingAction] = useState<'aprovado' | 'reprovado' | null>(null);
   const [drillFilter, setDrillFilter] = useState<'total' | 'concluidas' | 'pendentes'>('total');
+  const [requestedDetail, setRequestedDetail] = useState(false);
 
   useEffect(() => {
     setLocalStatus(report?.status || 'enviado');
@@ -133,6 +137,7 @@ function DetailsDrawer({
     setCommentError('');
     setPendingAction(null);
     setDrillFilter('total');
+    setRequestedDetail(false);
   }, [report]);
 
   async function handleStatus(newStatus: 'aprovado' | 'reprovado') {
@@ -167,7 +172,7 @@ function DetailsDrawer({
     if (report.activities.length) {
       lines.push('', 'Atividades:');
       report.activities.forEach((a, i) => {
-        lines.push(`  ${i + 1}. ${a.title || 'Atividade'} [${a.done ? 'concluída' : 'pendente'}]`);
+        lines.push(`  ${i + 1}. ${a.title || 'Atividade'} [${isActivityDone(a) ? 'concluída' : 'pendente'}]`);
       });
     }
     return lines.join('\n');
@@ -243,9 +248,19 @@ function DetailsDrawer({
 
         {/* body */}
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-          {/* Status banner proeminente */}
+          {/* Status banner + tipo de dados */}
           <div className={cn('flex items-center gap-3 rounded-2xl border px-5 py-3.5', statusBadge(localStatus))}>
             <span className="text-sm font-bold">{statusLabel(localStatus)}</span>
+            <span
+              className={cn(
+                'rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                report.is_summary_only
+                  ? 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                  : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300',
+              )}
+            >
+              {report.is_summary_only ? 'Resumo sem detalhamento' : 'Dados detalhados'}
+            </span>
             {completion !== null && (
               <span className="ml-auto text-xs opacity-80">Conclusão: {completion}%</span>
             )}
@@ -261,8 +276,8 @@ function DetailsDrawer({
             const filtered = drillFilter === 'total'
               ? report.activities
               : drillFilter === 'concluidas'
-              ? report.activities.filter((a) => a.done)
-              : report.activities.filter((a) => !a.done);
+              ? report.activities.filter(isActivityDone)
+              : report.activities.filter((a) => !isActivityDone(a));
             const activeLabel = drillCards.find((c) => c.key === drillFilter)?.label ?? '';
 
             return (
@@ -283,6 +298,43 @@ function DetailsDrawer({
                   ))}
                 </div>
 
+                {/* formula de origem dos números */}
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                  <Info className="h-3.5 w-3.5 shrink-0 text-white/30" />
+                  <p className="text-[11px] text-white/40">
+                    {report.is_summary_only
+                      ? 'Fonte: campos numéricos do relatório (sem lista de atividades)'
+                      : `Total = ${report.total_tasks} atividades enviadas | Concluídas = ${report.completed_tasks} | Pendentes = ${report.pending_tasks}`}
+                  </p>
+                </div>
+
+                {/* sem detalhamento: aviso + botão solicitar */}
+                {report.is_summary_only && (
+                  <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-4 text-sm">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                      <div>
+                        <p className="font-medium text-amber-200">Relatório enviado apenas com resumo numérico</p>
+                        <p className="mt-1 text-xs text-amber-200/70">
+                          Este relatório não contém atividades detalhadas. Sem a lista de atividades, não é possível validar a origem dos números.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setRequestedDetail(true)}
+                      disabled={requestedDetail}
+                      className={cn(
+                        'mt-3 w-full rounded-xl border px-3 py-2 text-xs font-medium transition',
+                        requestedDetail
+                          ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300 cursor-default'
+                          : 'border-amber-400/30 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20',
+                      )}
+                    >
+                      {requestedDetail ? '✓ Solicitação de detalhamento marcada' : 'Solicitar detalhamento ao colaborador'}
+                    </button>
+                  </div>
+                )}
+
                 <section>
                   <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
                     <CheckCircle2 className="h-3.5 w-3.5" />
@@ -291,7 +343,9 @@ function DetailsDrawer({
 
                   {report.activities.length === 0 ? (
                     <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-5 text-center">
-                      <p className="text-sm text-white/40">O colaborador enviou somente resumo numérico (sem atividades detalhadas).</p>
+                      <p className="text-sm text-white/40">
+                        Este relatório foi enviado apenas com resumo numérico. Sem atividades detalhadas.
+                      </p>
                     </div>
                   ) : filtered.length === 0 ? (
                     <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-5 text-center">
@@ -305,7 +359,7 @@ function DetailsDrawer({
                         <li key={idx} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                           <div className="flex items-start gap-3">
                             <div className="mt-0.5 shrink-0">
-                              {act.done
+                              {isActivityDone(act)
                                 ? <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                                 : <Circle className="h-4 w-4 text-white/25" />
                               }
@@ -317,17 +371,17 @@ function DetailsDrawer({
                                 </p>
                                 <span className={cn(
                                   'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                                  act.done
+                                  isActivityDone(act)
                                     ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
                                     : 'border-amber-400/30 bg-amber-400/10 text-amber-200'
                                 )}>
-                                  {act.done ? 'concluída' : 'pendente'}
+                                  {isActivityDone(act) ? 'concluída' : 'pendente'}
                                 </span>
                               </div>
                               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/50">
-                                {act.client && (
+                                {(act.client_name || act.client) && (
                                   <span className="flex items-center gap-1">
-                                    <Users className="h-3 w-3" />{String(act.client)}
+                                    <Users className="h-3 w-3" />{String(act.client_name || act.client)}
                                   </span>
                                 )}
                                 {(act.process || act.processo) && (
@@ -343,9 +397,9 @@ function DetailsDrawer({
                                     {String(act.category || act.type)}
                                   </span>
                                 )}
-                                {act.time && (
+                                {(act.time_spent || act.time) && (
                                   <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />{String(act.time)}
+                                    <Clock className="h-3 w-3" />{String(act.time_spent || act.time)}
                                   </span>
                                 )}
                               </div>
