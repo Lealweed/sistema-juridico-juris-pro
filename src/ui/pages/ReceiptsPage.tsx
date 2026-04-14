@@ -326,11 +326,7 @@ export function ReceiptsPage() {
                                     className="btn-secondary btn-sm"
                                     onClick={() => {
                                       if (r.pdf_url) {
-                                        // Abre o PDF em nova aba e instrui impressão
-                                        const win = window.open(r.pdf_url, '_blank');
-                                        setTimeout(() => {
-                                          if (win) win.print();
-                                        }, 500);
+                                        window.open(r.pdf_url, '_blank');
                                       } else {
                                         // Fallback: abre HTML simples e imprime
                                         const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: 'Cliente' };
