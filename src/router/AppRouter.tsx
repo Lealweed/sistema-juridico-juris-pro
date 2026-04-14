@@ -4,9 +4,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { RequireAuth } from '@/auth/RequireAuth';
 import { RequireRole } from '@/auth/RequireRole';
-import { AuthLayout } from '@/ui/layouts/AuthLayout';
+import AuthLayout from '@/ui/layouts/AuthLayout';
 import { AppLayout } from '@/ui/layouts/AppLayout';
-import { PublicLayout } from '@/ui/layouts/PublicLayout';
+import PublicLayout from '@/ui/layouts/PublicLayout';
 import { ErrorBoundary } from '@/ui/primitives/ErrorBoundary';
 
 const LandingPage = lazy(() => import('@/ui/pages/LandingPage').then((m) => ({ default: m.LandingPage })));

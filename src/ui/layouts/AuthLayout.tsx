@@ -1,8 +1,10 @@
 import { Outlet } from 'react-router-dom';
+import { AppToaster } from '@/ui/widgets/AppToaster';
 
-export function AuthLayout() {
+export default function AuthLayout() {
   return (
     <div className="min-h-dvh bg-neutral-950 text-neutral-100 app-bg-dark theme-dark">
+      <AppToaster />
       <div className="mx-auto flex min-h-dvh max-w-[1100px] items-center px-4 py-10">
         <div className="grid w-full gap-6 lg:grid-cols-2 lg:items-center">
           <div className="hidden lg:block">
@@ -15,7 +17,7 @@ export function AuthLayout() {
               Acesso interno para gestão de clientes, casos e rotina do escritório.
             </p>
             <div className="mt-8 grid gap-3">
-              {[
+              {[ 
                 { t: 'Clientes', d: 'Cadastro e histórico centralizado.' },
                 { t: 'Casos', d: 'Status, descrição e acompanhamento.' },
                 { t: 'Segurança', d: 'Isolamento por organização (tenant).' },
