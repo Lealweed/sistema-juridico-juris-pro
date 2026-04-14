@@ -1,3 +1,4 @@
+const DocumentsGeneratorPage = lazy(() => import('@/ui/pages/DocumentsGeneratorPage').then((m) => ({ default: m.DocumentsGeneratorPage })));
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
@@ -96,6 +97,7 @@ export function AppRouter() {
                 <Route path="/app/financeiro/parceiros" element={<PartnersPage />} />
                 <Route path="/app/financeiro/a-pagar" element={<PayablesPage />} />
                 <Route path="/app/financeiro/:txId" element={<FinanceTxDetailsPage />} />
+                <Route path="/app/documentos/gerar" element={<DocumentsGeneratorPage />} />
               </Route>
               <Route path="/app/portal" element={<Navigate to="/portal" replace />} />
 

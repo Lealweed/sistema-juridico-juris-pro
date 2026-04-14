@@ -17,12 +17,14 @@ import {
   BellRing,
   ClipboardList,
   ReceiptText,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/ui/utils/cn';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
 const items = [
+    { to: '/app/documentos/gerar', label: 'Gerar Documentos', icon: FileText },
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/app/produtividade', label: 'Produtividade', icon: TrendingUp },
   { to: '/app/clientes', label: 'Clientes', icon: Users },
