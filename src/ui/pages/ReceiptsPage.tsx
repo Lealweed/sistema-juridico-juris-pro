@@ -28,9 +28,12 @@ export function ReceiptsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [clientId, setClientId] = useState('');
-  const [clientInput, setClientInput] = useState('');
+  // Autocomplete cliente
+  const [clientQuery, setClientQuery] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [creatingClient, setCreatingClient] = useState(false);
+  const [dropdownHover, setDropdownHover] = useState<number>(-1);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [issuedAt, setIssuedAt] = useState(todayIsoLocal());
@@ -90,7 +93,7 @@ export function ReceiptsPage() {
   }, [rows]);
 
   async function onCreateReceipt() {
-    if (!clientId) {
+    if (!selectedClientId) {
       setError('Selecione o cliente.');
       return;
     }
@@ -106,7 +109,7 @@ export function ReceiptsPage() {
 
     try {
       await createReceiptSecure({
-        clientId,
+        clientId: selectedClientId,
         amount: cents / 100,
         description: description.trim() || null,
         issuedAt: `${issuedAt}T12:00:00.000Z`,
@@ -121,6 +124,17 @@ export function ReceiptsPage() {
       setSaving(false);
     }
   }
+
+  // Filtragem de clientes por nome, telefone ou cpf
+  const filteredClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return [];
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.phone && c.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '')))
+      || (c.cpf && c.cpf.replace(/\D/g, '').includes(q.replace(/\D/g, '')))
+    );
+  }, [clientQuery, clients]);
 
   return (
     <div className="space-y-6">
@@ -165,37 +179,60 @@ export function ReceiptsPage() {
             <div className="relative">
               <input
                 className="input pr-24"
-                placeholder="Digite para buscar ou criar..."
-                value={clientInput}
-                onChange={e => {
-                  setClientInput(e.target.value);
-                  setClientId('');
-                }}
-                list="clients-list"
+                placeholder="Digite nome, telefone ou CPF..."
+                value={clientQuery}
                 autoComplete="off"
+                onChange={e => {
+                  setClientQuery(e.target.value);
+                  setShowDropdown(true);
+                  setSelectedClientId(null);
+                  setDropdownHover(-1);
+                }}
+                onFocus={() => {
+                  if (clientQuery.length > 0 || filteredClients.length > 0) setShowDropdown(true);
+                }}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
               />
-              <datalist id="clients-list">
-                {clients
-                  .filter(c => c.name.toLowerCase().includes(clientInput.toLowerCase()))
-                  .map(c => (
-                    <option key={c.id} value={c.name} />
-                  ))}
-              </datalist>
-              {/* Dropdown de sugestões */}
-              {clientInput && (
-                <div className="absolute left-0 right-0 z-10 mt-1 rounded bg-white/90 text-black shadow-lg max-h-40 overflow-auto">
-                  {clients.filter(c => c.name.toLowerCase().includes(clientInput.toLowerCase())).length === 0 ? (
+              {/* Dropdown absoluto de autocomplete */}
+              {showDropdown && (
+                <div className="absolute left-0 right-0 z-20 mt-1 rounded bg-white/95 text-black shadow-lg max-h-60 overflow-y-auto border border-neutral-200">
+                  {filteredClients.length > 0 ? (
+                    filteredClients.map((c, idx) => (
+                      <button
+                        key={c.id}
+                        className={`flex flex-col items-start w-full px-3 py-2 text-left hover:bg-amber-100 ${dropdownHover === idx ? 'bg-amber-200' : ''} ${selectedClientId === c.id ? 'font-bold' : ''}`}
+                        onMouseEnter={() => setDropdownHover(idx)}
+                        onMouseLeave={() => setDropdownHover(-1)}
+                        onClick={() => {
+                          setSelectedClientId(c.id);
+                          setClientQuery(c.name);
+                          setShowDropdown(false);
+                        }}
+                        tabIndex={-1}
+                      >
+                        <span>{c.name}</span>
+                        {c.phone || c.cpf ? (
+                          <span className="text-xs text-gray-500">{[c.phone, c.cpf].filter(Boolean).join(' · ')}</span>
+                        ) : null}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-gray-500">Nenhum cliente encontrado</div>
+                  )}
+                  {/* Opção de criar cliente */}
+                  {clientQuery.trim() && filteredClients.length === 0 && (
                     <button
-                      className="block w-full px-3 py-2 text-left hover:bg-amber-100"
+                      className="block w-full px-3 py-2 text-left text-green-700 hover:bg-green-100 border-t border-neutral-200"
                       disabled={creatingClient}
                       onClick={async () => {
                         setCreatingClient(true);
                         try {
                           const officeId = window.localStorage.getItem('currentOfficeId') || '';
-                          const newClient = await createClientQuick({ name: clientInput, officeId });
+                          const newClient = await createClientQuick({ name: clientQuery, officeId });
                           setClients(prev => [...prev, newClient]);
-                          setClientId(newClient.id);
-                          setClientInput(newClient.name);
+                          setSelectedClientId(newClient.id);
+                          setClientQuery(newClient.name);
+                          setShowDropdown(false);
                         } catch (e: any) {
                           setError(e.message || 'Erro ao criar cliente');
                         } finally {
@@ -203,28 +240,24 @@ export function ReceiptsPage() {
                         }
                       }}
                     >
-                      Criar cliente "{clientInput}"
+                      + Criar cliente "{clientQuery}"
                     </button>
-                  ) : (
-                    clients
-                      .filter(c => c.name.toLowerCase().includes(clientInput.toLowerCase()))
-                      .map(c => (
-                        <button
-                          key={c.id}
-                          className={`block w-full px-3 py-2 text-left hover:bg-amber-100 ${clientId === c.id ? 'bg-amber-200 font-bold' : ''}`}
-                          onClick={() => {
-                            setClientId(c.id);
-                            setClientInput(c.name);
-                          }}
-                        >
-                          {c.name}
-                        </button>
-                      ))
                   )}
                 </div>
               )}
-            </div>
-          </label>
+			</div>
+		</label>
+
+  // Filtragem de clientes por nome, telefone ou cpf
+  const filteredClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return [];
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.phone && c.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '')))
+      || (c.cpf && c.cpf.replace(/\D/g, '').includes(q.replace(/\D/g, '')))
+    );
+  }, [clientQuery, clients]);
 
           <label className="text-sm text-white/80">
             Valor (R$)
