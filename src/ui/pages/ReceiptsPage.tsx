@@ -307,43 +307,67 @@ export function ReceiptsPage() {
                                 </div>
                                 {r.description ? <div className="mt-1 text-xs text-white/50">{r.description}</div> : null}
                               </div>
-                              <div className="flex flex-col items-end gap-2">
+                              <div className="flex flex-col items-end gap-2 w-full md:w-auto">
                                 <div className="text-sm font-semibold text-white">{Number(r.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
-                                <div className="flex gap-2 mt-2">
-                                  {r.pdf_url && (
-                                    <a href={r.pdf_url} target="_blank" rel="noopener noreferrer" className="btn-secondary">Visualizar PDF</a>
-                                  )}
-                                  {r.pdf_url && (
-                                    <button className="btn-secondary" onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}>Imprimir</button>
-                                  )}
-                                  {r.pdf_url && r.client?.name && (
-                                    <button
-                                      className="btn-secondary"
-                                      onClick={async () => {
-                                        try {
-                                          const phone = prompt('Telefone do cliente para WhatsApp (somente números):');
-                                          if (!phone) return;
-                                          const text = `Olá! Seu recibo está disponível: ${r.pdf_url}`;
-                                          const res = await fetch('/functions/v1/messages-send', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                              officeId: r.office_id,
-                                              channel: 'whatsapp',
-                                              destination: phone,
-                                              text,
-                                            }),
-                                          });
-                                          if (!res.ok) throw new Error('Erro ao enviar WhatsApp');
-                                          alert('Enviado com sucesso!');
-                                        } catch (e: any) {
-                                          alert('Erro ao enviar WhatsApp: ' + (e.message || e));
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  <button
+                                    className="btn-secondary btn-sm"
+                                    onClick={() => {
+                                      if (r.pdf_url) {
+                                        window.open(r.pdf_url, '_blank');
+                                      } else {
+                                        alert('PDF ainda não gerado.');
+                                      }
+                                    }}
+                                  >
+                                    Visualizar PDF
+                                  </button>
+                                  <button
+                                    className="btn-secondary btn-sm"
+                                    onClick={async () => {
+                                      const phone = prompt('Telefone do cliente para WhatsApp (somente números):') || '';
+                                      if (!phone) return alert('Telefone não informado.');
+                                      try {
+                                        const text = `Olá! Seu recibo está disponível: ${r.pdf_url || '[PDF não gerado]'}`;
+                                        const res = await fetch('/functions/v1/messages-send', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            officeId: r.office_id,
+                                            channel: 'whatsapp',
+                                            destination: phone,
+                                            text,
+                                          }),
+                                        });
+                                        if (!res.ok) throw new Error('Erro ao enviar WhatsApp');
+                                        alert('Enviado com sucesso!');
+                                      } catch (e: any) {
+                                        alert('Erro ao enviar WhatsApp: ' + (e.message || e));
+                                      }
+                                    }}
+                                  >
+                                    WhatsApp
+                                  </button>
+                                  <button
+                                    className="btn-secondary btn-sm"
+                                    onClick={() => {
+                                      if (r.pdf_url) {
+                                        window.open(r.pdf_url, '_blank');
+                                      } else {
+                                        const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: 'Cliente' };
+                                        const html = buildReceiptHtml({ receipt: r, client, officeName: 'Juris Pro' });
+                                        const printWindow = window.open('', '_blank', 'width=600,height=800');
+                                        if (printWindow) {
+                                          printWindow.document.write(html);
+                                          printWindow.document.close();
+                                          printWindow.focus();
+                                          printWindow.print();
                                         }
-                                      }}
-                                    >
-                                      WhatsApp
-                                    </button>
-                                  )}
+                                      }
+                                    }}
+                                  >
+                                    Imprimir
+                                  </button>
                                 </div>
                               </div>
                             </div>
