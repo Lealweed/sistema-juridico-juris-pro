@@ -4,10 +4,15 @@ import {
   BarChart3,
   CheckCircle2,
   ChevronRight,
+  Circle,
+  Clock,
+  ClipboardCopy,
   FileText,
   Filter,
   Loader2,
+  MessageSquare,
   Search,
+  Tag,
   ThumbsDown,
   ThumbsUp,
   Users,
@@ -15,8 +20,7 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import { listOfficeMemberProfiles, type OfficeMemberProfile } from '@/lib/officeContext';
-import { getMyOfficeId } from '@/lib/officeContext';
+import { listOfficeMemberProfiles, getMyOfficeId, type OfficeMemberProfile } from '@/lib/officeContext';
 import { getMyOfficeRole } from '@/lib/roles';
 import {
   computeSummary,
@@ -32,22 +36,22 @@ import { Card } from '@/ui/widgets/Card';
 
 /* ─── helpers ─── */
 
-function fmtDate(value: string) {
+function fmtDate(value: string | null | undefined) {
   if (!value) return '—';
   const [y, m, d] = value.split('T')[0].split('-');
   return `${d}/${m}/${y}`;
 }
 
-function fmtDatetime(value: string) {
-  if (!value) return '—';
+function fmtDatetime(value: string | null | undefined): string | null {
+  if (!value) return null;
   const dt = new Date(value);
   return dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function statusBadge(status: string) {
-  if (status === 'aprovado') return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300';
-  if (status === 'reprovado') return 'border-red-400/30 bg-red-400/10 text-red-300';
-  return 'border-amber-400/30 bg-amber-400/10 text-amber-200';
+  if (status === 'aprovado') return 'border-emerald-400/40 bg-emerald-400/15 text-emerald-300';
+  if (status === 'reprovado') return 'border-red-400/40 bg-red-400/15 text-red-300';
+  return 'border-amber-400/40 bg-amber-400/15 text-amber-200';
 }
 
 function statusLabel(status: string) {
@@ -59,6 +63,21 @@ function statusLabel(status: string) {
 function pct(completed: number, total: number) {
   if (!total) return '—';
   return `${Math.round((completed / total) * 100)}%`;
+}
+
+function categoryColor(cat: string) {
+  const map: Record<string, string> = {
+    atendimento: 'bg-sky-400/15 text-sky-300 border-sky-400/30',
+    'peti\u00e7\u00e3o': 'bg-violet-400/15 text-violet-300 border-violet-400/30',
+    peticao: 'bg-violet-400/15 text-violet-300 border-violet-400/30',
+    'audi\u00eancia': 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+    audiencia: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+    financeiro: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30',
+    administrativo: 'bg-white/10 text-white/60 border-white/20',
+    'dilig\u00eancia': 'bg-orange-400/15 text-orange-300 border-orange-400/30',
+    diligencia: 'bg-orange-400/15 text-orange-300 border-orange-400/30',
+  };
+  return map[cat.toLowerCase()] ?? 'bg-white/10 text-white/60 border-white/20';
 }
 
 /* ─── sub-components ─── */
@@ -91,28 +110,74 @@ function SummaryCard({
 
 function DetailsDrawer({
   report,
+  reviewerName,
   onClose,
   onUpdateStatus,
 }: {
   report: TeamReportRow | null;
+  reviewerName: string;
   onClose: () => void;
-  onUpdateStatus: (id: string, status: 'aprovado' | 'reprovado' | 'enviado') => Promise<void>;
+  onUpdateStatus: (id: string, status: 'aprovado' | 'reprovado', comment: string) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
   const [localStatus, setLocalStatus] = useState<string>(report?.status || 'enviado');
+  const [comment, setComment] = useState('');
+  const [commentError, setCommentError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'aprovado' | 'reprovado' | null>(null);
 
   useEffect(() => {
     setLocalStatus(report?.status || 'enviado');
+    setComment(report?.manager_comment || '');
+    setCommentError('');
+    setPendingAction(null);
   }, [report]);
 
   async function handleStatus(newStatus: 'aprovado' | 'reprovado') {
     if (!report) return;
+    if (newStatus === 'reprovado' && !comment.trim()) {
+      setCommentError('O comentário é obrigatório ao reprovar.');
+      return;
+    }
+    setCommentError('');
     setSaving(true);
     try {
-      await onUpdateStatus(report.id, newStatus);
+      await onUpdateStatus(report.id, newStatus, comment.trim());
       setLocalStatus(newStatus);
+      setPendingAction(null);
     } finally {
       setSaving(false);
+    }
+  }
+
+  function buildCopyText() {
+    if (!report) return '';
+    const lines: string[] = [
+      `Relatório de Produtividade — ${report.collaborator_name}`,
+      `Data: ${fmtDate(report.report_date)}`,
+      `Status: ${statusLabel(localStatus)}`,
+      '',
+      `Tarefas: ${report.completed_tasks} concluídas / ${report.total_tasks} total (${pct(report.completed_tasks, report.total_tasks)})`,
+    ];
+    if (report.notes) lines.push('', `Observações: ${report.notes}`);
+    const finalComment = comment || report.manager_comment;
+    if (finalComment) lines.push('', `Comentário da gestão: ${finalComment}`);
+    if (report.activities.length) {
+      lines.push('', 'Atividades:');
+      report.activities.forEach((a, i) => {
+        lines.push(`  ${i + 1}. ${a.title || 'Atividade'} [${a.done ? 'concluída' : 'pendente'}]`);
+      });
+    }
+    return lines.join('\n');
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(buildCopyText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore clipboard errors silently
     }
   }
 
@@ -122,105 +187,172 @@ function DetailsDrawer({
     ? Math.round((report.completed_tasks / report.total_tasks) * 100)
     : null;
 
+  // Agrupamento por categoria/tipo
+  const grouped = report.activities.reduce<Record<string, typeof report.activities>>((acc, act) => {
+    const cat = String(act.category || act.type || 'Geral');
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(act);
+    return acc;
+  }, {});
+  const hasGrouped = Object.keys(grouped).length > 1 || (Object.keys(grouped).length === 1 && !('Geral' in grouped));
+
+  const timelineEvents = [
+    { label: 'Criado em', value: fmtDatetime(report.created_at) },
+    report.updated_at && report.updated_at !== report.created_at
+      ? { label: 'Atualizado em', value: fmtDatetime(report.updated_at) }
+      : null,
+    report.reviewed_at ? { label: 'Revisado em', value: fmtDatetime(report.reviewed_at) } : null,
+  ].filter(Boolean) as { label: string; value: string | null }[];
+
   return (
     <>
-      {/* overlay */}
       <div
         className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
-
-      {/* panel */}
-      <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col border-l border-white/10 bg-neutral-950/95 shadow-2xl backdrop-blur-xl overflow-hidden">
+      <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col border-l border-white/10 bg-neutral-950 shadow-2xl overflow-hidden">
         {/* header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-          <div>
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-4">
+          <div className="min-w-0">
             <h2 className="text-base font-semibold text-white">Detalhes do Relatório</h2>
-            <p className="text-xs text-white/55">
+            <p className="truncate text-xs text-white/55">
               {report.collaborator_name} · {fmtDate(report.report_date)}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
-            aria-label="Fechar"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={handleCopy}
+              title="Copiar resumo para área de transferência"
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              <ClipboardCopy className="h-3.5 w-3.5" />
+              {copied ? 'Copiado!' : 'Copiar resumo'}
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+              aria-label="Fechar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* body */}
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-          {/* status badge */}
-          <div className="flex items-center gap-3">
-            <span
-              className={cn(
-                'rounded-full border px-3 py-1 text-xs font-semibold',
-                statusBadge(localStatus)
-              )}
-            >
-              {statusLabel(localStatus)}
-            </span>
+          {/* Status banner proeminente */}
+          <div className={cn('flex items-center gap-3 rounded-2xl border px-5 py-3.5', statusBadge(localStatus))}>
+            <span className="text-sm font-bold">{statusLabel(localStatus)}</span>
             {completion !== null && (
-              <span className="text-xs text-white/50">Conclusão: {completion}%</span>
+              <span className="ml-auto text-xs opacity-80">Conclusão: {completion}%</span>
             )}
           </div>
 
-          {/* resumo numérico */}
+          {/* Métricas numéricas */}
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: 'Total', value: report.total_tasks },
               { label: 'Concluídas', value: report.completed_tasks },
               { label: 'Pendentes', value: report.pending_tasks },
             ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-4 text-center"
-              >
+              <div key={label} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-4 text-center">
                 <div className="text-2xl font-bold text-white">{value}</div>
-                <div className="mt-1 text-xs text-white/50">{label}</div>
+                <div className="mt-0.5 text-xs text-white/50">{label}</div>
               </div>
             ))}
           </div>
 
-          {/* atividades */}
-          {report.activities.length > 0 && (
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
-                Atividades ({report.activities.length})
-              </h3>
+          {/* Atividades executadas */}
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Atividades Executadas ({report.activities.length})
+            </h3>
+            {report.activities.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/40">
+                Nenhuma atividade detalhada enviada.
+              </p>
+            ) : (
               <ul className="space-y-2">
                 {report.activities.map((act, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
-                  >
-                    <CheckCircle2
-                      className={cn(
-                        'mt-0.5 h-4 w-4 shrink-0',
-                        act.done ? 'text-emerald-400' : 'text-white/30'
-                      )}
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">
-                        {act.title || `Atividade ${idx + 1}`}
-                      </p>
-                      {act.description && (
-                        <p className="mt-0.5 text-xs text-white/55">{act.description}</p>
-                      )}
+                  <li key={idx} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 shrink-0">
+                        {act.done
+                          ? <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          : <Circle className="h-4 w-4 text-white/25" />
+                        }
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-white">
+                          {act.title || `Atividade ${idx + 1}`}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/50">
+                          {act.client && (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />{String(act.client)}
+                            </span>
+                          )}
+                          {(act.process || act.processo) && (
+                            <span className="flex items-center gap-1">
+                              <FileText className="h-3 w-3" />{String(act.process || act.processo)}
+                            </span>
+                          )}
+                          {(act.category || act.type) && (
+                            <span className={cn(
+                              'rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                              categoryColor(String(act.category || act.type))
+                            )}>
+                              {String(act.category || act.type)}
+                            </span>
+                          )}
+                          {act.time && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />{String(act.time)}
+                            </span>
+                          )}
+                        </div>
+                        {(act.description || act.observation || act.observacao) && (
+                          <p className="mt-1.5 text-xs leading-relaxed text-white/55">
+                            {String(act.description || act.observation || act.observacao)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </li>
                 ))}
               </ul>
+            )}
+          </section>
+
+          {/* Produtividade por tipo */}
+          {hasGrouped && (
+            <section>
+              <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                <Tag className="h-3.5 w-3.5" />
+                Produtividade por Tipo
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(grouped).map(([cat, acts]) => (
+                  <div
+                    key={cat}
+                    className={cn('flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold', categoryColor(cat))}
+                  >
+                    <span>{cat}</span>
+                    <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{acts.length}</span>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 
-          {/* observações */}
+          {/* Observações do colaborador */}
           {report.notes && (
             <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                Observações
+              <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Observações do Colaborador
               </h3>
               <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-white/80">
                 {report.notes}
@@ -228,33 +360,99 @@ function DetailsDrawer({
             </section>
           )}
 
-          {/* timestamp */}
-          <p className="text-xs text-white/35">
-            Enviado em: {fmtDatetime(report.created_at)}
-          </p>
+          {/* Comentário da gestão já salvo */}
+          {report.manager_comment && (
+            <section>
+              <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                <MessageSquare className="h-3.5 w-3.5 text-amber-400" />
+                Comentário da Gestão
+              </h3>
+              <p className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm leading-relaxed text-white/80">
+                {report.manager_comment}
+              </p>
+              {reviewerName && (
+                <p className="mt-1.5 text-xs text-white/35">por {reviewerName}</p>
+              )}
+            </section>
+          )}
+
+          {/* Linha do tempo */}
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+              <Clock className="h-3.5 w-3.5" />
+              Linha do Tempo
+            </h3>
+            <ol className="relative ml-2 space-y-4 border-l border-white/10 pb-1">
+              {timelineEvents.map((e) => (
+                <li key={e.label} className="ml-4">
+                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border border-white/20 bg-neutral-900" />
+                  <p className="text-xs font-medium text-white/70">{e.label}</p>
+                  <p className="text-xs text-white/40">{e.value ?? '—'}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
 
-        {/* footer ações */}
-        <div className="border-t border-white/10 px-6 py-4">
-          <p className="mb-3 text-xs text-white/45">Alterar status do relatório:</p>
-          <div className="flex gap-3">
-            <button
-              disabled={saving || localStatus === 'aprovado'}
-              onClick={() => handleStatus('aprovado')}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
-              Aprovar
-            </button>
-            <button
-              disabled={saving || localStatus === 'reprovado'}
-              onClick={() => handleStatus('reprovado')}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsDown className="h-4 w-4" />}
-              Reprovar
-            </button>
-          </div>
+        {/* footer — ações */}
+        <div className="shrink-0 border-t border-white/10 px-6 py-4 space-y-3">
+          {pendingAction === null ? (
+            <div className="flex gap-3">
+              <button
+                disabled={saving || localStatus === 'aprovado'}
+                onClick={() => setPendingAction('aprovado')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ThumbsUp className="h-4 w-4" />
+                Aprovar
+              </button>
+              <button
+                disabled={saving || localStatus === 'reprovado'}
+                onClick={() => setPendingAction('reprovado')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ThumbsDown className="h-4 w-4" />
+                Reprovar
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold text-white">
+                {pendingAction === 'reprovado'
+                  ? 'Comentário (obrigatório para reprovar)'
+                  : 'Comentário da gestão (opcional)'}
+              </p>
+              <textarea
+                rows={3}
+                placeholder={pendingAction === 'reprovado' ? 'Explique o motivo da reprovação…' : 'Adicionar observação…'}
+                value={comment}
+                onChange={(e) => { setComment(e.target.value); setCommentError(''); }}
+                className="w-full resize-none rounded-xl border border-white/10 bg-neutral-950/70 px-3 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-400/40"
+              />
+              {commentError && <p className="text-xs text-red-400">{commentError}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setPendingAction(null); setCommentError(''); }}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={saving}
+                  onClick={() => handleStatus(pendingAction)}
+                  className={cn(
+                    'flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition disabled:opacity-50',
+                    pendingAction === 'aprovado'
+                      ? 'border-emerald-400/30 bg-emerald-400/15 text-emerald-300 hover:bg-emerald-400/25'
+                      : 'border-red-400/30 bg-red-400/15 text-red-300 hover:bg-red-400/25'
+                  )}
+                >
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {pendingAction === 'aprovado' ? 'Confirmar aprovação' : 'Confirmar reprovação'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
     </>
@@ -265,6 +463,7 @@ function DetailsDrawer({
 
 export function TeamReportsPage() {
   const [role, setRole] = useState('');
+  const [userId, setUserId] = useState('');
   const [bootLoading, setBootLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -285,12 +484,14 @@ export function TeamReportsPage() {
     (async () => {
       try {
         setBootLoading(true);
+        const user = await getAuthedUser();
         const officeId = await getMyOfficeId().catch(() => null);
         const [roleNow, membersNow] = await Promise.all([
           getMyOfficeRole().catch(() => ''),
           officeId ? listOfficeMemberProfiles(officeId).catch(() => []) : Promise.resolve([]),
         ]);
         if (!alive) return;
+        setUserId(user.id);
         setRole(String(roleNow || '').toLowerCase());
         setMembers(membersNow);
       } catch {
@@ -303,6 +504,11 @@ export function TeamReportsPage() {
   }, []);
 
   const isAdmin = role === 'admin' || role === 'owner' || role === 'administrator';
+
+  const memberNameMap = useMemo(
+    () => new Map(members.map((m) => [m.user_id, m.display_name || m.email || ''])),
+    [members]
+  );
 
   // Fetch reports
   const loadReports = useCallback(async (filters: TeamReportFilters) => {
@@ -334,14 +540,21 @@ export function TeamReportsPage() {
 
   const summary: TeamReportSummary = useMemo(() => computeSummary(reports), [reports]);
 
-  async function handleUpdateStatus(id: string, status: 'aprovado' | 'reprovado' | 'enviado') {
-    await updateReportStatus(id, status);
+  async function handleUpdateStatus(id: string, status: 'aprovado' | 'reprovado', comment: string) {
+    await updateReportStatus(id, status, comment, userId);
+    const now = new Date().toISOString();
     setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status } : r))
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, status, manager_comment: comment || r.manager_comment, reviewed_by: userId, reviewed_at: now, updated_at: now }
+          : r
+      )
     );
-    if (selected?.id === id) {
-      setSelected((prev) => (prev ? { ...prev, status } : prev));
-    }
+    setSelected((prev) =>
+      prev?.id === id
+        ? { ...prev, status, manager_comment: comment || prev.manager_comment, reviewed_by: userId, reviewed_at: now, updated_at: now }
+        : prev
+    );
   }
 
   function clearFilters() {
@@ -379,6 +592,7 @@ export function TeamReportsPage() {
       {selected && (
         <DetailsDrawer
           report={selected}
+          reviewerName={memberNameMap.get(selected.reviewed_by || '') || ''}
           onClose={() => setSelected(null)}
           onUpdateStatus={handleUpdateStatus}
         />
@@ -537,8 +751,9 @@ export function TeamReportsPage() {
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Data</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Colaborador</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Resumo</th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Conclusão</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Conclusão %</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40">Últ. atualização</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/40"></th>
                 </tr>
               </thead>
@@ -561,7 +776,7 @@ export function TeamReportsPage() {
                       <span>{r.total_tasks} tarefas</span>
                       {r.pending_tasks > 0 && (
                         <span className="ml-2 text-xs text-amber-300/70">
-                          ({r.pending_tasks} pendente{r.pending_tasks !== 1 ? 's' : ''})
+                          ({r.pending_tasks} pend.)
                         </span>
                       )}
                     </td>
@@ -589,6 +804,9 @@ export function TeamReportsPage() {
                       >
                         {statusLabel(r.status)}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-white/40">
+                      {fmtDatetime(r.updated_at || r.created_at) ?? '—'}
                     </td>
                     <td className="px-4 py-3">
                       <button

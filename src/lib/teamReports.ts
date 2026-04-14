@@ -12,13 +12,25 @@ export type ProductivityReport = {
   pending_tasks: number;
   notes: string | null;
   status: 'enviado' | 'aprovado' | 'reprovado' | string;
+  manager_comment: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  updated_at: string | null;
   created_at: string;
 };
 
 export type ActivityItem = {
   title?: string;
   description?: string;
+  observation?: string;
+  observacao?: string;
   done?: boolean;
+  client?: string;
+  process?: string;
+  processo?: string;
+  category?: string;
+  type?: string;
+  time?: string;
   [key: string]: unknown;
 };
 
@@ -107,13 +119,25 @@ export async function fetchTeamReports(filters: TeamReportFilters = {}): Promise
   return enriched;
 }
 
-export async function updateReportStatus(reportId: string, status: 'aprovado' | 'reprovado' | 'enviado'): Promise<void> {
+export async function updateReportStatus(
+  reportId: string,
+  status: 'aprovado' | 'reprovado' | 'enviado',
+  managerComment?: string,
+  reviewedBy?: string
+): Promise<void> {
   const sb = requireSupabase();
   await getAuthedUser();
 
+  const payload: Record<string, unknown> = { status };
+  if (managerComment !== undefined) payload.manager_comment = managerComment || null;
+  if (reviewedBy) {
+    payload.reviewed_by = reviewedBy;
+    payload.reviewed_at = new Date().toISOString();
+  }
+
   const { error } = await sb
     .from('productivity_reports')
-    .update({ status })
+    .update(payload)
     .eq('id', reportId);
 
   if (error) throw new Error(error.message);
