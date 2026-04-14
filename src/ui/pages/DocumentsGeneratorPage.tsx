@@ -217,7 +217,20 @@ function Toast({ message, type, onDismiss }: { message: string; type: 'success' 
   );
 }
 
+/* ─── normalize helper ─── */
+
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /* ─── ClientSearch ─── */
+
+const SHOW_INITIAL = 20;
 
 function ClientSearch({
   clients,
@@ -235,22 +248,32 @@ function ClientSearch({
   const [hover, setHover] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return clients
-      .filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.cpf || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
-          (c.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')),
-      )
-      .slice(0, 10);
-  }, [clients, query]);
+  const trimmedQuery = query.trim();
+
+  const { matches, isEmptyQuery } = useMemo(() => {
+    if (!trimmedQuery) {
+      return { matches: clients.slice(0, SHOW_INITIAL), isEmptyQuery: true };
+    }
+    const q = normalize(trimmedQuery);
+    const qDigits = q.replace(/\D/g, '');
+    const found = clients.filter((c) => {
+      if (normalize(c.name).includes(q)) return true;
+      if (c.email && normalize(c.email).includes(q)) return true;
+      const cpfDigits = (c.cpf || '').replace(/\D/g, '');
+      if (qDigits && cpfDigits && cpfDigits.includes(qDigits)) return true;
+      const phoneDigits = (c.phone || '').replace(/\D/g, '');
+      if (qDigits && phoneDigits && phoneDigits.includes(qDigits)) return true;
+      return false;
+    });
+    return { matches: found.slice(0, 30), isEmptyQuery: false };
+  }, [clients, trimmedQuery]);
+
+  const showNoResults = open && !isEmptyQuery && matches.length === 0;
 
   function handleSelect(c: ClientLite) {
     setQuery(c.name);
     setOpen(false);
+    setHover(-1);
     onSelect(c);
   }
 
@@ -269,15 +292,16 @@ function ClientSearch({
           type="text"
           value={query}
           disabled={disabled}
-          placeholder="Buscar por nome, CPF ou telefone…"
+          placeholder="Buscar por nome, CPF, telefone ou e-mail…"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
             if (!e.target.value) onSelect(null);
           }}
-          onFocus={() => query.length > 0 && setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 180)}
           className="w-full rounded-xl border border-white/10 bg-neutral-900 pl-9 pr-9 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-400/40 disabled:opacity-60"
+          autoComplete="off"
         />
         {query && (
           <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">
@@ -286,25 +310,40 @@ function ClientSearch({
         )}
       </div>
 
-      {open && matches.length > 0 && (
+      {open && (matches.length > 0 || showNoResults) && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
-          {matches.map((c, i) => (
-            <button
-              key={c.id}
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(-1)}
-              onClick={() => handleSelect(c)}
-              className={cn(
-                'flex w-full flex-col items-start px-4 py-2.5 text-left transition',
-                hover === i ? 'bg-white/10' : 'hover:bg-white/5',
-              )}
-            >
-              <span className="text-sm font-medium text-white">{c.name}</span>
-              <span className="text-[11px] text-white/40">
-                {[c.cpf, c.phone].filter(Boolean).join(' · ')}
-              </span>
-            </button>
-          ))}
+          {/* counter header */}
+          <div className="sticky top-0 flex items-center justify-between border-b border-white/8 bg-neutral-900 px-4 py-2">
+            <span className="text-[10px] text-white/35">
+              {isEmptyQuery
+                ? `${clients.length} clientes — mostrando ${matches.length} primeiros`
+                : `${matches.length} encontrado${matches.length !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+
+          {showNoResults ? (
+            <div className="px-4 py-4 text-center text-sm text-white/40">
+              Nenhum cliente encontrado para &ldquo;{trimmedQuery}&rdquo;
+            </div>
+          ) : (
+            matches.map((c, i) => (
+              <button
+                key={c.id}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(-1)}
+                onClick={() => handleSelect(c)}
+                className={cn(
+                  'flex w-full flex-col items-start px-4 py-2.5 text-left transition',
+                  hover === i ? 'bg-white/10' : 'hover:bg-white/5',
+                )}
+              >
+                <span className="text-sm font-medium text-white">{c.name}</span>
+                <span className="text-[11px] text-white/40">
+                  {[c.cpf, c.phone, c.email].filter(Boolean).join(' · ')}
+                </span>
+              </button>
+            ))
+          )}
         </div>
       )}
     </div>

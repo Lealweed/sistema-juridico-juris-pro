@@ -7,8 +7,9 @@ export async function loadClientsLite(): Promise<ClientLite[]> {
 
   const { data, error } = await sb
     .from('clients')
-    .select('id,name,phone,cpf')
-    .order('name', { ascending: true });
+    .select('id,name,phone,cpf,email')
+    .order('name', { ascending: true })
+    .limit(500);
   if (error) throw new Error(error.message);
   return (data || []) as ClientLite[];
 }
