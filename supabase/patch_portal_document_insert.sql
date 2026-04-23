@@ -5,6 +5,11 @@
 -- Idempotente: seguro para executar mais de uma vez.
 -- ============================================================
 
+-- Permite user_id nulo (uploads do portal não têm usuário autenticado)
+-- O tipo TypeScript DocumentRow já declara user_id: string | null
+alter table public.documents
+  alter column user_id drop not null;
+
 -- RPC chamada pelo portal após o upload de arquivo no storage.
 -- Valida que o client_id tem sessão ativa antes de inserir.
 create or replace function public.portal_insert_document(
@@ -44,7 +49,7 @@ begin
     is_public
   ) values (
     p_doc_id,
-    '00000000-0000-0000-0000-000000000000'::uuid,  -- PORTAL_USER_ID
+    null,                                          -- sem usuário autenticado (portal anon)
     p_client_id,
     'personal',
     btrim(coalesce(p_title, 'Documento')),
