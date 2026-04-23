@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { requireSupabase } from '@/lib/supabaseDb';
+import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { createOfficeInvite } from '@/lib/offices';
 import { Card } from '@/ui/widgets/Card';
 import { Activity, Briefcase, CheckCircle, Clock, Users } from 'lucide-react';
 
@@ -8,8 +9,8 @@ type Member = {
   id: string;
   user_id: string;
   role: string;
-  email?: string;
-  full_name?: string;
+  email: string;
+  full_name: string;
   oab_number?: string;
   oab_uf?: string;
   phone?: string;
@@ -43,6 +44,8 @@ export function TeamPage() {
   const [inviteRole, setInviteRole] = useState('lawyer');
   const [inviting, setInviting] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm>({
@@ -75,44 +78,73 @@ export function TeamPage() {
     try {
       setLoading(true);
       const sb = requireSupabase();
+      const user = await getAuthedUser();
+
+      // 1) Descobre o office do usuário atual
+      const { data: myMembership, error: memErr } = await sb
+        .from('office_members')
+        .select('office_id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (memErr) throw memErr;
+      const officeId = myMembership?.office_id as string | undefined;
+      if (!officeId) {
+        setMembers([]);
+        setLoading(false);
+        return;
+      }
+
+      // 2) Carrega membros do office (sem fallback para outros offices)
       const { data, error } = await sb
         .from('office_members')
-        .select('id, user_id, role, created_at');
-        
+        .select('id, user_id, role, created_at')
+        .eq('office_id', officeId)
+        .order('created_at', { ascending: true });
+
       if (error) throw error;
 
-      const userIds = data.map((m: any) => m.user_id);
+      const userIds = (data || []).map((m: any) => m.user_id).filter(Boolean) as string[];
+      if (!userIds.length) {
+        setMembers([]);
+        setLoading(false);
+        return;
+      }
+
+      // 3) Carrega perfis — fonte única de verdade; sem mock de fallback
       const { data: profilesData } = await sb
         .from('user_profiles')
         .select('user_id, display_name, email, oab_number, oab_uf, phone, whatsapp')
-        .in('user_id', userIds);
+        .in('user_id', userIds)
+        .limit(500);
 
       const profilesMap = new Map((profilesData || []).map((p: any) => [p.user_id, p]));
 
-      // Mock user details since we can't join auth.users directly
-      const enriched = data.map((m: any) => {
+      // 4) Constrói membros — filtra fora os que não têm perfil real no banco
+      const enriched: Member[] = [];
+      for (const m of data || []) {
         const p = profilesMap.get(m.user_id);
-        return {
+        // Sem perfil real = usuário fantasma; não exibir
+        if (!p) continue;
+        enriched.push({
           ...m,
-          email: p?.email || `usuario-${m.user_id.slice(0, 4)}@exemplo.com`, 
-          full_name: p?.display_name || p?.email?.split('@')[0] || 'Dr(a). Associado',
-          oab_number: p?.oab_number || '',
-          oab_uf: p?.oab_uf || '',
-          phone: p?.phone || '',
-          whatsapp: p?.whatsapp || '',
-          stats: {
-            activeCases: Math.floor(Math.random() * 20) + 2,
-            tasksDone: Math.floor(Math.random() * 50) + 10,
-            tasksOverdue: Math.floor(Math.random() * 5)
-          }
-        };
-      });
+          email: p.email || '—',
+          full_name: p.display_name || p.email?.split('@')[0] || m.user_id,
+          oab_number: p.oab_number || '',
+          oab_uf: p.oab_uf || '',
+          phone: p.phone || '',
+          whatsapp: p.whatsapp || '',
+          stats: { activeCases: 0, tasksDone: 0, tasksOverdue: 0 },
+        });
+      }
 
       setMembers(enriched);
       if (enriched.length > 0 && !selectedMember) {
         setSelectedMember(enriched[0]);
       } else if (selectedMember) {
-        const updated = enriched.find((m: any) => m.id === selectedMember.id);
+        const updated = enriched.find((m) => m.id === selectedMember.id);
         if (updated) setSelectedMember(updated);
       }
     } catch (err) {
@@ -124,13 +156,29 @@ export function TeamPage() {
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (!inviteEmail) return;
-    
+    if (!inviteEmail.trim()) return;
     setInviting(true);
-    await new Promise(r => setTimeout(r, 1000));
-    alert('Convite enviado (simulado)! Na versão final, isso enviará um e-mail com link seguro.');
-    setInviting(false);
-    setInviteEmail('');
+    setInviteError(null);
+    setInviteSuccess(null);
+    try {
+      const sb = requireSupabase();
+      const user = await getAuthedUser();
+      const { data: myMembership } = await sb
+        .from('office_members')
+        .select('office_id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!myMembership?.office_id) throw new Error('Escritório não encontrado.');
+      await createOfficeInvite(myMembership.office_id as string, inviteEmail.trim(), inviteRole);
+      setInviteSuccess(`Convite enviado para ${inviteEmail.trim()}`);
+      setInviteEmail('');
+    } catch (err: any) {
+      setInviteError(err?.message || 'Erro ao enviar convite.');
+    } finally {
+      setInviting(false);
+    }
   }
 
   async function updateRole(memberId: string, newRole: string) {
@@ -263,6 +311,12 @@ export function TeamPage() {
                   {inviting ? '...' : 'Convidar'}
                 </Button>
               </div>
+              {inviteError && (
+                <p className="text-xs text-red-400 mt-1">{inviteError}</p>
+              )}
+              {inviteSuccess && (
+                <p className="text-xs text-green-400 mt-1">{inviteSuccess}</p>
+              )}
             </form>
           </Card>
         </div>
@@ -271,28 +325,34 @@ export function TeamPage() {
         <div className="xl:col-span-2 space-y-4">
           {selectedMember ? (
             <>
-              {/* Analytics do Membro */}
+              {/* Resumo do Membro */}
               <div className="grid grid-cols-3 gap-3">
                 <Card className="p-4 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
                   <div className="flex items-center gap-3 mb-2">
                     <Briefcase className="w-5 h-5 text-blue-400" />
-                    <span className="text-sm font-semibold text-blue-100">Casos Ativos</span>
+                    <span className="text-sm font-semibold text-blue-100">Cargo</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">{selectedMember.stats?.activeCases}</div>
+                  <div className="text-base font-bold text-white capitalize">{selectedMember.role}</div>
                 </Card>
                 <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-500/20">
                   <div className="flex items-center gap-3 mb-2">
                     <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <span className="text-sm font-semibold text-emerald-100">Tarefas no Mês</span>
+                    <span className="text-sm font-semibold text-emerald-100">OAB</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">{selectedMember.stats?.tasksDone}</div>
+                  <div className="text-base font-bold text-white">
+                    {selectedMember.oab_number
+                      ? `${selectedMember.oab_number}${selectedMember.oab_uf ? `/${selectedMember.oab_uf}` : ''}`
+                      : '—'}
+                  </div>
                 </Card>
-                <Card className="p-4 bg-gradient-to-br from-rose-500/10 to-transparent border-rose-500/20">
+                <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20">
                   <div className="flex items-center gap-3 mb-2">
-                    <Clock className="w-5 h-5 text-rose-400" />
-                    <span className="text-sm font-semibold text-rose-100">SLA Atrasado</span>
+                    <Clock className="w-5 h-5 text-amber-400" />
+                    <span className="text-sm font-semibold text-amber-100">Membro desde</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">{selectedMember.stats?.tasksOverdue}</div>
+                  <div className="text-base font-bold text-white">
+                    {new Date(selectedMember.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                  </div>
                 </Card>
               </div>
 
@@ -301,7 +361,10 @@ export function TeamPage() {
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{selectedMember.full_name}</h3>
-                    <p className="text-sm text-white/50">{selectedMember.email}</p>
+                    <p className="text-sm text-white/50">{selectedMember.email === '—' ? 'Sem e-mail cadastrado' : selectedMember.email}</p>
+                    {selectedMember.phone && (
+                      <p className="text-xs text-white/40 mt-0.5">Tel: {selectedMember.phone}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <select 
