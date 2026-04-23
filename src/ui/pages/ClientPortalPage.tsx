@@ -33,7 +33,6 @@ import { DOCS_BUCKET } from '@/lib/documents';
 import { listReceipts } from '@/lib/receipts';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const PORTAL_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 type PortalState = 'login' | 'authenticated';
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
@@ -210,19 +209,19 @@ export function ClientPortalPage() {
           console.error('[Portal] Erro de upload:', { status, message: msg });
           throw new Error(msg || 'Falha ao enviar arquivo.');
         }
-        const { error: insErr } = await supabase.from('documents').insert({
-          id: docId,
-          user_id: PORTAL_USER_ID,
-          client_id: client.id,
-          kind: 'personal',
-          title: `Portal: ${file.name}`,
-          file_path: path,
-          mime_type: file.type || null,
-          size_bytes: file.size || null,
-          is_public: true,
+        // Usa RPC security definer para contornar RLS (anon não tem INSERT direto)
+        const { error: insErr } = await supabase.rpc('portal_insert_document', {
+          p_session_token: portalSessionToken,
+          p_doc_id: docId,
+          p_client_id: client.id,
+          p_title: `Portal: ${file.name}`,
+          p_file_path: path,
+          p_mime_type: file.type || null,
+          p_size_bytes: file.size || null,
         });
         if (insErr) {
           await supabase.storage.from(DOCS_BUCKET).remove([path]).catch(() => null);
+          console.error('[Portal] Erro ao registrar documento:', insErr);
           throw new Error(insErr.message);
         }
       }
