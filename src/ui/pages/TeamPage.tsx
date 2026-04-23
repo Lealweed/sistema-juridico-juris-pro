@@ -39,6 +39,17 @@ function isPlaceholderName(name: string) {
   return /^(s[oó]cio|usuario|usu[áa]rio|membro|advogado)\s*\d+$/i.test(name.trim());
 }
 
+const TEAM_ALLOWED_EMAIL_DOMAINS = String(import.meta.env.VITE_TEAM_ALLOWED_EMAIL_DOMAINS || '')
+  .split(',')
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
+
+function hasAllowedTeamDomain(email: string) {
+  if (!TEAM_ALLOWED_EMAIL_DOMAINS.length) return true;
+  const domain = email.split('@')[1]?.trim().toLowerCase() || '';
+  return TEAM_ALLOWED_EMAIL_DOMAINS.includes(domain);
+}
+
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ['Acesso total', 'Financeiro', 'Excluir casos', 'Gerenciar equipe'],
   lawyer: ['Criar/Editar casos', 'Gerenciar tarefas', 'Ver clientes', 'Adicionar andamentos'],
@@ -146,6 +157,9 @@ export function TeamPage() {
         // Bloqueia placeholders de seed/demo; ex: "Sócio 1", "adm1@..."
         if (!email || isPlaceholderEmail(email) || isPlaceholderName(displayName)) continue;
 
+        // Se configurado, exibe apenas membros com domínio válido do escritório.
+        if (!hasAllowedTeamDomain(email)) continue;
+
         enriched.push({
           ...m,
           email,
@@ -176,6 +190,15 @@ export function TeamPage() {
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
+
+    const normalizedInviteEmail = inviteEmail.trim().toLowerCase();
+    if (!hasAllowedTeamDomain(normalizedInviteEmail)) {
+      const allowedText = TEAM_ALLOWED_EMAIL_DOMAINS.join(', ');
+      setInviteError(`Use um e-mail do domínio permitido: ${allowedText}`);
+      setInviteSuccess(null);
+      return;
+    }
+
     setInviting(true);
     setInviteError(null);
     setInviteSuccess(null);
@@ -190,8 +213,8 @@ export function TeamPage() {
         .limit(1)
         .maybeSingle();
       if (!myMembership?.office_id) throw new Error('Escritório não encontrado.');
-      await createOfficeInvite({ officeId: myMembership.office_id as string, email: inviteEmail.trim(), role: inviteRole });
-      setInviteSuccess(`Convite enviado para ${inviteEmail.trim()}`);
+      await createOfficeInvite({ officeId: myMembership.office_id as string, email: normalizedInviteEmail, role: inviteRole });
+      setInviteSuccess(`Convite enviado para ${normalizedInviteEmail}`);
       setInviteEmail('');
     } catch (err: any) {
       setInviteError(err?.message || 'Erro ao enviar convite.');
