@@ -35,6 +35,7 @@ const PartnersPage = lazy(() => import('@/ui/pages/finance/PartnersPage').then((
 const PayablesPage = lazy(() => import('@/ui/pages/finance/PayablesPage').then((m) => ({ default: m.PayablesPage })));
 const AiReportsPage = lazy(() => import('@/ui/pages/AiReportsPage').then((m) => ({ default: m.AiReportsPage })));
 const ClientPortalPage = lazy(() => import('@/ui/pages/ClientPortalPage').then((m) => ({ default: m.ClientPortalPage })));
+const MemberPortalPage = lazy(() => import('@/ui/pages/MemberPortalPage').then((m) => ({ default: m.MemberPortalPage })));
 const NotificationsPage = lazy(() => import('@/ui/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const PublicationsPage = lazy(() => import('@/ui/pages/PublicationsPage').then((m) => ({ default: m.PublicationsPage })));
 const DrivePage = lazy(() => import('@/ui/pages/DrivePage').then((m) => ({ default: m.DrivePage })));
@@ -63,6 +64,9 @@ export function AppRouter() {
 
           {/* Portal do Cliente (público, sem auth) */}
           <Route path="/portal" element={<ClientPortalPage />} />
+
+          {/* Portal da Equipe (autenticação Supabase) */}
+          <Route path="/portal/membro" element={<MemberPortalPage />} />
 
           {/* Auth (no sidebar) */}
           <Route element={<AuthLayout />}>
