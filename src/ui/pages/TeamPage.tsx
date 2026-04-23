@@ -24,11 +24,20 @@ type Member = {
 };
 
 type ProfileForm = {
+  fullName: string;
   oabNumber: string;
   oabUf: string;
   phone: string;
   whatsapp: string;
 };
+
+function isPlaceholderEmail(email: string) {
+  return /^(adm|admin|user|usuario|teste|test)\d*@/i.test(email);
+}
+
+function isPlaceholderName(name: string) {
+  return /^(s[oó]cio|usuario|usu[áa]rio|membro|advogado)\s*\d+$/i.test(name.trim());
+}
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ['Acesso total', 'Financeiro', 'Excluir casos', 'Gerenciar equipe'],
@@ -49,6 +58,7 @@ export function TeamPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm>({
+    fullName: '',
     oabNumber: '',
     oabUf: '',
     phone: '',
@@ -61,11 +71,12 @@ export function TeamPage() {
 
   useEffect(() => {
     if (!selectedMember) {
-      setProfileForm({ oabNumber: '', oabUf: '', phone: '', whatsapp: '' });
+      setProfileForm({ fullName: '', oabNumber: '', oabUf: '', phone: '', whatsapp: '' });
       return;
     }
 
     setProfileForm({
+      fullName: selectedMember.full_name || '',
       oabNumber: selectedMember.oab_number || '',
       oabUf: selectedMember.oab_uf || '',
       phone: selectedMember.phone || '',
@@ -128,10 +139,17 @@ export function TeamPage() {
         const p = profilesMap.get(m.user_id);
         // Sem perfil real = usuário fantasma; não exibir
         if (!p) continue;
+
+        const email = String(p.email || '').trim().toLowerCase();
+        const displayName = String(p.display_name || '').trim();
+
+        // Bloqueia placeholders de seed/demo; ex: "Sócio 1", "adm1@..."
+        if (!email || isPlaceholderEmail(email) || isPlaceholderName(displayName)) continue;
+
         enriched.push({
           ...m,
-          email: p.email || '—',
-          full_name: p.display_name || p.email?.split('@')[0] || m.user_id,
+          email,
+          full_name: displayName || 'Sem nome',
           oab_number: p.oab_number || '',
           oab_uf: p.oab_uf || '',
           phone: p.phone || '',
@@ -146,6 +164,7 @@ export function TeamPage() {
       } else if (selectedMember) {
         const updated = enriched.find((m) => m.id === selectedMember.id);
         if (updated) setSelectedMember(updated);
+        else setSelectedMember(enriched[0] || null);
       }
     } catch (err) {
       console.error('Erro ao carregar equipe:', err);
@@ -212,7 +231,7 @@ export function TeamPage() {
     }
   }
 
-  async function updateProfile(userId: string, oabNumber: string, oabUf: string, phone: string, whatsapp: string) {
+  async function updateProfile(userId: string, fullName: string, oabNumber: string, oabUf: string, phone: string, whatsapp: string) {
     try {
       setSavingProfile(true);
       setProfileFeedback(null);
@@ -222,6 +241,7 @@ export function TeamPage() {
       const { data: updatedProfile, error } = await sb
         .from('user_profiles')
         .update({
+          display_name: fullName.trim() || null,
           oab_number: oabNumber.trim() || null,
           oab_uf: normalizedOabUf || null,
           phone: phone.trim() || null,
@@ -434,6 +454,18 @@ export function TeamPage() {
                     </div>
                   ) : null}
                   <div className="flex flex-wrap gap-3 items-end">
+                    <label className="text-xs text-white/60 flex-1 min-w-[180px]">
+                      Nome completo
+                      <input
+                        className="input mt-1 !py-2 !text-sm"
+                        placeholder="Ex: João da Silva"
+                        value={profileForm.fullName}
+                        onChange={(e) => {
+                          setProfileForm((current) => ({ ...current, fullName: e.target.value }));
+                          setProfileFeedback(null);
+                        }}
+                      />
+                    </label>
                     <label className="text-xs text-white/60 flex-1 min-w-[140px]">
                       Telefone
                       <input
@@ -461,7 +493,7 @@ export function TeamPage() {
                       />
                     </label>
                     <button
-                      onClick={() => void updateProfile(selectedMember.user_id, profileForm.oabNumber, profileForm.oabUf, profileForm.phone, profileForm.whatsapp)}
+                      onClick={() => void updateProfile(selectedMember.user_id, profileForm.fullName, profileForm.oabNumber, profileForm.oabUf, profileForm.phone, profileForm.whatsapp)}
                       disabled={savingProfile}
                       className="btn-primary !px-4 !py-2 !h-[38px] !text-sm shrink-0 disabled:cursor-not-allowed disabled:opacity-60"
                     >
