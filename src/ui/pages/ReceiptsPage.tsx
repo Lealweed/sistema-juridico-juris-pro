@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ClipboardCopy, Download, Eye, FileText, Loader2, Send, X } from 'lucide-react';
 
 import { brlToCents, centsToBRL } from '@/lib/finance';
 import { loadClientsLite } from '@/lib/loadClientsLite';
@@ -6,10 +7,16 @@ import { createClientQuick } from '@/lib/clients';
 import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
 import { createReceiptSecure, listReceipts, updateReceiptStatusPdf, type Receipt } from '@/lib/receipts';
 import { buildReceiptHtml, buildReceiptPdfBlob } from '@/lib/receiptPdf';
+import { valorExtenso } from '@/lib/money';
 import { getMyOfficeId } from '@/lib/officeContext';
 import { supabase } from '@/lib/supabaseClient';
 import type { ClientLite } from '@/lib/types';
 import { Card } from '@/ui/widgets/Card';
+import { cn } from '@/ui/utils/cn';
+
+const OFFICE_NAME = 'Lima, Lopes & Diógenes Advogados';
+
+const PAYMENT_METHODS = ['Pix', 'Dinheiro', 'Transferência bancária', 'Cheque', 'Cartão de crédito', 'Boleto'];
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -23,6 +30,118 @@ function todayIsoLocal() {
   return `${y}-${m}-${day}`;
 }
 
+function applyMoneyMask(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const n = Number(digits) / 100;
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+}
+
+/* ─── Preview Modal ─── */
+function PreviewModal({ html, onClose }: { html: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-white shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-3 rounded-full p-1.5 text-black/40 hover:bg-black/10 hover:text-black"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── ClientSearch ─── */
+function ClientSearch({
+  clients,
+  selectedId,
+  query,
+  onQueryChange,
+  onSelect,
+  onCreateClient,
+  creating,
+}: {
+  clients: ClientLite[];
+  selectedId: string | null;
+  query: string;
+  onQueryChange: (v: string) => void;
+  onSelect: (c: ClientLite) => void;
+  onCreateClient: () => Promise<void>;
+  creating: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return clients
+      .filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        (c.cpf || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
+        (c.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')),
+      )
+      .slice(0, 30);
+  }, [clients, query]);
+
+  return (
+    <div className="relative">
+      <input
+        ref={inputRef}
+        className={cn(
+          'w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-400/40',
+          selectedId && 'border-emerald-500/40',
+        )}
+        placeholder="Buscar por nome, CPF ou telefone…"
+        value={query}
+        autoComplete="off"
+        onChange={e => {
+          onQueryChange(e.target.value);
+          setOpen(true);
+          setHover(-1);
+        }}
+        onFocus={() => { if (query) setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && (matches.length > 0 || (query.trim() && matches.length === 0)) && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
+          {matches.map((c, i) => (
+            <button
+              key={c.id}
+              className={cn('flex w-full flex-col items-start px-4 py-2.5 text-left transition', hover === i ? 'bg-white/10' : 'hover:bg-white/5')}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(-1)}
+              onClick={() => { onSelect(c); setOpen(false); }}
+            >
+              <span className="text-sm font-medium text-white">{c.name}</span>
+              <span className="text-[11px] text-white/40">{[c.cpf, c.phone].filter(Boolean).join(' · ')}</span>
+            </button>
+          ))}
+          {query.trim() && matches.length === 0 && (
+            <button
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-emerald-400 hover:bg-white/5 disabled:opacity-50"
+              disabled={creating}
+              onClick={() => void onCreateClient()}
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : '+'}
+              Criar cliente &ldquo;{query}&rdquo;
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main ─── */
+
 export function ReceiptsPage() {
   const [role, setRole] = useState('');
   const [rows, setRows] = useState<Receipt[]>([]);
@@ -30,15 +149,18 @@ export function ReceiptsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
-  // Autocomplete cliente
+  // Form state
   const [clientQuery, setClientQuery] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientLite | null>(null);
   const [creatingClient, setCreatingClient] = useState(false);
-  const [dropdownHover, setDropdownHover] = useState<number>(-1);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [city, setCity] = useState('Fortaleza – CE');
+  const [lawyerName, setLawyerName] = useState('');
+  const [lawyerOab, setLawyerOab] = useState('');
   const [issuedAt, setIssuedAt] = useState(todayIsoLocal());
 
   const isCollaborator = isCollaboratorRole(role);
@@ -46,7 +168,6 @@ export function ReceiptsPage() {
   async function load() {
     setLoading(true);
     setError(null);
-
     try {
       const [myRole, receiptsData, clientsData] = await Promise.all([
         getMyOfficeRole().catch(() => ''),
@@ -56,355 +177,478 @@ export function ReceiptsPage() {
       setRole(myRole || '');
       setRows(receiptsData);
       setClients(clientsData);
-      setLoading(false);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Falha ao carregar recibos.'));
+    } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-
+  useEffect(() => { void load(); }, []);
 
   const summary = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-
-    let monthly = 0;
-    let yearly = 0;
-    let total = 0;
-
+    let monthly = 0, yearly = 0, total = 0;
     for (const r of rows) {
-      const amountCents = Math.round(Number(r.amount || 0) * 100);
-      if (!Number.isFinite(amountCents)) continue;
-      total += amountCents;
-
+      const c = Math.round(Number(r.amount || 0) * 100);
+      if (!Number.isFinite(c)) continue;
+      total += c;
       const issued = new Date(r.issued_at);
       if (issued.getFullYear() === currentYear) {
-        yearly += amountCents;
-        if (issued.getMonth() === currentMonth) {
-          monthly += amountCents;
-        }
+        yearly += c;
+        if (issued.getMonth() === currentMonth) monthly += c;
       }
     }
-
     return { monthly, yearly, total };
   }, [rows]);
 
-  async function onCreateReceipt() {
-    if (!selectedClientId) {
-      setError('Selecione o cliente.');
-      return;
-    }
-
+  // Live preview of form
+  const livePreviewHtml = useMemo(() => {
+    if (!selectedClient) return null;
     const cents = brlToCents(amount);
-    if (cents === null || cents <= 0) {
-      setError('Informe um valor válido maior que zero.');
-      return;
+    const amountNum = cents ? cents / 100 : 0;
+    const draft: Receipt = {
+      id: 'PREVIEW',
+      office_id: '',
+      client_id: selectedClient.id,
+      created_by: '',
+      amount: amountNum,
+      description: description.trim() || null,
+      status: 'rascunho',
+      issued_at: `${issuedAt}T12:00:00.000Z`,
+      pdf_url: null,
+      created_at: new Date().toISOString(),
+      payment_method: paymentMethod || null,
+      city: city || null,
+      lawyer_name: lawyerName || null,
+      lawyer_oab: lawyerOab || null,
+      amount_written: amountNum > 0 ? valorExtenso(amountNum) : null,
+      client: { name: selectedClient.name, cpf: selectedClient.cpf },
+    };
+    return buildReceiptHtml({ receipt: draft, client: selectedClient, officeName: OFFICE_NAME });
+  }, [selectedClient, amount, description, paymentMethod, city, lawyerName, lawyerOab, issuedAt]);
+
+  async function handleCreateClient() {
+    setCreatingClient(true);
+    try {
+      const officeId = await getMyOfficeId() || '';
+      const newClient = await createClientQuick({ name: clientQuery, officeId });
+      setClients(prev => [...prev, newClient]);
+      setSelectedClient(newClient);
+      setClientQuery(newClient.name);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Erro ao criar cliente.'));
+    } finally {
+      setCreatingClient(false);
     }
+  }
+
+  async function onCreateReceipt() {
+    if (!selectedClient) { setError('Selecione o cliente.'); return; }
+    const cents = brlToCents(amount);
+    if (cents === null || cents <= 0) { setError('Informe um valor válido maior que zero.'); return; }
 
     setSaving(true);
     setError(null);
 
     try {
-      // 1. Obter officeId e criar recibo — captura o ID retornado
       const officeId = await getMyOfficeId();
       if (!officeId) throw new Error('Escritório não encontrado.');
       if (!supabase) throw new Error('Supabase não configurado.');
 
+      const amountNum = cents / 100;
+      const amtWritten = valorExtenso(amountNum);
+
       const receiptId = await createReceiptSecure({
-        clientId: selectedClientId,
-        amount: cents / 100,
+        clientId: selectedClient.id,
+        amount: amountNum,
         description: description.trim() || null,
         issuedAt: `${issuedAt}T12:00:00.000Z`,
+        paymentMethod: paymentMethod || null,
+        city: city || null,
+        lawyerName: lawyerName || null,
+        lawyerOab: lawyerOab || null,
+        amountWritten: amtWritten || null,
       });
 
-      // 2. Montar objeto local para geração do PDF (sem re-fetch)
-      const clientObj = clients.find(c => c.id === selectedClientId) || { id: selectedClientId!, name: clientQuery || 'Cliente' };
       const localReceipt: Receipt = {
         id: receiptId,
         office_id: officeId,
-        client_id: selectedClientId!,
+        client_id: selectedClient.id,
         created_by: '',
-        amount: cents / 100,
+        amount: amountNum,
         description: description.trim() || null,
         status: 'emitido',
         issued_at: `${issuedAt}T12:00:00.000Z`,
         pdf_url: null,
         created_at: new Date().toISOString(),
-        client: { name: clientObj.name },
+        payment_method: paymentMethod || null,
+        city: city || null,
+        lawyer_name: lawyerName || null,
+        lawyer_oab: lawyerOab || null,
+        amount_written: amtWritten || null,
+        client: { name: selectedClient.name, cpf: selectedClient.cpf },
       };
 
-      // 3. Gerar PDF com jsPDF (sem dependência de CDN)
       let pdfUrl: string | null = null;
       try {
-        const pdfBlob = buildReceiptPdfBlob({ receipt: localReceipt, client: clientObj, officeName: 'Juris Pro' });
-
-        // 4. Upload no Supabase Storage bucket 'receipts'
-        const storagePath = `office/${officeId}/client/${selectedClientId}/receipt-${receiptId}.pdf`;
+        const pdfBlob = buildReceiptPdfBlob({ receipt: localReceipt, client: selectedClient, officeName: OFFICE_NAME });
+        const storagePath = `office/${officeId}/client/${selectedClient.id}/receipt-${receiptId}.pdf`;
         const { error: uploadError } = await supabase.storage
           .from('receipts')
           .upload(storagePath, pdfBlob, { upsert: true, contentType: 'application/pdf' });
         if (uploadError) throw new Error('Upload: ' + uploadError.message);
-
-        // 5. URL assinada de longa duração (1 ano)
         const { data: urlData, error: urlError } = await supabase.storage
           .from('receipts')
           .createSignedUrl(storagePath, 31_536_000);
         if (urlError || !urlData?.signedUrl) throw new Error('URL assinada falhou.');
         pdfUrl = urlData.signedUrl;
-
-        // 6. Persistir pdf_url no banco
         await updateReceiptStatusPdf({ id: receiptId, pdfUrl });
-      } catch (pdfErr: unknown) {
-        // PDF falhou mas recibo foi criado — registra aviso sem bloquear
-        console.warn('Geração/upload do PDF falhou (recibo salvo sem pdf_url):', pdfErr);
+      } catch (pdfErr) {
+        console.warn('PDF falhou (recibo salvo sem pdf_url):', pdfErr);
       }
 
-      // 7. Atualizar estado local sem re-fetch
-      const newRow: Receipt = { ...localReceipt, pdf_url: pdfUrl };
-      setRows(prev => [newRow, ...prev]);
-
-      // Reset form
+      setRows(prev => [{ ...localReceipt, pdf_url: pdfUrl }, ...prev]);
       setAmount('');
       setDescription('');
+      setPaymentMethod('');
       setClientQuery('');
-      setSelectedClientId(null);
-      setSaving(false);
+      setSelectedClient(null);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Falha ao criar recibo.'));
+    } finally {
       setSaving(false);
     }
   }
 
-  // Filtragem de clientes por nome, telefone ou cpf
-  const filteredClients = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
-    if (!q) return [];
-    return clients.filter(c =>
-      c.name.toLowerCase().includes(q)
+  function downloadReceiptPdf(r: Receipt) {
+    const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: r.client?.name || 'Cliente', cpf: r.client?.cpf ?? null };
+    const blob = buildReceiptPdfBlob({ receipt: r, client, officeName: OFFICE_NAME });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `recibo-${r.id.slice(0, 8)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function copyLink(r: Receipt) {
+    if (!r.pdf_url) { alert('PDF ainda não disponível.'); return; }
+    navigator.clipboard.writeText(r.pdf_url).then(
+      () => alert('Link copiado!'),
+      () => alert('Falha ao copiar.'),
     );
-  }, [clientQuery, clients]);
+  }
+
+  async function resendWhatsapp(r: Receipt) {
+    const phone = prompt('Telefone para WhatsApp (somente números):') || '';
+    if (!phone) return;
+    try {
+      const text = r.pdf_url
+        ? `Olá, ${r.client?.name || ''}! Segue seu recibo: ${r.pdf_url}`
+        : 'Olá! Seu recibo foi emitido. O PDF ficará disponível em breve.';
+      const res = await fetch('/functions/v1/messages-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ officeId: r.office_id, channel: 'whatsapp', destination: phone, text }),
+      });
+      if (!res.ok) throw new Error('Erro ao enviar WhatsApp');
+      alert('Enviado!');
+    } catch (e: unknown) {
+      alert('Erro: ' + getErrorMessage(e, 'Falha ao enviar.'));
+    }
+  }
 
   return (
-    // bloco duplicado/corrompido removido
-                <div className="space-y-6">
-                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
-                    <div className="absolute inset-0 bg-[radial-gradient(500px_180px_at_0%_0%,rgba(56,189,248,0.15),transparent_60%)]" />
-                    <div className="relative flex flex-wrap items-end justify-between gap-4">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200/90">Juris Pro</p>
-                        <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Recibos de clientes</h1>
-                        <p className="mt-1 text-sm text-white/60">Emissão segura de recibos com controle por papel.</p>
-                      </div>
-                      <button onClick={() => void onCreateReceipt()} disabled={saving} className="btn-primary">
-                        {saving ? 'Gerando...' : 'Gerar Recibo'}
-                      </button>
-                    </div>
-                  </div>
+    <div className="min-h-screen space-y-6 px-4 py-8 md:px-6">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
+        <div className="absolute inset-0 bg-[radial-gradient(500px_180px_at_0%_0%,rgba(56,189,248,0.12),transparent_60%)]" />
+        <div className="relative">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">Documentos</p>
+          <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Recibos de Honorários</h1>
+          <p className="mt-1 text-sm text-white/50">Gere, baixe e envie recibos profissionais em PDF.</p>
+        </div>
+      </div>
 
-                  {error ? <div className="text-sm text-red-200">{error}</div> : null}
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+          <span>{error}</span>
+          <button className="ml-auto opacity-60 hover:opacity-100" onClick={() => setError(null)}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
-                  {!isCollaborator ? (
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <Card className="border-cyan-400/20 bg-gradient-to-b from-cyan-400/10 to-white/5">
-                        <div className="text-xs text-white/60">Total mensal</div>
-                        <div className="mt-2 text-2xl font-semibold text-cyan-100">{centsToBRL(summary.monthly)}</div>
-                      </Card>
-                      <Card className="border-emerald-400/20 bg-gradient-to-b from-emerald-400/10 to-white/5">
-                        <div className="text-xs text-white/60">Total anual</div>
-                        <div className="mt-2 text-2xl font-semibold text-emerald-100">{centsToBRL(summary.yearly)}</div>
-                      </Card>
-                      <Card className="border-amber-400/20 bg-gradient-to-b from-amber-400/10 to-white/5">
-                        <div className="text-xs text-white/60">Faturamento geral</div>
-                        <div className="mt-2 text-2xl font-semibold text-amber-100">{centsToBRL(summary.total)}</div>
-                      </Card>
-                    </div>
-                  ) : null}
+      {/* Resumo financeiro */}
+      {!isCollaborator && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="border-cyan-400/20 bg-gradient-to-b from-cyan-400/8 to-white/3">
+            <div className="text-xs text-white/50">Este mês</div>
+            <div className="mt-1.5 text-2xl font-semibold text-cyan-100">{centsToBRL(summary.monthly)}</div>
+          </Card>
+          <Card className="border-emerald-400/20 bg-gradient-to-b from-emerald-400/8 to-white/3">
+            <div className="text-xs text-white/50">Este ano</div>
+            <div className="mt-1.5 text-2xl font-semibold text-emerald-100">{centsToBRL(summary.yearly)}</div>
+          </Card>
+          <Card className="border-amber-400/20 bg-gradient-to-b from-amber-400/8 to-white/3">
+            <div className="text-xs text-white/50">Total geral</div>
+            <div className="mt-1.5 text-2xl font-semibold text-amber-100">{centsToBRL(summary.total)}</div>
+          </Card>
+        </div>
+      )}
 
-                  <Card>
-                    <div className="text-sm font-semibold text-white">Dados do recibo</div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
-                      <label className="text-sm text-white/80">
-                        Cliente
-                        <div className="relative">
-                          <input
-                            className="input pr-24"
-                            placeholder="Digite nome, telefone ou CPF..."
-                            value={clientQuery}
-                            autoComplete="off"
-                            onChange={e => {
-                              setClientQuery(e.target.value);
-                              setShowDropdown(true);
-                              setSelectedClientId(null);
-                              setDropdownHover(-1);
-                            }}
-                            onFocus={() => {
-                              if (clientQuery.length > 0 || filteredClients.length > 0) setShowDropdown(true);
-                            }}
-                            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                          />
-                          {/* Dropdown absoluto de autocomplete */}
-                          {showDropdown && (
-                            <div className="absolute left-0 right-0 z-20 mt-1 rounded bg-white/95 text-black shadow-lg max-h-60 overflow-y-auto border border-neutral-200">
-                              {filteredClients.length > 0 && filteredClients.map((c, idx) => (
-                                <button
-                                  key={c.id}
-                                  className={`flex flex-col items-start w-full px-3 py-2 text-left hover:bg-amber-100 ${dropdownHover === idx ? 'bg-amber-200' : ''} ${selectedClientId === c.id ? 'font-bold' : ''}`}
-                                  onMouseEnter={() => setDropdownHover(idx)}
-                                  onMouseLeave={() => setDropdownHover(-1)}
-                                  onClick={() => {
-                                    setSelectedClientId(c.id);
-                                    setClientQuery(c.name);
-                                    setShowDropdown(false);
-                                  }}
-                                  tabIndex={-1}
-                                >
-                                  <span>{c.name}</span>
-                                  {/* Dados extras removidos, ClientLite só tem name */}
-                                </button>
-                              ))}
-                              {filteredClients.length === 0 && (
-                                <div className="px-3 py-2 text-gray-500">Nenhum cliente encontrado</div>
-                              )}
-                              {clientQuery.trim() && filteredClients.length === 0 && (
-                                <button
-                                  className="block w-full px-3 py-2 text-left text-green-700 hover:bg-green-100 border-t border-neutral-200"
-                                  disabled={creatingClient}
-                                  onClick={async () => {
-                                    setCreatingClient(true);
-                                    try {
-                                      const officeId = window.localStorage.getItem('currentOfficeId') || '';
-                                      const newClient = await createClientQuick({ name: clientQuery, officeId });
-                                      setClients(prev => [...prev, newClient]);
-                                      setSelectedClientId(newClient.id);
-                                      setClientQuery(newClient.name);
-                                      setShowDropdown(false);
-                                    } catch (e: any) {
-                                      setError(e.message || 'Erro ao criar cliente');
-                                    } finally {
-                                      setCreatingClient(false);
-                                    }
-                                  }}
-                                >
-                                  + Criar cliente "{clientQuery}"
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </label>
-
-                      <label className="text-sm text-white/80">
-                        Valor (R$)
-                        <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1500,00" />
-                      </label>
-
-                      <label className="text-sm text-white/80">
-                        Data de emissão
-                        <input type="date" className="input" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} />
-                      </label>
-
-                      <label className="text-sm text-white/80 md:col-span-3">
-                        Descrição
-                        <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Referente a honorários / serviço" />
-                      </label>
-                    </div>
-                  </Card>
-
-                  <Card>
-                    <div className="text-sm font-semibold text-white">Recibos emitidos</div>
-                    <div className="mt-3">
-                      {loading ? <div className="text-sm text-white/70">Carregando...</div> : null}
-                      {!loading && rows.length === 0 ? <div className="text-sm text-white/60">Nenhum recibo encontrado.</div> : null}
-
-                      <div className="mt-3 grid gap-2">
-                        {rows.map((r) => (
-                          <div key={r.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-semibold text-white">{r.client?.name || 'Cliente'} <span className="badge">{r.status}</span></div>
-                                <div className="mt-1 text-xs text-white/60">
-                                  Emissão: {new Date(r.issued_at).toLocaleDateString('pt-BR')} · Criado em {new Date(r.created_at).toLocaleDateString('pt-BR')}
-                                </div>
-                                {r.description ? <div className="mt-1 text-xs text-white/50">{r.description}</div> : null}
-                              </div>
-                              <div className="flex flex-col items-end gap-2 w-full md:w-auto">
-                                <div className="text-sm font-semibold text-white">{Number(r.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {/* Visualizar PDF — desabilitado enquanto pdf_url não existir */}
-                                  <button
-                                    className="btn-secondary btn-sm"
-                                    disabled={!r.pdf_url}
-                                    title={r.pdf_url ? 'Abrir PDF em nova aba' : 'PDF ainda sendo gerado'}
-                                    onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}
-                                  >
-                                    {r.pdf_url ? 'Visualizar PDF' : 'PDF pendente'}
-                                  </button>
-
-                                  {/* WhatsApp */}
-                                  <button
-                                    className="btn-secondary btn-sm"
-                                    onClick={async () => {
-                                      const phone = prompt('Telefone do cliente para WhatsApp (somente números):') || '';
-                                      if (!phone) return alert('Telefone não informado.');
-                                      try {
-                                        const text = r.pdf_url
-                                          ? `Olá! Seu recibo está disponível: ${r.pdf_url}`
-                                          : 'Olá! Seu recibo foi emitido. Aguarde o PDF em breve.';
-                                        const res = await fetch('/functions/v1/messages-send', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            officeId: r.office_id,
-                                            channel: 'whatsapp',
-                                            destination: phone,
-                                            text,
-                                          }),
-                                        });
-                                        if (!res.ok) throw new Error('Erro ao enviar WhatsApp');
-                                        alert('Enviado com sucesso!');
-                                      } catch (e: any) {
-                                        alert('Erro ao enviar WhatsApp: ' + (e.message || e));
-                                      }
-                                    }}
-                                  >
-                                    WhatsApp
-                                  </button>
-
-                                  {/* Imprimir — via PDF se disponível, senão HTML fallback */}
-                                  <button
-                                    className="btn-secondary btn-sm"
-                                    onClick={() => {
-                                      if (r.pdf_url) {
-                                        window.open(r.pdf_url, '_blank');
-                                      } else {
-                                        const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: 'Cliente' };
-                                        const html = buildReceiptHtml({ receipt: r, client, officeName: 'Juris Pro' });
-                                        const printWindow = window.open('', '_blank', 'width=600,height=800');
-                                        if (printWindow) {
-                                          printWindow.document.write(html);
-                                          printWindow.document.close();
-                                          printWindow.focus();
-                                          printWindow.print();
-                                        }
-                                      }
-                                    }}
-                                  >
-                                    Imprimir
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </Card>
+      {/* Form + Preview */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        {/* Formulário */}
+        <Card>
+          <div className="mb-4 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-amber-400" />
+            <h2 className="text-sm font-semibold text-white">Novo recibo</h2>
+          </div>
+          <div className="space-y-4">
+            {/* Cliente */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-white/70">
+                Cliente <span className="text-red-400">*</span>
+              </label>
+              <ClientSearch
+                clients={clients}
+                selectedId={selectedClient?.id ?? null}
+                query={clientQuery}
+                onQueryChange={v => {
+                  setClientQuery(v);
+                  if (selectedClient && v !== selectedClient.name) setSelectedClient(null);
+                }}
+                onSelect={c => { setSelectedClient(c); setClientQuery(c.name); }}
+                onCreateClient={handleCreateClient}
+                creating={creatingClient}
+              />
+              {selectedClient && (
+                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-emerald-400">
+                  <span>✓</span>
+                  <span>{selectedClient.name}{selectedClient.cpf ? ` · CPF ${selectedClient.cpf}` : ''}</span>
                 </div>
-              );
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Valor */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-white/70">
+                  Valor (R$) <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">R$</span>
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-neutral-900 py-2.5 pl-9 pr-3 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40"
+                    value={amount}
+                    placeholder="1.500,00"
+                    onChange={e => setAmount(applyMoneyMask(e.target.value))}
+                  />
+                </div>
+                {amount && brlToCents(amount) ? (
+                  <div className="mt-1 text-[10px] text-white/40 italic">{valorExtenso(brlToCents(amount)! / 100)}</div>
+                ) : null}
+              </div>
+
+              {/* Data */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-white/70">Data de emissão</label>
+                <input
+                  type="date"
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-400/40"
+                  value={issuedAt}
+                  onChange={e => setIssuedAt(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Referente a */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-white/70">Referente a</label>
+              <input
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40"
+                placeholder="Honorários advocatícios — ação previdenciária…"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Forma de pagamento */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-white/70">Forma de pagamento</label>
+                <select
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-400/40"
+                  value={paymentMethod}
+                  onChange={e => setPaymentMethod(e.target.value)}
+                >
+                  <option value="">Selecione…</option>
+                  {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              {/* Cidade */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-white/70">Cidade</label>
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40"
+                  placeholder="Fortaleza – CE"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                />
+              </div>
+
+              {/* Advogado */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-white/70">Advogado responsável</label>
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40"
+                  placeholder="Dr. João Silva"
+                  value={lawyerName}
+                  onChange={e => setLawyerName(e.target.value)}
+                />
+              </div>
+
+              {/* OAB */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-white/70">Nº OAB</label>
+                <input
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40"
+                  placeholder="CE 12345"
+                  value={lawyerOab}
+                  onChange={e => setLawyerOab(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => void onCreateReceipt()}
+              disabled={saving || !selectedClient}
+              className={cn(
+                'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:opacity-50',
+                selectedClient
+                  ? 'bg-amber-400 text-neutral-950 hover:bg-amber-300 active:scale-[.98]'
+                  : 'bg-white/10 text-white/40',
+              )}
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {saving ? 'Gerando recibo…' : 'Gerar e Salvar Recibo'}
+            </button>
+          </div>
+        </Card>
+
+        {/* Preview */}
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <Card className="overflow-hidden">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-white">Preview do recibo</h2>
+              {livePreviewHtml && (
+                <button
+                  onClick={() => setPreviewHtml(livePreviewHtml)}
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Expandir
+                </button>
+              )}
+            </div>
+            {livePreviewHtml ? (
+              <div
+                className="max-h-[500px] overflow-hidden rounded-lg border border-white/10 bg-white"
+                style={{ transform: 'scale(0.7)', transformOrigin: 'top left', width: '142.85%', pointerEvents: 'none' }}
+                dangerouslySetInnerHTML={{ __html: livePreviewHtml }}
+              />
+            ) : (
+              <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 text-center text-sm text-white/30">
+                <FileText className="h-8 w-8 opacity-20" />
+                <span>Selecione um cliente para ver o preview</span>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+
+      {/* Histórico */}
+      <Card>
+        <h2 className="mb-4 text-sm font-semibold text-white">Recibos emitidos</h2>
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-white/40">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+          </div>
+        )}
+        {!loading && rows.length === 0 && (
+          <div className="text-sm text-white/40">Nenhum recibo encontrado.</div>
+        )}
+        <div className="space-y-2">
+          {rows.map(r => (
+            <div key={r.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-white">{r.client?.name || 'Cliente'}</span>
+                    <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                      {r.status}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-white/50">
+                    {new Date(r.issued_at).toLocaleDateString('pt-BR')}
+                    {r.payment_method && ` · ${r.payment_method}`}
+                    {r.city && ` · ${r.city}`}
+                  </div>
+                  {r.description && <div className="mt-0.5 text-xs text-white/40 truncate max-w-sm">{r.description}</div>}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="text-base font-semibold text-white">
+                    {Number(r.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => downloadReceiptPdf(r)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Baixar PDF
+                    </button>
+                    <button
+                      className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => {
+                        const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: r.client?.name || 'Cliente' };
+                        setPreviewHtml(buildReceiptHtml({ receipt: r, client, officeName: OFFICE_NAME }));
+                      }}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Visualizar
+                    </button>
+                    {r.pdf_url && (
+                      <button
+                        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
+                        onClick={() => copyLink(r)}
+                      >
+                        <ClipboardCopy className="h-3.5 w-3.5" />
+                        Copiar link
+                      </button>
+                    )}
+                    <button
+                      className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => void resendWhatsapp(r)}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {previewHtml && <PreviewModal html={previewHtml} onClose={() => setPreviewHtml(null)} />}
+    </div>
+  );
 }
+
