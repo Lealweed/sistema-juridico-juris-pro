@@ -232,15 +232,32 @@ export function TriagePage() {
       const sb = requireSupabase();
       await getAuthedUser();
 
-      const { data, error: qErr } = await sb
+      // Critério primário: bot-id OU user_id nulo OU source_channel automático
+      const baseFilter = `user_id.eq.${LEAD_BOT_ID},user_id.is.null`;
+
+      let result = await sb
         .from('clients')
         .select('*')
-        .eq('user_id', LEAD_BOT_ID)
+        .or(`${baseFilter},source_channel.in.(n8n,web,portal)`)
         .order('created_at', { ascending: false })
         .limit(300);
 
-      if (qErr) throw new Error(qErr.message);
-      setRows((data || []) as TriageLeadRow[]);
+      // Fallback: se source_channel não existir no schema, refaz sem esse critério
+      if (result.error?.message?.includes('source_channel')) {
+        console.debug('[Triagem] source_channel não encontrado, usando filtro base.');
+        result = await sb
+          .from('clients')
+          .select('*')
+          .or(baseFilter)
+          .order('created_at', { ascending: false })
+          .limit(300);
+      }
+
+      if (result.error) throw new Error(result.error.message);
+
+      const leads = (result.data || []) as TriageLeadRow[];
+      console.debug('[Triagem] Leads carregados:', leads.length);
+      setRows(leads);
     } catch (err: any) {
       setError(err?.message || 'Falha ao carregar fila de triagem.');
     } finally {

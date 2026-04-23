@@ -131,6 +131,7 @@ export function ClientsPage() {
         .from('clients')
         .select('id,name,person_type,birth_date,cpf,cnpj,whatsapp,phone,email,avatar_path,user_id,created_at')
         .neq('user_id', LEAD_BOT_ID)
+        .not('user_id', 'is', null)
         .order('created_at', { ascending: false });
 
       if (qErr) throw new Error(qErr.message);
