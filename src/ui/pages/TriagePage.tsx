@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Mail, Phone, RefreshCw, UserRound, X } from 'lucide-react';
+import { ClipboardList, Mail, Phone, RefreshCw, UserCheck, UserRound, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { convertLeadToClient } from '@/lib/clients';
 import { formatCpf } from '@/lib/cpf';
 import { formatBrPhone } from '@/lib/phone';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
@@ -41,10 +42,14 @@ function DataTable({
   rows,
   loading,
   onSelect,
+  onConvert,
+  converting,
 }: {
   rows: TriageLeadRow[];
   loading: boolean;
   onSelect: (row: TriageLeadRow) => void;
+  onConvert: (row: TriageLeadRow) => void;
+  converting: Set<string>;
 }) {
   return (
     <div className="w-full overflow-x-auto">
@@ -106,18 +111,36 @@ function DataTable({
                     {formatDateTime(row.created_at)}
                   </td>
                   <td className="min-w-[160px] border-b border-white/10 px-4 py-3 text-white/80">{row.cpf ? formatCpf(row.cpf) : '—'}</td>
-                  <td className="sticky right-0 min-w-[150px] border-b border-white/10 bg-neutral-950/95 px-4 py-3 text-white/80">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelect(row);
-                      }}
-                    >
-                      Ver Detalhes
-                    </Button>
+                  <td className="sticky right-0 min-w-[170px] border-b border-white/10 bg-neutral-950/95 px-4 py-3 text-white/80">
+                    <div className="flex flex-col gap-1.5">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(row);
+                        }}
+                      >
+                        Ver Detalhes
+                      </Button>
+                      <button
+                        type="button"
+                        disabled={converting.has(row.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onConvert(row);
+                        }}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {converting.has(row.id) ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <UserCheck className="h-3 w-3" />
+                        )}
+                        Converter
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -128,7 +151,17 @@ function DataTable({
   );
 }
 
-function LeadDetailsModal({ lead, onClose }: { lead: TriageLeadRow | null; onClose: () => void }) {
+function LeadDetailsModal({
+  lead,
+  onClose,
+  onConvert,
+  converting,
+}: {
+  lead: TriageLeadRow | null;
+  onClose: () => void;
+  onConvert: (row: TriageLeadRow) => void;
+  converting: Set<string>;
+}) {
   if (!lead) return null;
 
   return (
@@ -208,9 +241,24 @@ function LeadDetailsModal({ lead, onClose }: { lead: TriageLeadRow | null; onClo
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-2">
             <div className="text-sm text-white/60">Data/Hora do cadastro: {formatDateTime(lead.created_at)}</div>
-            <Link className="btn-ghost" to={`/app/clientes/${lead.id}`} onClick={onClose}>
-              Abrir cadastro completo
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={converting.has(lead.id)}
+                onClick={() => onConvert(lead)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {converting.has(lead.id) ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <UserCheck className="h-4 w-4" />
+                )}
+                Converter em Cliente
+              </button>
+              <Link className="btn-ghost" to={`/app/clientes/${lead.id}`} onClick={onClose}>
+                Abrir cadastro completo
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -223,6 +271,7 @@ export function TriagePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<TriageLeadRow | null>(null);
+  const [converting, setConverting] = useState<Set<string>>(new Set());
 
   async function load() {
     setLoading(true);
@@ -232,25 +281,36 @@ export function TriagePage() {
       const sb = requireSupabase();
       await getAuthedUser();
 
-      // Critério primário: bot-id OU user_id nulo OU source_channel automático
-      const baseFilter = `user_id.eq.${LEAD_BOT_ID},user_id.is.null`;
-
+      // Filtro primário: contact_type='lead' (schema atualizado)
       let result = await sb
         .from('clients')
         .select('*')
-        .or(`${baseFilter},source_channel.in.(n8n,web,portal)`)
+        .eq('contact_type', 'lead')
         .order('created_at', { ascending: false })
         .limit(300);
 
-      // Fallback: se source_channel não existir no schema, refaz sem esse critério
-      if (result.error?.message?.includes('source_channel')) {
-        console.debug('[Triagem] source_channel não encontrado, usando filtro base.');
-        result = await sb
+      // Fallback: migração pendente — usa heurística legacy por user_id
+      if (result.error?.message?.includes('contact_type')) {
+        console.debug('[Triagem] contact_type não encontrado, usando filtro legacy por user_id.');
+        const baseFilter = `user_id.eq.${LEAD_BOT_ID},user_id.is.null`;
+
+        let legacyResult = await sb
           .from('clients')
           .select('*')
-          .or(baseFilter)
+          .or(`${baseFilter},source_channel.in.(n8n,web,portal)`)
           .order('created_at', { ascending: false })
           .limit(300);
+
+        if (legacyResult.error?.message?.includes('source_channel')) {
+          legacyResult = await sb
+            .from('clients')
+            .select('*')
+            .or(baseFilter)
+            .order('created_at', { ascending: false })
+            .limit(300);
+        }
+
+        result = legacyResult;
       }
 
       if (result.error) throw new Error(result.error.message);
@@ -262,6 +322,25 @@ export function TriagePage() {
       setError(err?.message || 'Falha ao carregar fila de triagem.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleConvert(row: TriageLeadRow) {
+    if (converting.has(row.id)) return;
+    setConverting((prev) => new Set(prev).add(row.id));
+    try {
+      await convertLeadToClient(row.id);
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      if (selectedLead?.id === row.id) setSelectedLead(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao converter lead.';
+      setError(msg);
+    } finally {
+      setConverting((prev) => {
+        const next = new Set(prev);
+        next.delete(row.id);
+        return next;
+      });
     }
   }
 
@@ -342,11 +421,11 @@ export function TriagePage() {
         </div>
 
         <div className="w-full overflow-x-auto">
-          <DataTable rows={rows} loading={loading} onSelect={setSelectedLead} />
+          <DataTable rows={rows} loading={loading} onSelect={setSelectedLead} onConvert={handleConvert} converting={converting} />
         </div>
       </Card>
 
-      <LeadDetailsModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      <LeadDetailsModal lead={selectedLead} onClose={() => setSelectedLead(null)} onConvert={handleConvert} converting={converting} />
     </div>
   );
 }

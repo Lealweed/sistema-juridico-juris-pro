@@ -127,12 +127,25 @@ export function ClientsPage() {
       const sb = requireSupabase();
       await getAuthedUser();
 
-      const { data, error: qErr } = await sb
+      // Filtro primário: contact_type='client' (schema atualizado)
+      let { data, error: qErr } = await sb
         .from('clients')
         .select('id,name,person_type,birth_date,cpf,cnpj,whatsapp,phone,email,avatar_path,user_id,created_at')
-        .neq('user_id', LEAD_BOT_ID)
-        .not('user_id', 'is', null)
+        .eq('contact_type', 'client')
         .order('created_at', { ascending: false });
+
+      // Fallback: migração pendente — usa heurística legacy por user_id
+      if (qErr?.message?.includes('contact_type')) {
+        console.debug('[Clientes] contact_type não encontrado, usando filtro legacy por user_id.');
+        const fallback = await sb
+          .from('clients')
+          .select('id,name,person_type,birth_date,cpf,cnpj,whatsapp,phone,email,avatar_path,user_id,created_at')
+          .neq('user_id', LEAD_BOT_ID)
+          .not('user_id', 'is', null)
+          .order('created_at', { ascending: false });
+        data = fallback.data;
+        qErr = fallback.error;
+      }
 
       if (qErr) throw new Error(qErr.message);
       setRows((data || []) as ClientRow[]);
@@ -332,6 +345,7 @@ export function ClientsPage() {
       const extraBlock = extraLines.length ? `\n${extraLines.join('\n')}` : '';
 
       const payload: any = {
+        contact_type: 'client',
         user_id: user.id,
         person_type: personType,
         name: newName.trim(),

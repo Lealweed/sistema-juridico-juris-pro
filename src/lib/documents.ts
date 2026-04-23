@@ -40,6 +40,9 @@ export async function generateDocumentFromTemplate(templateFile: string, data: R
 }
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
+/** Bucket de storage onde todos os documentos de clientes são armazenados. */
+export const DOCS_BUCKET = 'client-documents';
+
 /** Maximum upload size: 25 MB */
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -47,6 +50,27 @@ function validateFileSize(file: File | Blob) {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error(`Arquivo excede o limite de 25 MB (${(file.size / 1024 / 1024).toFixed(1)} MB).`);
   }
+}
+
+/**
+ * Traduz erros de storage do Supabase em mensagens amigáveis.
+ * Detecta especificamente bucket inexistente.
+ */
+function resolveStorageError(err: { message: string; statusCode?: string | number }, context: string): Error {
+  const msg = err.message || '';
+  const status = String(err.statusCode || '');
+  if (
+    msg.toLowerCase().includes('bucket not found') ||
+    msg.toLowerCase().includes('the resource was not found') ||
+    status === '404'
+  ) {
+    console.error(`[Storage] Bucket '${DOCS_BUCKET}' não encontrado. Execute o patch_client_documents_bucket.sql no Supabase.`, err);
+    return new Error(
+      `Bucket de documentos não configurado. Avise o administrador do sistema (bucket: ${DOCS_BUCKET}).`,
+    );
+  }
+  console.error(`[Storage] Erro em ${context}:`, { status, message: msg });
+  return new Error(msg || `Falha de armazenamento (${context}).`);
 }
 
 export type DocumentRow = {
@@ -100,11 +124,11 @@ export async function uploadClientDocument(args: {
 
   validateFileSize(args.file);
 
-  const { error: upErr } = await sb.storage.from('documents').upload(path, args.file, {
+  const { error: upErr } = await sb.storage.from(DOCS_BUCKET).upload(path, args.file, {
     upsert: false,
     contentType: args.file.type || undefined,
   });
-  if (upErr) throw new Error(upErr.message);
+  if (upErr) throw resolveStorageError(upErr, 'uploadClientDocument');
 
   const { error: insErr } = await sb.from('documents').insert({
     id: docId,
@@ -121,7 +145,7 @@ export async function uploadClientDocument(args: {
 
   if (insErr) {
     // best-effort cleanup
-    await sb.storage.from('documents').remove([path]).catch(() => null);
+    await sb.storage.from(DOCS_BUCKET).remove([path]).catch(() => null);
     throw new Error(insErr.message);
   }
 
@@ -144,8 +168,8 @@ export async function getDocumentDownloadUrl(filePath: string) {
   const sb = requireSupabase();
   await getAuthedUser();
 
-  const { data, error } = await sb.storage.from('documents').createSignedUrl(filePath, 60 * 10);
-  if (error) throw new Error(error.message);
+  const { data, error } = await sb.storage.from(DOCS_BUCKET).createSignedUrl(filePath, 60 * 10);
+  if (error) throw resolveStorageError(error, 'getDocumentDownloadUrl');
   return data.signedUrl;
 }
 
@@ -181,11 +205,11 @@ export async function uploadTaskDocument(args: {
 
   validateFileSize(args.file);
 
-  const { error: upErr } = await sb.storage.from('documents').upload(path, args.file, {
+  const { error: upErr } = await sb.storage.from(DOCS_BUCKET).upload(path, args.file, {
     upsert: false,
     contentType: args.file.type || undefined,
   });
-  if (upErr) throw new Error(upErr.message);
+  if (upErr) throw resolveStorageError(upErr, 'uploadTaskDocument');
 
   const { error: insErr } = await sb.from('documents').insert({
     id: docId,
@@ -201,7 +225,7 @@ export async function uploadTaskDocument(args: {
   });
 
   if (insErr) {
-    await sb.storage.from('documents').remove([path]).catch(() => null);
+    await sb.storage.from(DOCS_BUCKET).remove([path]).catch(() => null);
     throw new Error(insErr.message);
   }
 
@@ -215,9 +239,9 @@ export async function deleteDocument(doc: { id: string; file_path: string }) {
   const { error: delDbErr } = await sb.from('documents').delete().eq('id', doc.id);
   if (delDbErr) throw new Error(delDbErr.message);
 
-  const { error: delFileErr } = await sb.storage.from('documents').remove([doc.file_path]);
+  const { error: delFileErr } = await sb.storage.from(DOCS_BUCKET).remove([doc.file_path]);
   if (delFileErr) {
     // Not fatal; file might already be gone.
-    console.warn('Failed to delete file from storage:', delFileErr.message);
+    console.warn('[Storage] Falha ao remover arquivo do storage:', delFileErr.message);
   }
 }

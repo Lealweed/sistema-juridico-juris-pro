@@ -29,6 +29,7 @@ import { ClientAvatar } from '@/ui/widgets/ClientAvatar';
 import type { DocumentRow } from '@/lib/documents';
 import { centsToBRL, type FinanceTx } from '@/lib/finance';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
+import { DOCS_BUCKET } from '@/lib/documents';
 import { listReceipts } from '@/lib/receipts';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -197,9 +198,18 @@ export function ClientPortalPage() {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `clients/${client.id}/portal/${docId}_${safeName}`;
         const { error: upErr } = await supabase.storage
-          .from('documents')
+          .from(DOCS_BUCKET)
           .upload(path, file, { upsert: false, contentType: file.type || undefined });
-        if (upErr) throw new Error(upErr.message);
+        if (upErr) {
+          const msg = upErr.message || '';
+          const status = String((upErr as any).statusCode || '');
+          if (msg.toLowerCase().includes('bucket not found') || msg.toLowerCase().includes('the resource was not found') || status === '404') {
+            console.error('[Portal] Bucket não encontrado:', DOCS_BUCKET, upErr);
+            throw new Error(`Bucket de documentos não configurado. Avise o administrador (bucket: ${DOCS_BUCKET}).`);
+          }
+          console.error('[Portal] Erro de upload:', { status, message: msg });
+          throw new Error(msg || 'Falha ao enviar arquivo.');
+        }
         const { error: insErr } = await supabase.from('documents').insert({
           id: docId,
           user_id: PORTAL_USER_ID,
@@ -212,7 +222,7 @@ export function ClientPortalPage() {
           is_public: true,
         });
         if (insErr) {
-          await supabase.storage.from('documents').remove([path]).catch(() => null);
+          await supabase.storage.from(DOCS_BUCKET).remove([path]).catch(() => null);
           throw new Error(insErr.message);
         }
       }
