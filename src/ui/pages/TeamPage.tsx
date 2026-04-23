@@ -171,7 +171,7 @@ export function TeamPage() {
         .limit(1)
         .maybeSingle();
       if (!myMembership?.office_id) throw new Error('Escritório não encontrado.');
-      await createOfficeInvite(myMembership.office_id as string, inviteEmail.trim(), inviteRole);
+      await createOfficeInvite({ officeId: myMembership.office_id as string, email: inviteEmail.trim(), role: inviteRole });
       setInviteSuccess(`Convite enviado para ${inviteEmail.trim()}`);
       setInviteEmail('');
     } catch (err: any) {
