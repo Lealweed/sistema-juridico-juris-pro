@@ -9,6 +9,9 @@ import { formatCnpj, isValidCnpj } from '@/lib/cnpj';
 import { formatBrPhone } from '@/lib/phone';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 
+/** user_id reservado para leads captados automaticamente (site/n8n/webhook) */
+const LEAD_BOT_ID = '00000000-0000-0000-0000-000000000000';
+
 type ClientRow = {
   id: string;
   name: string;
@@ -127,6 +130,7 @@ export function ClientsPage() {
       const { data, error: qErr } = await sb
         .from('clients')
         .select('id,name,person_type,birth_date,cpf,cnpj,whatsapp,phone,email,avatar_path,user_id,created_at')
+        .neq('user_id', LEAD_BOT_ID)
         .order('created_at', { ascending: false });
 
       if (qErr) throw new Error(qErr.message);
@@ -400,7 +404,7 @@ export function ClientsPage() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Clientes</h1>
-          <p className="text-sm text-white/60">Base real (Supabase).</p>
+          <p className="text-sm text-white/60">Clientes confirmados — cadastros realizados pelo escritório.</p>
         </div>
         <button onClick={() => setCreateOpen(true)} className="btn-primary">
           Novo cliente
@@ -757,7 +761,10 @@ export function ClientsPage() {
                         <div className="flex items-center gap-3">
                           <ClientAvatar name={c.name} avatarPath={c.avatar_path} size={36} />
                           <div>
-                            <div>{c.name}</div>
+                            <div className="flex items-center gap-2">
+                              {c.name}
+                              <span className="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Cliente</span>
+                            </div>
                             <div className="text-xs text-white/50">{docLabel(c)}</div>
                           </div>
                         </div>
@@ -797,7 +804,10 @@ export function ClientsPage() {
                   <div className="flex items-start gap-3">
                     <ClientAvatar name={c.name} avatarPath={c.avatar_path} size={44} />
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-white">{c.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-white">{c.name}</span>
+                        <span className="shrink-0 inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Cliente</span>
+                      </div>
                       <div className="mt-1 text-xs text-white/50">{docLabel(c)}</div>
                       <div className="mt-2 text-xs text-white/60">
                         <div>WhatsApp: {c.whatsapp || '—'}</div>

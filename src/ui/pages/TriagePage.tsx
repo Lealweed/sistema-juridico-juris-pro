@@ -8,6 +8,9 @@ import { formatBrPhone } from '@/lib/phone';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { Card } from '@/ui/widgets/Card';
 
+/** user_id reservado para leads captados automaticamente (site/n8n/webhook) */
+const LEAD_BOT_ID = '00000000-0000-0000-0000-000000000000';
+
 type TriageLeadRow = {
   id: string;
   name: string;
@@ -83,7 +86,10 @@ function DataTable({
                   className="cursor-pointer bg-transparent align-top transition-colors hover:bg-slate-800/50"
                 >
                   <td className="min-w-[200px] border-b border-white/10 px-4 py-3 font-medium text-white">
-                    <div>{row.name || 'Sem nome'}</div>
+                    <div className="flex items-center gap-2">
+                      <span>{row.name || 'Sem nome'}</span>
+                      <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">Lead</span>
+                    </div>
                     <div className="mt-1 text-[11px] font-normal text-amber-200/70">Clique para ver a ficha</div>
                   </td>
                   <td className="min-w-[160px] whitespace-nowrap border-b border-white/10 px-4 py-3 text-white/80">
@@ -229,6 +235,7 @@ export function TriagePage() {
       const { data, error: qErr } = await sb
         .from('clients')
         .select('*')
+        .eq('user_id', LEAD_BOT_ID)
         .order('created_at', { ascending: false })
         .limit(300);
 
