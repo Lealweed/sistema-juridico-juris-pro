@@ -48,6 +48,11 @@ function parseDataArray(payload: unknown): EscavadorApiNode[] {
 
   const single = asNode(root.data);
   if (single) return [single];
+
+  if (typeof root.numero_cnj === 'string' || typeof root.numero === 'string') {
+    return [root];
+  }
+
   return [];
 }
 
