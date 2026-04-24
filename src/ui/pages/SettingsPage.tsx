@@ -20,6 +20,8 @@ type OfficeMemberRow = {
   profile?: {
     email: string | null;
     display_name: string | null;
+    phone?: string | null;
+    whatsapp?: string | null;
   } | null;
 };
 
@@ -73,6 +75,7 @@ export function SettingsPage() {
   const [myWhatsapp, setMyWhatsapp] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileNotice, setProfileNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [memberContacts, setMemberContacts] = useState<Record<string, { phone: string; whatsapp: string }>>({});
 
   const myMember = useMemo(() => members.find((m) => m.user_id === meId) || null, [members, meId]);
   const isAdmin = myMember?.role === 'admin';
@@ -104,7 +107,7 @@ export function SettingsPage() {
         .from('office_members')
         .select('office_id')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -150,16 +153,24 @@ export function SettingsPage() {
       // Avoid PostgREST relationship cache errors by fetching profiles separately.
       let profMap = new Map<string, any>();
       if (userIds.length) {
-        const { data: profs } = await sb.from('user_profiles').select('user_id,email,display_name').in('user_id', userIds).limit(500);
+        const { data: profs } = await sb.from('user_profiles').select('user_id,email,display_name,phone,whatsapp').in('user_id', userIds).limit(1000);
         profMap = new Map((profs || []).map((p: any) => [p.user_id, p]));
       }
 
       setOffice((officeRow || null) as Office | null);
-      setMembers(
-        members.map((m) => ({
-          ...m,
-          profile: m.user_id && profMap.get(m.user_id) ? profMap.get(m.user_id) : null,
-        })) as OfficeMemberRow[],
+      const mappedMembers = members.map((m) => ({
+        ...m,
+        profile: m.user_id && profMap.get(m.user_id) ? profMap.get(m.user_id) : null,
+      })) as OfficeMemberRow[];
+      setMembers(mappedMembers);
+      setMemberContacts(
+        mappedMembers.reduce((acc, m) => {
+          acc[m.user_id] = {
+            phone: String(m.profile?.phone || ''),
+            whatsapp: String(m.profile?.whatsapp || ''),
+          };
+          return acc;
+        }, {} as Record<string, { phone: string; whatsapp: string }>),
       );
       setLoading(false);
     } catch (e: any) {
@@ -303,6 +314,34 @@ export function SettingsPage() {
       await getAuthedUser();
       const { error: dErr } = await sb.from('office_members').delete().eq('id', memberId);
       if (dErr) throw new Error(dErr.message);
+      await load();
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveMemberContacts(userId: string) {
+    if (!isAdmin) return;
+    const draft = memberContacts[userId] || { phone: '', whatsapp: '' };
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
+
+      const { error: upErr } = await sb.from('user_profiles').upsert(
+        {
+          user_id: userId,
+          phone: draft.phone.trim() || null,
+          whatsapp: draft.whatsapp.trim() || null,
+        },
+        { onConflict: 'user_id' },
+      );
+      if (upErr) throw new Error(upErr.message);
       await load();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -484,39 +523,78 @@ export function SettingsPage() {
 
           {office && !policyBlocked ? (
             <div className="mt-4 grid gap-2">
-              {members.map((m) => (
-                <div key={m.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                  <div>
-                    <div className="text-sm font-semibold text-white">
-                      {m.profile?.display_name || m.profile?.email || m.user_id}
-                      {m.user_id === meId ? <span className="badge badge-gold ml-2">você</span> : null}
+              {members.map((m) => {
+                const draft = memberContacts[m.user_id] || { phone: '', whatsapp: '' };
+                return (
+                  <div key={m.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {m.profile?.display_name || m.profile?.email || m.user_id}
+                          {m.user_id === meId ? <span className="badge badge-gold ml-2">você</span> : null}
+                        </div>
+                        <div className="mt-1 text-xs text-white/60">{m.profile?.email || '—'}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="select !mt-0 !w-[160px]"
+                          disabled={!isAdmin || m.user_id === meId || saving}
+                          value={m.role}
+                          onChange={(e) => void setRole(m.id, e.target.value)}
+                        >
+                          <option value="member">Membro</option>
+                          <option value="staff">Operacional</option>
+                          <option value="finance">Financeiro</option>
+                          <option value="admin">Admin</option>
+                        </select>
+
+                        <button
+                          className="btn-ghost !rounded-lg !px-3 !py-2 !text-xs"
+                          disabled={!isAdmin || m.user_id === meId || saving}
+                          onClick={() => void removeMember(m.id)}
+                        >
+                          Remover
+                        </button>
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-white/60">{m.profile?.email || '—'}</div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="select !mt-0 !w-[160px]"
-                      disabled={!isAdmin || m.user_id === meId || saving}
-                      value={m.role}
-                      onChange={(e) => void setRole(m.id, e.target.value)}
-                    >
-                      <option value="member">Membro</option>
-                      <option value="staff">Operacional</option>
-                      <option value="finance">Financeiro</option>
-                      <option value="admin">Admin</option>
-                    </select>
-
-                    <button
-                      className="btn-ghost !rounded-lg !px-3 !py-2 !text-xs"
-                      disabled={!isAdmin || m.user_id === meId || saving}
-                      onClick={() => void removeMember(m.id)}
-                    >
-                      Remover
-                    </button>
+                    <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                      <input
+                        className="input !mt-0"
+                        placeholder="Telefone"
+                        value={draft.phone}
+                        onChange={(e) =>
+                          setMemberContacts((prev) => ({
+                            ...prev,
+                            [m.user_id]: { ...(prev[m.user_id] || { phone: '', whatsapp: '' }), phone: e.target.value },
+                          }))
+                        }
+                        disabled={!isAdmin || saving}
+                      />
+                      <input
+                        className="input !mt-0"
+                        placeholder="WhatsApp (n8n)"
+                        value={draft.whatsapp}
+                        onChange={(e) =>
+                          setMemberContacts((prev) => ({
+                            ...prev,
+                            [m.user_id]: { ...(prev[m.user_id] || { phone: '', whatsapp: '' }), whatsapp: e.target.value },
+                          }))
+                        }
+                        disabled={!isAdmin || saving}
+                      />
+                      <button
+                        className="btn-primary !text-xs"
+                        disabled={!isAdmin || saving}
+                        onClick={() => void saveMemberContacts(m.user_id)}
+                      >
+                        Salvar contato
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {!loading && members.length === 0 ? <div className="text-sm text-white/60">Sem membros.</div> : null}
             </div>

@@ -99,7 +99,7 @@ export function TeamPage() {
         .from('office_members')
         .select('office_id')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -191,7 +191,7 @@ export function TeamPage() {
         .from('office_members')
         .select('office_id')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!myMembership?.office_id) throw new Error('Escritório não encontrado.');
