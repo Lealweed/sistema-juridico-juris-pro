@@ -31,14 +31,6 @@ type ProfileForm = {
   whatsapp: string;
 };
 
-function isPlaceholderEmail(email: string) {
-  return /^(adm|admin|user|usuario|teste|test)\d*@/i.test(email);
-}
-
-function isPlaceholderName(name: string) {
-  return /^(s[oó]cio|usuario|usu[áa]rio|membro|advogado)\s*\d+$/i.test(name.trim());
-}
-
 const TEAM_ALLOWED_EMAIL_DOMAINS = String(import.meta.env.VITE_TEAM_ALLOWED_EMAIL_DOMAINS || '')
   .split(',')
   .map((d) => d.trim().toLowerCase())
@@ -135,42 +127,32 @@ export function TeamPage() {
         return;
       }
 
-      // 3) Carrega perfis — fonte única de verdade; sem mock de fallback
+      // 3) Carrega perfis; se faltar perfil, ainda exibimos o membro para permitir correção/cadastro
       const { data: profilesData } = await sb
         .from('user_profiles')
         .select('user_id, display_name, email, oab_number, oab_uf, phone, whatsapp')
         .in('user_id', userIds)
-        .limit(500);
+        .limit(1000);
 
       const profilesMap = new Map((profilesData || []).map((p: any) => [p.user_id, p]));
 
-      // 4) Constrói membros — filtra fora os que não têm perfil real no banco
-      const enriched: Member[] = [];
-      for (const m of data || []) {
-        const p = profilesMap.get(m.user_id);
-        // Sem perfil real = usuário fantasma; não exibir
-        if (!p) continue;
-
+      // 4) Constrói membros sem filtrar placeholders/domínios: mostrar todos os vínculos do office
+      const enriched: Member[] = (data || []).map((m: any) => {
+        const p = profilesMap.get(m.user_id) || {};
         const email = String(p.email || '').trim().toLowerCase();
         const displayName = String(p.display_name || '').trim();
 
-        // Bloqueia placeholders de seed/demo; ex: "Sócio 1", "adm1@..."
-        if (!email || isPlaceholderEmail(email) || isPlaceholderName(displayName)) continue;
-
-        // Se configurado, exibe apenas membros com domínio válido do escritório.
-        if (!hasAllowedTeamDomain(email)) continue;
-
-        enriched.push({
+        return {
           ...m,
-          email,
-          full_name: displayName || 'Sem nome',
+          email: email || '—',
+          full_name: displayName || email || `Usuário ${String(m.user_id || '').slice(0, 8)}`,
           oab_number: p.oab_number || '',
           oab_uf: p.oab_uf || '',
           phone: p.phone || '',
           whatsapp: p.whatsapp || '',
           stats: { activeCases: 0, tasksDone: 0, tasksOverdue: 0 },
-        });
-      }
+        } as Member;
+      });
 
       setMembers(enriched);
       if (enriched.length > 0 && !selectedMember) {
