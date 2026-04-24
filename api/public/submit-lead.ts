@@ -65,7 +65,6 @@ async function insertClient(params: {
     whatsapp,
     phone: whatsapp,
     notes: 'Lead captado pelo site',
-    source_channel: 'web',
     contact_type: 'lead',
     legal_area: area,
     case_description: description,
