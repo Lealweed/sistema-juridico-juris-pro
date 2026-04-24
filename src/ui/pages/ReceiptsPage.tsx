@@ -73,16 +73,20 @@ function PreviewModal({ html, onClose }: { html: string; onClose: () => void }) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-white shadow-2xl"
+        className="relative h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 rounded-full p-1.5 text-black/40 hover:bg-black/10 hover:text-black"
+          className="absolute right-3 top-3 z-10 rounded-full bg-white/80 p-1.5 text-black/60 hover:bg-white hover:text-black"
         >
           <X className="h-5 w-5" />
         </button>
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <iframe
+          title="Preview do recibo"
+          className="h-full w-full border-0"
+          srcDoc={html}
+        />
       </div>
     </div>
   );
@@ -354,7 +358,7 @@ export function ReceiptsPage() {
 
       let pdfUrl: string | null = null;
       try {
-        const pdfBlob = buildReceiptPdfBlob({ receipt: localReceipt, client: selectedClient, officeName: OFFICE_NAME });
+        const pdfBlob = await buildReceiptPdfBlob({ receipt: localReceipt, client: selectedClient, officeName: OFFICE_NAME });
         const storagePath = `office/${officeId}/client/${selectedClient.id}/receipt-${receiptId}.pdf`;
         const { error: uploadError } = await supabase.storage
           .from('receipts')
@@ -385,9 +389,9 @@ export function ReceiptsPage() {
     }
   }
 
-  function downloadReceiptPdf(r: Receipt) {
+  async function downloadReceiptPdf(r: Receipt) {
     const client = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: r.client?.name || 'Cliente', cpf: r.client?.cpf ?? null };
-    const blob = buildReceiptPdfBlob({ receipt: r, client, officeName: OFFICE_NAME });
+    const blob = await buildReceiptPdfBlob({ receipt: r, client, officeName: OFFICE_NAME });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -652,11 +656,13 @@ export function ReceiptsPage() {
               )}
             </div>
             {livePreviewHtml ? (
-              <div
-                className="max-h-[500px] overflow-hidden rounded-lg border border-white/10 bg-white"
-                style={{ transform: 'scale(0.7)', transformOrigin: 'top left', width: '142.85%', pointerEvents: 'none' }}
-                dangerouslySetInnerHTML={{ __html: livePreviewHtml }}
-              />
+              <div className="h-[500px] overflow-hidden rounded-lg border border-white/10 bg-white">
+                <iframe
+                  title="Mini preview do recibo"
+                  className="h-full w-full border-0"
+                  srcDoc={livePreviewHtml}
+                />
+              </div>
             ) : (
               <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 text-center text-sm text-white/30">
                 <FileText className="h-8 w-8 opacity-20" />
@@ -703,7 +709,7 @@ export function ReceiptsPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
-                      onClick={() => downloadReceiptPdf(r)}
+                      onClick={() => void downloadReceiptPdf(r)}
                     >
                       <Download className="h-3.5 w-3.5" />
                       Baixar PDF
