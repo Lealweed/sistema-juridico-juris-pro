@@ -24,35 +24,63 @@ export function LeadForm() {
     setError('');
     setSuccess(false);
 
-    if (!name.trim() || !whatsapp.trim() || !area || !description.trim()) {
-      setError('Por favor, preencha todos os campos.');
-      return;
-    }
+    const trimmedName = name.trim();
+    const trimmedWhatsapp = whatsapp.trim();
+    const trimmedDescription = description.trim();
 
-    if (!supabase) {
-      setError('Serviço indisponível no momento. Tente novamente mais tarde.');
+    if (!trimmedName || !trimmedWhatsapp || !area || !trimmedDescription) {
+      setError('Por favor, preencha todos os campos.');
       return;
     }
 
     setLoading(true);
     try {
-      const { error: rpcError } = await supabase.rpc('submit_lead', {
-        p_name: name.trim(),
-        p_whatsapp: whatsapp.trim(),
-        p_area: area,
-        p_description: description.trim(),
-      });
+      let submitted = false;
 
-      if (rpcError) throw rpcError;
+      try {
+        const response = await fetch('/api/public/submit-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: trimmedName,
+            whatsapp: trimmedWhatsapp,
+            area,
+            description: trimmedDescription,
+          }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Falha ao enviar lead.');
+        }
+
+        submitted = true;
+      } catch (apiErr) {
+        if (!supabase) throw apiErr;
+
+        const { error: rpcError } = await supabase.rpc('submit_lead', {
+          p_name: trimmedName,
+          p_whatsapp: trimmedWhatsapp,
+          p_area: area,
+          p_description: trimmedDescription,
+        });
+
+        if (rpcError) throw apiErr;
+        submitted = true;
+      }
+
+      if (!submitted) {
+        throw new Error('Falha ao enviar lead.');
+      }
 
       setSuccess(true);
       setName('');
       setWhatsapp('');
       setArea('');
       setDescription('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const msg = err?.message || (typeof err === 'string' ? err : 'Erro inesperado no servidor.');
+      const msg = err instanceof Error ? err.message : 'Erro inesperado no servidor.';
       setError(msg);
     } finally {
       setLoading(false);
