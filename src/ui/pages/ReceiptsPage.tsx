@@ -45,6 +45,29 @@ function normalizeSearchText(value: string | null | undefined) {
     .trim();
 }
 
+function buildPaymentMethodLabel(args: {
+  paymentMethod: string;
+  cardInstallments: string;
+  cardInstallmentAmount: string;
+  totalAmountMasked: string;
+}) {
+  const method = args.paymentMethod || '';
+  if (method !== 'Cartão de crédito') return method;
+
+  const installments = Math.max(1, Number(args.cardInstallments || '1') || 1);
+  if (installments <= 1) return method;
+
+  const totalCents = brlToCents(args.totalAmountMasked || '') || 0;
+  const autoInstallment = totalCents > 0
+    ? (totalCents / installments / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+    : '';
+
+  const installmentAmount = (args.cardInstallmentAmount || autoInstallment || '').trim();
+  return installmentAmount
+    ? `${method} em ${installments}x de R$ ${installmentAmount}`
+    : `${method} em ${installments}x`;
+}
+
 /* ─── Preview Modal ─── */
 function PreviewModal({ html, onClose }: { html: string; onClose: () => void }) {
   return (
@@ -182,6 +205,8 @@ export function ReceiptsPage() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [cardInstallments, setCardInstallments] = useState('1');
+  const [cardInstallmentAmount, setCardInstallmentAmount] = useState('');
   const [city, setCity] = useState('Fortaleza – CE');
   const [lawyerName, setLawyerName] = useState('');
   const [lawyerOab, setLawyerOab] = useState('');
@@ -228,6 +253,17 @@ export function ReceiptsPage() {
     return { monthly, yearly, total };
   }, [rows]);
 
+  const effectivePaymentMethod = useMemo(
+    () =>
+      buildPaymentMethodLabel({
+        paymentMethod,
+        cardInstallments,
+        cardInstallmentAmount,
+        totalAmountMasked: amount,
+      }),
+    [paymentMethod, cardInstallments, cardInstallmentAmount, amount],
+  );
+
   // Live preview of form
   const livePreviewHtml = useMemo(() => {
     if (!selectedClient) return null;
@@ -244,7 +280,7 @@ export function ReceiptsPage() {
       issued_at: `${issuedAt}T12:00:00.000Z`,
       pdf_url: null,
       created_at: new Date().toISOString(),
-      payment_method: paymentMethod || null,
+      payment_method: effectivePaymentMethod || null,
       city: city || null,
       lawyer_name: lawyerName || null,
       lawyer_oab: lawyerOab || null,
@@ -252,7 +288,7 @@ export function ReceiptsPage() {
       client: { name: selectedClient.name, cpf: selectedClient.cpf },
     };
     return buildReceiptHtml({ receipt: draft, client: selectedClient, officeName: OFFICE_NAME });
-  }, [selectedClient, amount, description, paymentMethod, city, lawyerName, lawyerOab, issuedAt]);
+  }, [selectedClient, amount, description, effectivePaymentMethod, city, lawyerName, lawyerOab, issuedAt]);
 
   async function handleCreateClient() {
     setCreatingClient(true);
@@ -290,7 +326,7 @@ export function ReceiptsPage() {
         amount: amountNum,
         description: description.trim() || null,
         issuedAt: `${issuedAt}T12:00:00.000Z`,
-        paymentMethod: paymentMethod || null,
+        paymentMethod: effectivePaymentMethod || null,
         city: city || null,
         lawyerName: lawyerName || null,
         lawyerOab: lawyerOab || null,
@@ -308,7 +344,7 @@ export function ReceiptsPage() {
         issued_at: `${issuedAt}T12:00:00.000Z`,
         pdf_url: null,
         created_at: new Date().toISOString(),
-        payment_method: paymentMethod || null,
+        payment_method: effectivePaymentMethod || null,
         city: city || null,
         lawyer_name: lawyerName || null,
         lawyer_oab: lawyerOab || null,
@@ -338,6 +374,8 @@ export function ReceiptsPage() {
       setAmount('');
       setDescription('');
       setPaymentMethod('');
+      setCardInstallments('1');
+      setCardInstallmentAmount('');
       setClientQuery('');
       setSelectedClient(null);
     } catch (err: unknown) {
@@ -508,12 +546,45 @@ export function ReceiptsPage() {
                 <select
                   className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-400/40"
                   value={paymentMethod}
-                  onChange={e => setPaymentMethod(e.target.value)}
+                  onChange={e => {
+                    const next = e.target.value;
+                    setPaymentMethod(next);
+                    if (next !== 'Cartão de crédito') {
+                      setCardInstallments('1');
+                      setCardInstallmentAmount('');
+                    }
+                  }}
                 >
                   <option value="">Selecione…</option>
                   {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
+
+              {paymentMethod === 'Cartão de crédito' ? (
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-white/70">Em quantas vezes</label>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-400/40"
+                      value={cardInstallments}
+                      onChange={e => setCardInstallments(String(Math.max(1, Number(e.target.value || '1'))))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-white/70">Valor da parcela (R$)</label>
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40"
+                      placeholder="Ex.: 500,00"
+                      value={cardInstallmentAmount}
+                      onChange={e => setCardInstallmentAmount(applyMoneyMask(e.target.value))}
+                    />
+                  </div>
+                </>
+              ) : null}
 
               {/* Cidade */}
               <div>
