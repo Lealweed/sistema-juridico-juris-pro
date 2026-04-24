@@ -289,7 +289,7 @@ export function TriagePage() {
         .order('created_at', { ascending: false })
         .limit(300);
 
-      // Fallback: migração pendente — usa heurística legacy por user_id
+      // Fallback A: migração pendente — usa heurística legacy por user_id/source_channel
       if (result.error?.message?.includes('contact_type')) {
         console.debug('[Triagem] contact_type não encontrado, usando filtro legacy por user_id.');
         const baseFilter = `user_id.eq.${LEAD_BOT_ID},user_id.is.null`;
@@ -315,7 +315,33 @@ export function TriagePage() {
 
       if (result.error) throw new Error(result.error.message);
 
-      const leads = (result.data || []) as TriageLeadRow[];
+      let leads = (result.data || []) as TriageLeadRow[];
+
+      // Fallback B: em bases antigas, alguns leads ficaram com contact_type='client'.
+      // Nesses casos, busca por origem/nota típica de captação para não zerar a triagem.
+      if (leads.length === 0) {
+        let heuristic = await sb
+          .from('clients')
+          .select('*')
+          .or('source_channel.in.(n8n,web,portal),notes.ilike.%Lead captado%')
+          .order('created_at', { ascending: false })
+          .limit(300);
+
+        if (heuristic.error?.message?.includes('source_channel')) {
+          heuristic = await sb
+            .from('clients')
+            .select('*')
+            .ilike('notes', '%Lead captado%')
+            .order('created_at', { ascending: false })
+            .limit(300);
+        }
+
+        if (!heuristic.error && heuristic.data?.length) {
+          leads = heuristic.data as TriageLeadRow[];
+          console.debug('[Triagem] fallback heurístico aplicado:', leads.length);
+        }
+      }
+
       console.debug('[Triagem] Leads carregados:', leads.length);
       setRows(leads);
     } catch (err: any) {
