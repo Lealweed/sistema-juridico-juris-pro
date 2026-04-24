@@ -615,24 +615,27 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                   // Recibos: redirect to the dedicated ReceiptsPage
                   if (group === 'Recibos') {
                     return (
-                      <button
+                      <div
                         key={group}
-                        onClick={() => { window.location.href = '/app/recibos'; }}
-                        className="w-full rounded-xl border border-amber-400/30 bg-amber-400/5 px-4 py-3 text-left transition hover:bg-amber-400/10 active:scale-[.98]"
+                        className="w-full rounded-xl border border-amber-400/30 bg-amber-400/5 px-4 py-3 text-left"
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
                             <Receipt className="h-4 w-4 text-amber-400" />
                             <span className="text-sm font-semibold text-white">{group}</span>
                           </div>
-                          <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
-                            Abrir módulo →
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => window.open('/app/recibos', '_blank', 'noopener,noreferrer')}
+                            className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold text-amber-300 hover:bg-amber-400/20"
+                          >
+                            Abrir módulo ↗
+                          </button>
                         </div>
                         <p className="mt-1.5 text-xs text-white/40">
-                          Gere recibos de honorários com PDF, valor por extenso e histórico de emissões.
+                          Gere recibos de honorários com PDF, valor por extenso e histórico de emissões sem sair desta tela.
                         </p>
-                      </button>
+                      </div>
                     );
                   }
                   return (
