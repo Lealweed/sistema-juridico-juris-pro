@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
@@ -354,6 +355,7 @@ function ClientSearch({
 /* ─── Main page ─── */
 
 export function DocumentsGeneratorPage() {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<ClientLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -626,10 +628,10 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                           </div>
                           <button
                             type="button"
-                            onClick={() => window.open('/app/recibos', '_blank', 'noopener,noreferrer')}
+                            onClick={() => navigate('/app/recibos')}
                             className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold text-amber-300 hover:bg-amber-400/20"
                           >
-                            Abrir módulo ↗
+                            Abrir módulo
                           </button>
                         </div>
                         <p className="mt-1.5 text-xs text-white/40">

@@ -29,6 +29,10 @@ export function RequireAuth() {
     })();
   }, [auth.isAuthenticated]);
 
+  if (!auth.isReady) {
+    return <div className="app-bg-dark min-h-screen grid place-items-center text-sm text-white/70">Carregando…</div>;
+  }
+
   if (!auth.isAuthenticated) {
     return <Navigate to="/app/login" replace state={{ from: loc.pathname }} />;
   }

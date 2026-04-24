@@ -5,6 +5,7 @@ import { getSession, onAuthStateChange, signOut as supaSignOut } from '@/auth/su
 
 type AuthState = {
   isAuthenticated: boolean;
+  isReady: boolean;
   orgId: string | null;
   setOrgId: (orgId: string) => void;
   signOut: () => Promise<void>;
@@ -15,14 +16,22 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [orgIdState, setOrgIdState] = useState<string | null>(() => getOrgId());
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(getAccessToken()));
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
-      const session = await getSession();
-      if (!alive) return;
-      setIsAuthenticated(Boolean(session) || Boolean(getAccessToken()));
+      try {
+        const session = await getSession();
+        if (!alive) return;
+        setIsAuthenticated(Boolean(session) || Boolean(getAccessToken()));
+      } catch {
+        if (!alive) return;
+        setIsAuthenticated(Boolean(getAccessToken()));
+      } finally {
+        if (alive) setIsReady(true);
+      }
     })();
 
     const unsub = onAuthStateChange((session) => {
@@ -43,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthState>(() => {
     return {
       isAuthenticated,
+      isReady,
       orgId: orgIdState,
       setOrgId: (orgId: string) => {
         setOrgId(orgId);
@@ -57,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(false);
       },
     };
-  }, [isAuthenticated, orgIdState]);
+  }, [isAuthenticated, isReady, orgIdState]);
 
   return React.createElement(AuthContext.Provider, { value }, children);
 }
