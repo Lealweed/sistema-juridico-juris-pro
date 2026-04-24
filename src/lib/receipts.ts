@@ -24,12 +24,31 @@ export async function listReceipts(limit = 100): Promise<Receipt[]> {
   const sb = requireSupabase();
   await getAuthedUser();
 
-  const { data, error } = await sb
+  const selectWithHonorarios =
+    'id,office_id,client_id,created_by,amount,description,status,issued_at,pdf_url,created_at,payment_method,city,lawyer_name,lawyer_oab,amount_written,client:clients(name,cpf)';
+  const selectBase =
+    'id,office_id,client_id,created_by,amount,description,status,issued_at,pdf_url,created_at,client:clients(name,cpf)';
+
+  let data: any[] | null = null;
+  let error: { message: string } | null = null;
+
+  ({ data, error } = await sb
     .from('receipts')
-    .select('id,office_id,client_id,created_by,amount,description,status,issued_at,pdf_url,created_at,payment_method,city,lawyer_name,lawyer_oab,amount_written,client:clients(name,cpf)')
+    .select(selectWithHonorarios)
     .order('issued_at', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit));
+
+  const missingHonorariosColumn = Boolean(error?.message && /column\s+receipts\.(payment_method|city|lawyer_name|lawyer_oab|amount_written)\s+does not exist/i.test(error.message));
+
+  if (missingHonorariosColumn) {
+    ({ data, error } = await sb
+      .from('receipts')
+      .select(selectBase)
+      .order('issued_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(limit));
+  }
 
   if (error) throw new Error(error.message);
   if (!data) return [];
