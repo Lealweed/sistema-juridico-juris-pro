@@ -40,16 +40,6 @@ export function FinancePage() {
 	const [loading, setLoading] = useState(true);
 	const [myRole, setMyRole] = useState<string>('');
 
-  // Early defensive return: only admin can access
-  if (myRole && myRole !== "admin") {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          Acesso restrito. Apenas administradores podem acessar o financeiro geral.
-        </div>
-      </div>
-    );
-  }
   const [error, setError] = useState<string | null>(null);
   const [showCharts, setShowCharts] = useState(false);
   const [meId, setMeId] = useState<string>('');
