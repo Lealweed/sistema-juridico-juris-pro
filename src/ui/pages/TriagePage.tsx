@@ -323,7 +323,7 @@ export function TriagePage() {
         let heuristic = await sb
           .from('clients')
           .select('*')
-          .or('source_channel.in.(n8n,web,portal),notes.ilike.%Lead captado%')
+          .or('source_channel.in.(n8n,web,portal),notes.ilike.%Lead captado%,legal_area.not.is.null,case_description.not.is.null')
           .order('created_at', { ascending: false })
           .limit(300);
 
@@ -331,7 +331,7 @@ export function TriagePage() {
           heuristic = await sb
             .from('clients')
             .select('*')
-            .ilike('notes', '%Lead captado%')
+            .or('notes.ilike.%Lead captado%,legal_area.not.is.null,case_description.not.is.null')
             .order('created_at', { ascending: false })
             .limit(300);
         }
