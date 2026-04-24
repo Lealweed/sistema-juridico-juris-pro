@@ -37,6 +37,14 @@ function applyMoneyMask(raw: string): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
+function normalizeSearchText(value: string | null | undefined) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 /* ─── Preview Modal ─── */
 function PreviewModal({ html, onClose }: { html: string; onClose: () => void }) {
   return (
@@ -80,15 +88,31 @@ function ClientSearch({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearchText(query);
     if (!q) return [];
+
+    const qDigits = q.replace(/\D/g, '');
+
     return clients
-      .filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        (c.cpf || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
-        (c.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')),
-      )
-      .slice(0, 30);
+      .map(c => {
+        const nameNorm = normalizeSearchText(c.name);
+        const cpfDigits = (c.cpf || '').replace(/\D/g, '');
+        const phoneDigits = (c.phone || '').replace(/\D/g, '');
+
+        const nameStarts = nameNorm.startsWith(q);
+        const nameHas = nameNorm.includes(q);
+        const cpfHas = Boolean(qDigits) && cpfDigits.includes(qDigits);
+        const phoneHas = Boolean(qDigits) && phoneDigits.includes(qDigits);
+
+        const matched = nameHas || cpfHas || phoneHas;
+        const score = nameStarts ? 0 : nameHas ? 1 : cpfHas ? 2 : phoneHas ? 3 : 99;
+
+        return { c, matched, score, nameNorm };
+      })
+      .filter(item => item.matched)
+      .sort((a, b) => (a.score - b.score) || a.nameNorm.localeCompare(b.nameNorm))
+      .slice(0, 30)
+      .map(item => item.c);
   }, [clients, query]);
 
   return (
