@@ -182,6 +182,25 @@ export function buildReceiptHtml({
             text-align: right;
             font-size: 40px;
           }
+          .signature-area {
+            position: absolute;
+            left: 50%;
+            bottom: 128px;
+            transform: translateX(-50%);
+            width: 420px;
+            text-align: center;
+            z-index: 2;
+          }
+          .signature-line {
+            border-top: 1px solid #666;
+            margin-bottom: 8px;
+            height: 1px;
+          }
+          .signature-name {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: .02em;
+          }
           .footer {
             position: absolute;
             left: 0;
@@ -217,6 +236,10 @@ export function buildReceiptHtml({
             ${n.observacao ? `<div class="obs">${escapeHtml(n.observacao)}</div>` : ''}
             <p class="p closure">${escapeHtml(n.textoFecho)}</p>
             <div class="location">${escapeHtml(n.cidade)}, ${escapeHtml(n.dataLonga)}</div>
+            <div class="signature-area">
+              <div class="signature-line"></div>
+              <div class="signature-name">${escapeHtml(n.advogadoNome.toUpperCase())}</div>
+            </div>
           </div>
 
           <div class="footer">
@@ -305,6 +328,15 @@ export async function buildReceiptPdfBlob({
 
   y += 30;
   doc.text(`${n.cidade}, ${n.dataLonga}`, pageW - 24, y, { align: 'right' });
+
+  const signatureLineY = Math.min(272, y + 22);
+  doc.setDrawColor(120, 120, 120);
+  doc.setLineWidth(0.3);
+  doc.line(60, signatureLineY, 150, signatureLineY);
+  doc.setTextColor(20, 20, 20);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(11);
+  doc.text(n.advogadoNome.toUpperCase(), pageW / 2, signatureLineY + 5.8, { align: 'center' });
 
   // Rodapé
   doc.setFillColor(10, 22, 51);
