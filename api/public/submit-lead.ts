@@ -8,8 +8,6 @@ type ResLike = {
   status: (code: number) => { json: (payload: unknown) => unknown };
 };
 
-const LEAD_BOT_ID = '00000000-0000-0000-0000-000000000000';
-
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -59,7 +57,7 @@ async function insertClient(params: {
   const { supabaseUrl, serviceRoleKey, officeId, name, whatsapp, area, description } = params;
 
   const payload = {
-    user_id: LEAD_BOT_ID,
+    user_id: null,
     office_id: officeId,
     name,
     whatsapp,
@@ -104,7 +102,7 @@ async function insertCase(params: {
   const { supabaseUrl, serviceRoleKey, officeId, clientId, area, description } = params;
 
   const payload = {
-    user_id: LEAD_BOT_ID,
+    user_id: null,
     office_id: officeId,
     client_id: clientId,
     title: `Novo Lead (Site): ${area || 'Geral'}`,
