@@ -91,18 +91,44 @@ async function insertClient(params: {
   return clientId;
 }
 
+async function resolveOfficeCaseUserId(supabaseUrl: string, serviceRoleKey: string, officeId: string): Promise<string> {
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/office_members?office_id=eq.${encodeURIComponent(officeId)}&select=user_id&order=created_at.asc&limit=1`,
+    {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => 'falha ao consultar office_members');
+    throw new Error(`Falha ao resolver usuário do caso: ${msg}`);
+  }
+
+  const rows = (await res.json().catch(() => [])) as Array<{ user_id?: string | null }>;
+  const userId = String(rows[0]?.user_id || '');
+  if (!isUuid(userId)) {
+    throw new Error('Não foi possível resolver um usuário válido para criar o caso de triagem.');
+  }
+
+  return userId;
+}
+
 async function insertCase(params: {
   supabaseUrl: string;
   serviceRoleKey: string;
   officeId: string;
+  caseUserId: string;
   clientId: string;
   area: string;
   description: string;
 }) {
-  const { supabaseUrl, serviceRoleKey, officeId, clientId, area, description } = params;
+  const { supabaseUrl, serviceRoleKey, officeId, caseUserId, clientId, area, description } = params;
 
   const payload = {
-    user_id: null,
+    user_id: caseUserId,
     office_id: officeId,
     client_id: clientId,
     title: `Novo Lead (Site): ${area || 'Geral'}`,
@@ -132,6 +158,16 @@ async function insertCase(params: {
   if (!isUuid(caseId)) throw new Error('Caso criado sem case_id válido.');
 
   return caseId;
+}
+
+async function deleteClientBestEffort(supabaseUrl: string, serviceRoleKey: string, clientId: string) {
+  await fetch(`${supabaseUrl}/rest/v1/clients?id=eq.${encodeURIComponent(clientId)}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+  }).catch(() => null);
 }
 
 export default async function handler(req: ReqLike, res: ResLike) {
@@ -169,16 +205,23 @@ export default async function handler(req: ReqLike, res: ResLike) {
       description,
     });
 
-    const caseId = await insertCase({
-      supabaseUrl: SUPABASE_URL,
-      serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
-      officeId,
-      clientId,
-      area,
-      description,
-    });
+    try {
+      const caseUserId = await resolveOfficeCaseUserId(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, officeId);
+      const caseId = await insertCase({
+        supabaseUrl: SUPABASE_URL,
+        serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+        officeId,
+        caseUserId,
+        clientId,
+        area,
+        description,
+      });
 
-    return res.status(200).json({ ok: true, client_id: clientId, case_id: caseId, office_id: officeId });
+      return res.status(200).json({ ok: true, client_id: clientId, case_id: caseId, office_id: officeId });
+    } catch (caseError) {
+      await deleteClientBestEffort(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, clientId);
+      throw caseError;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro inesperado ao enviar lead.';
     return res.status(500).json({ error: message });
