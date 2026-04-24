@@ -28,11 +28,11 @@ export async function fetchProcessoEscavador(numeroCnj: string): Promise<Escavad
   return {
     numero_cnj: processo.numero_cnj,
     tribunal: processo.tribunal.sigla || processo.tribunal.nome,
-    classe: null,
-    assunto: null,
-    status: null,
+    classe: processo.classe,
+    assunto: processo.assunto,
+    status: processo.status,
     ultima_movimentacao: {
-      texto: null,
+      texto: processo.ultima_movimentacao_texto,
       data: processo.data_ultima_movimentacao,
     },
   };

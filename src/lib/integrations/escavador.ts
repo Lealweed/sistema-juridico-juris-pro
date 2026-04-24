@@ -4,12 +4,17 @@ import { requireSupabase } from '@/lib/supabaseDb';
 export type EscavadorProcessoItem = {
   id: string | null;
   numero_cnj: string | null;
+  classe: string | null;
+  assunto: string | null;
+  status: string | null;
+  ultima_movimentacao_texto: string | null;
   titulo_polo_ativo: string | null;
   titulo_polo_passivo: string | null;
   data_ultima_movimentacao: string | null;
   quantidade_movimentacoes: number;
   tribunal: { sigla: string | null; nome: string | null };
   url: string | null;
+  detalhes: Record<string, unknown>;
 };
 
 export type EscavadorSearchParams = {
@@ -44,9 +49,18 @@ function normalizePayload(payload: unknown): EscavadorSearchResult {
           ? (node.tribunal as Record<string, unknown>)
           : {};
 
+      const detalhesNode =
+        node.detalhes && typeof node.detalhes === 'object' && !Array.isArray(node.detalhes)
+          ? (node.detalhes as Record<string, unknown>)
+          : {};
+
       return {
         id: typeof node.id === 'string' ? node.id : null,
         numero_cnj: typeof node.numero_cnj === 'string' ? node.numero_cnj : null,
+        classe: typeof node.classe === 'string' ? node.classe : null,
+        assunto: typeof node.assunto === 'string' ? node.assunto : null,
+        status: typeof node.status === 'string' ? node.status : null,
+        ultima_movimentacao_texto: typeof node.ultima_movimentacao_texto === 'string' ? node.ultima_movimentacao_texto : null,
         titulo_polo_ativo: typeof node.titulo_polo_ativo === 'string' ? node.titulo_polo_ativo : null,
         titulo_polo_passivo: typeof node.titulo_polo_passivo === 'string' ? node.titulo_polo_passivo : null,
         data_ultima_movimentacao: typeof node.data_ultima_movimentacao === 'string' ? node.data_ultima_movimentacao : null,
@@ -59,6 +73,7 @@ function normalizePayload(payload: unknown): EscavadorSearchResult {
           nome: typeof tribunalNode.nome === 'string' ? tribunalNode.nome : null,
         },
         url: typeof node.url === 'string' ? node.url : null,
+        detalhes: detalhesNode,
       };
     }),
     pagination: {

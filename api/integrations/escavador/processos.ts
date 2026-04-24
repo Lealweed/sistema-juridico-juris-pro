@@ -3,12 +3,17 @@ type EscavadorApiNode = Record<string, unknown>;
 type EscavadorNormalizedProcesso = {
   id: string | null;
   numero_cnj: string | null;
+  classe: string | null;
+  assunto: string | null;
+  status: string | null;
+  ultima_movimentacao_texto: string | null;
   titulo_polo_ativo: string | null;
   titulo_polo_passivo: string | null;
   data_ultima_movimentacao: string | null;
   quantidade_movimentacoes: number;
   tribunal: { sigla: string | null; nome: string | null };
   url: string | null;
+  detalhes: EscavadorApiNode;
 };
 
 function asNode(value: unknown): EscavadorApiNode | null {
@@ -30,6 +35,29 @@ function asNumber(value: unknown) {
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
+}
+
+function pickFirstNode(value: unknown): EscavadorApiNode | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  return asNode(value[0]);
+}
+
+function pickUltimaMovimentacaoTexto(raw: EscavadorApiNode): string | null {
+  const ultimaMov = asNode(raw.ultima_movimentacao);
+  if (ultimaMov) {
+    const ultimaTexto = asString(ultimaMov.texto, ultimaMov.titulo, ultimaMov.descricao, ultimaMov.nome);
+    if (ultimaTexto) return ultimaTexto;
+  }
+
+  const ultimaMovArray = pickFirstNode(raw.ultimas_movimentacoes);
+  if (ultimaMovArray) {
+    const ultimaArrayTexto = asString(ultimaMovArray.texto, ultimaMovArray.titulo, ultimaMovArray.descricao, ultimaMovArray.nome);
+    if (ultimaArrayTexto) return ultimaArrayTexto;
+  }
+
+  const movimentacao = pickFirstNode(raw.movimentacoes);
+  if (!movimentacao) return null;
+  return asString(movimentacao.texto, movimentacao.titulo, movimentacao.descricao, movimentacao.nome);
 }
 
 function parseDataArray(payload: unknown): EscavadorApiNode[] {
@@ -79,10 +107,17 @@ function normalizeProcesso(raw: EscavadorApiNode): EscavadorNormalizedProcesso {
   const tribunalNode = asNode(raw.tribunal);
   const primeiraFonte = Array.isArray(raw.fontes) && raw.fontes.length > 0 ? asNode(raw.fontes[0]) : null;
   const tribunalFonte = asNode(primeiraFonte?.tribunal);
+  const classeNode = asNode(raw.classe);
+  const assuntoNode = asNode(raw.assunto);
+  const assuntoPrincipalNode = asNode(raw.assunto_principal);
 
   return {
     id: asString(raw.id, raw.uuid),
     numero_cnj: asString(raw.numero_cnj, raw.numero),
+    classe: asString(raw.classe, classeNode?.nome, classeNode?.descricao),
+    assunto: asString(raw.assunto, assuntoPrincipalNode?.nome, assuntoPrincipalNode?.descricao, assuntoNode?.nome, assuntoNode?.descricao),
+    status: asString(raw.status, raw.situacao),
+    ultima_movimentacao_texto: pickUltimaMovimentacaoTexto(raw),
     titulo_polo_ativo: asString(raw.titulo_polo_ativo),
     titulo_polo_passivo: asString(raw.titulo_polo_passivo),
     data_ultima_movimentacao: asString(raw.data_ultima_movimentacao, raw.data_atualizacao),
@@ -92,6 +127,7 @@ function normalizeProcesso(raw: EscavadorApiNode): EscavadorNormalizedProcesso {
       nome: asString(tribunalNode?.nome, tribunalFonte?.nome, raw.tribunal_nome),
     },
     url: asString(raw.url, primeiraFonte?.url, raw.link),
+    detalhes: raw,
   };
 }
 

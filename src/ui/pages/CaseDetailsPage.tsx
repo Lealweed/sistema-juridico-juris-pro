@@ -71,6 +71,7 @@ export function CaseDetailsPage() {
   const [escavadorCpfCnpj, setEscavadorCpfCnpj] = useState('');
   const [escavadorCursor, setEscavadorCursor] = useState<string | null>(null);
   const [escavadorResultados, setEscavadorResultados] = useState<EscavadorProcessoItem[]>([]);
+  const [escavadorSelecionado, setEscavadorSelecionado] = useState<EscavadorProcessoItem | null>(null);
   const [escavadorLoading, setEscavadorLoading] = useState(false);
   const [escavadorSearched, setEscavadorSearched] = useState(false);
   const [escavadorErro, setEscavadorErro] = useState<string | null>(null);
@@ -284,17 +285,23 @@ export function CaseDetailsPage() {
     setEscavadorErro(null);
 
     try {
+      const isLoadMore = Boolean(cursor);
       const result = await searchEscavadorProcessos({
         nome: escavadorNome,
         cpf_cnpj: escavadorCpfCnpj,
         cursor: cursor || undefined,
       });
 
-      setEscavadorResultados(result.data);
+      setEscavadorResultados((prev) => (isLoadMore ? [...prev, ...result.data] : result.data));
       setEscavadorCursor(result.pagination.nextCursor);
       setEscavadorHeaders(result.operationalHeaders);
+
+      if (!isLoadMore) {
+        setEscavadorSelecionado(result.data[0] || null);
+      }
     } catch (err: any) {
       setEscavadorResultados([]);
+      setEscavadorSelecionado(null);
       setEscavadorCursor(null);
       setEscavadorHeaders(null);
       setEscavadorErro(err?.message || 'Falha ao consultar Escavador.');
@@ -615,7 +622,7 @@ export function CaseDetailsPage() {
 
         <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
           <div className="text-sm font-semibold text-white">Consulta Escavador</div>
-          <div className="mt-1 text-xs text-white/60">Busque processos por nome ou CPF/CNPJ.</div>
+          <div className="mt-1 text-xs text-white/60">Busque processos por nome ou CPF/CNPJ e abra os detalhes completos de cada processo.</div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             <label className="text-sm text-white/80 md:col-span-1">
@@ -672,18 +679,69 @@ export function CaseDetailsPage() {
                       <td className="px-2 py-2">{item.quantidade_movimentacoes || 0}</td>
                       <td className="px-2 py-2">{item.tribunal.sigla || item.tribunal.nome || '—'}</td>
                       <td className="px-2 py-2">
-                        {item.url ? (
-                          <a href={item.url} target="_blank" rel="noreferrer" className="text-amber-200 underline">
-                            Abrir
-                          </a>
-                        ) : (
-                          <span className="text-white/40">—</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEscavadorSelecionado(item)}
+                            className="rounded-lg border border-white/15 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+                          >
+                            Detalhes
+                          </button>
+                          {item.url ? (
+                            <a href={item.url} target="_blank" rel="noreferrer" className="text-amber-200 underline">
+                              Abrir
+                            </a>
+                          ) : (
+                            <span className="text-white/40">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : null}
+
+          {escavadorSelecionado ? (
+            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-amber-100">Detalhes completos do processo</div>
+                <div className="text-xs text-amber-100/70">{escavadorSelecionado.numero_cnj || 'CNJ não informado'}</div>
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="text-xs text-white/50">Classe</div>
+                  <div className="mt-1 text-sm text-white">{escavadorSelecionado.classe || '—'}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="text-xs text-white/50">Assunto</div>
+                  <div className="mt-1 text-sm text-white">{escavadorSelecionado.assunto || '—'}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="text-xs text-white/50">Status</div>
+                  <div className="mt-1 text-sm text-white">{escavadorSelecionado.status || '—'}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="text-xs text-white/50">Tribunal</div>
+                  <div className="mt-1 text-sm text-white">{escavadorSelecionado.tribunal.sigla || escavadorSelecionado.tribunal.nome || '—'}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3 md:col-span-2">
+                  <div className="text-xs text-white/50">Última movimentação</div>
+                  <div className="mt-1 text-sm text-white">{escavadorSelecionado.ultima_movimentacao_texto || '—'}</div>
+                  <div className="mt-1 text-xs text-white/50">
+                    Data: {escavadorSelecionado.data_ultima_movimentacao ? new Date(escavadorSelecionado.data_ultima_movimentacao).toLocaleString() : '—'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <div className="text-xs text-white/50">Payload completo (Escavador)</div>
+                <pre className="mt-1 max-h-72 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-white/80">
+                  {JSON.stringify(escavadorSelecionado.detalhes, null, 2)}
+                </pre>
+              </div>
             </div>
           ) : null}
 
