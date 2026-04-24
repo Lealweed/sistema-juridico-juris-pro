@@ -130,10 +130,11 @@ export default async function handler(req: ReqLike, res: ResLike) {
   const params = new URLSearchParams();
   if (nome) params.set('nome', nome);
   if (cpfCnpj) params.set('cpf_cnpj', cpfCnpj);
-  if (numeroCnj) params.set('numero_cnj', numeroCnj);
   if (cursor) params.set('cursor', cursor);
 
-  const url = `https://api.escavador.com/api/v2/processos?${params.toString()}`;
+  const url = numeroCnj
+    ? `https://api.escavador.com/api/v2/processos/numero_cnj/${encodeURIComponent(numeroCnj)}`
+    : `https://api.escavador.com/api/v2/envolvidos/processos?${params.toString()}`;
 
   try {
     const response = await fetch(url, {
