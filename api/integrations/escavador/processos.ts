@@ -38,6 +38,10 @@ function parseDataArray(payload: unknown): EscavadorApiNode[] {
   const root = asNode(payload);
   if (!root) return [];
 
+  if (Array.isArray(root.items)) {
+    return root.items.filter((item): item is EscavadorApiNode => !!asNode(item));
+  }
+
   if (Array.isArray(root.data)) {
     return root.data.filter((item): item is EscavadorApiNode => !!asNode(item));
   }
@@ -68,6 +72,8 @@ function parseNextCursor(payload: unknown): string | null {
 
 function normalizeProcesso(raw: EscavadorApiNode): EscavadorNormalizedProcesso {
   const tribunalNode = asNode(raw.tribunal);
+  const primeiraFonte = Array.isArray(raw.fontes) && raw.fontes.length > 0 ? asNode(raw.fontes[0]) : null;
+  const tribunalFonte = asNode(primeiraFonte?.tribunal);
 
   return {
     id: asString(raw.id, raw.uuid),
@@ -77,10 +83,10 @@ function normalizeProcesso(raw: EscavadorApiNode): EscavadorNormalizedProcesso {
     data_ultima_movimentacao: asString(raw.data_ultima_movimentacao, raw.data_atualizacao),
     quantidade_movimentacoes: asNumber(raw.quantidade_movimentacoes),
     tribunal: {
-      sigla: asString(tribunalNode?.sigla, raw.tribunal_sigla),
-      nome: asString(tribunalNode?.nome, raw.tribunal_nome),
+      sigla: asString(tribunalNode?.sigla, tribunalFonte?.sigla, raw.tribunal_sigla),
+      nome: asString(tribunalNode?.nome, tribunalFonte?.nome, raw.tribunal_nome),
     },
-    url: asString(raw.url, raw.link),
+    url: asString(raw.url, primeiraFonte?.url, raw.link),
   };
 }
 
@@ -134,7 +140,7 @@ export default async function handler(req: ReqLike, res: ResLike) {
 
   const url = numeroCnj
     ? `https://api.escavador.com/api/v2/processos/numero_cnj/${encodeURIComponent(numeroCnj)}`
-    : `https://api.escavador.com/api/v2/envolvidos/processos?${params.toString()}`;
+    : `https://api.escavador.com/api/v2/envolvido/processos?${params.toString()}`;
 
   try {
     const response = await fetch(url, {
