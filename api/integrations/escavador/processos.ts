@@ -107,6 +107,7 @@ function normalizeProcesso(raw: EscavadorApiNode): EscavadorNormalizedProcesso {
   const tribunalNode = asNode(raw.tribunal);
   const primeiraFonte = Array.isArray(raw.fontes) && raw.fontes.length > 0 ? asNode(raw.fontes[0]) : null;
   const tribunalFonte = asNode(primeiraFonte?.tribunal);
+  const capaPrimeiraFonte = asNode(primeiraFonte?.capa);
   const classeNode = asNode(raw.classe);
   const assuntoNode = asNode(raw.assunto);
   const assuntoPrincipalNode = asNode(raw.assunto_principal);
@@ -114,9 +115,16 @@ function normalizeProcesso(raw: EscavadorApiNode): EscavadorNormalizedProcesso {
   return {
     id: asString(raw.id, raw.uuid),
     numero_cnj: asString(raw.numero_cnj, raw.numero),
-    classe: asString(raw.classe, classeNode?.nome, classeNode?.descricao),
-    assunto: asString(raw.assunto, assuntoPrincipalNode?.nome, assuntoPrincipalNode?.descricao, assuntoNode?.nome, assuntoNode?.descricao),
-    status: asString(raw.status, raw.situacao),
+    classe: asString(raw.classe, classeNode?.nome, classeNode?.descricao, capaPrimeiraFonte?.classe),
+    assunto: asString(
+      raw.assunto,
+      assuntoPrincipalNode?.nome,
+      assuntoPrincipalNode?.descricao,
+      assuntoNode?.nome,
+      assuntoNode?.descricao,
+      capaPrimeiraFonte?.assunto,
+    ),
+    status: asString(raw.status, raw.situacao, capaPrimeiraFonte?.situacao),
     ultima_movimentacao_texto: pickUltimaMovimentacaoTexto(raw),
     titulo_polo_ativo: asString(raw.titulo_polo_ativo),
     titulo_polo_passivo: asString(raw.titulo_polo_passivo),
