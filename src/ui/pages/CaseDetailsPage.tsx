@@ -6,6 +6,7 @@ import { Card } from '@/ui/widgets/Card';
 import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
 import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { fetchProcessoEscavador } from '@/lib/escavadorApi';
+import { searchEscavadorProcessos, type EscavadorProcessoItem } from '@/lib/integrations/escavador';
 import { formatBrPhone } from '@/lib/phone';
 import { apiFetch } from '@/lib/apiClient';
 import { parseMoneyInput, formatBRL } from '@/lib/money';
@@ -66,6 +67,14 @@ export function CaseDetailsPage() {
 
   const [processNumber, setProcessNumber] = useState('');
   const [checking, setChecking] = useState(false);
+  const [escavadorNome, setEscavadorNome] = useState('');
+  const [escavadorCpfCnpj, setEscavadorCpfCnpj] = useState('');
+  const [escavadorCursor, setEscavadorCursor] = useState<string | null>(null);
+  const [escavadorResultados, setEscavadorResultados] = useState<EscavadorProcessoItem[]>([]);
+  const [escavadorLoading, setEscavadorLoading] = useState(false);
+  const [escavadorSearched, setEscavadorSearched] = useState(false);
+  const [escavadorErro, setEscavadorErro] = useState<string | null>(null);
+  const [escavadorHeaders, setEscavadorHeaders] = useState<{ creditosUtilizados: string | null; rateLimitLimit: string | null; rateLimitRemaining: string | null } | null>(null);
   const [wppSending, setWppSending] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
@@ -266,6 +275,31 @@ export function CaseDetailsPage() {
       setError(err?.message || 'Falha ao consultar Escavador.');
       setActionMsg(null);
       setChecking(false);
+    }
+  }
+
+  async function runEscavadorSearch(cursor?: string | null) {
+    setEscavadorLoading(true);
+    setEscavadorSearched(true);
+    setEscavadorErro(null);
+
+    try {
+      const result = await searchEscavadorProcessos({
+        nome: escavadorNome,
+        cpf_cnpj: escavadorCpfCnpj,
+        cursor: cursor || undefined,
+      });
+
+      setEscavadorResultados(result.data);
+      setEscavadorCursor(result.pagination.nextCursor);
+      setEscavadorHeaders(result.operationalHeaders);
+    } catch (err: any) {
+      setEscavadorResultados([]);
+      setEscavadorCursor(null);
+      setEscavadorHeaders(null);
+      setEscavadorErro(err?.message || 'Falha ao consultar Escavador.');
+    } finally {
+      setEscavadorLoading(false);
     }
   }
 
@@ -577,6 +611,89 @@ export function CaseDetailsPage() {
               {row?.datajud_last_checked_at ? new Date(row.datajud_last_checked_at).toLocaleString() : '—'}
             </div>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="text-sm font-semibold text-white">Consulta Escavador</div>
+          <div className="mt-1 text-xs text-white/60">Busque processos por nome ou CPF/CNPJ.</div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <label className="text-sm text-white/80 md:col-span-1">
+              Nome
+              <input className="input mt-1" value={escavadorNome} onChange={(e) => setEscavadorNome(e.target.value)} placeholder="Ex.: Maria da Silva" />
+            </label>
+
+            <label className="text-sm text-white/80 md:col-span-1">
+              CPF/CNPJ
+              <input className="input mt-1" value={escavadorCpfCnpj} onChange={(e) => setEscavadorCpfCnpj(e.target.value)} placeholder="Somente números" />
+            </label>
+
+            <div className="flex items-end">
+              <button className="btn-primary w-full" disabled={escavadorLoading} onClick={() => void runEscavadorSearch(null)}>
+                {escavadorLoading ? 'Buscando...' : 'Buscar'}
+              </button>
+            </div>
+          </div>
+
+          {escavadorErro ? <div className="mt-3 text-sm text-red-200">{escavadorErro}</div> : null}
+
+          {escavadorHeaders ? (
+            <div className="mt-3 text-xs text-white/60">
+              Créditos usados: {escavadorHeaders.creditosUtilizados || '—'} · Limite: {escavadorHeaders.rateLimitLimit || '—'} · Restante:{' '}
+              {escavadorHeaders.rateLimitRemaining || '—'}
+            </div>
+          ) : null}
+
+          {escavadorSearched && !escavadorLoading && !escavadorErro && escavadorResultados.length === 0 ? (
+            <div className="mt-3 text-sm text-white/60">Nenhum processo encontrado para os filtros informados.</div>
+          ) : null}
+
+          {escavadorResultados.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-white/60">
+                    <th className="px-2 py-2">Número CNJ</th>
+                    <th className="px-2 py-2">Polo ativo</th>
+                    <th className="px-2 py-2">Polo passivo</th>
+                    <th className="px-2 py-2">Últ. movimentação</th>
+                    <th className="px-2 py-2">Mov.</th>
+                    <th className="px-2 py-2">Tribunal</th>
+                    <th className="px-2 py-2">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {escavadorResultados.map((item, index) => (
+                    <tr key={`${item.id || item.numero_cnj || 'proc'}-${index}`} className="border-b border-white/5 text-white/80">
+                      <td className="px-2 py-2">{item.numero_cnj || '—'}</td>
+                      <td className="px-2 py-2">{item.titulo_polo_ativo || '—'}</td>
+                      <td className="px-2 py-2">{item.titulo_polo_passivo || '—'}</td>
+                      <td className="px-2 py-2">{item.data_ultima_movimentacao ? new Date(item.data_ultima_movimentacao).toLocaleDateString() : '—'}</td>
+                      <td className="px-2 py-2">{item.quantidade_movimentacoes || 0}</td>
+                      <td className="px-2 py-2">{item.tribunal.sigla || item.tribunal.nome || '—'}</td>
+                      <td className="px-2 py-2">
+                        {item.url ? (
+                          <a href={item.url} target="_blank" rel="noreferrer" className="text-amber-200 underline">
+                            Abrir
+                          </a>
+                        ) : (
+                          <span className="text-white/40">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {escavadorCursor ? (
+            <div className="mt-3 flex justify-end">
+              <button className="btn-ghost" disabled={escavadorLoading} onClick={() => void runEscavadorSearch(escavadorCursor)}>
+                {escavadorLoading ? 'Carregando...' : 'Carregar mais'}
+              </button>
+            </div>
+          ) : null}
         </div>
       </Card>
 

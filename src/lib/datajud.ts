@@ -1,3 +1,4 @@
+import { searchEscavadorProcessos } from '@/lib/integrations/escavador';
 import { requireSupabase } from '@/lib/supabaseDb';
 
 export type DataJudLastMovement = {
@@ -25,110 +26,26 @@ function formatCnj(cnjDigits: string) {
   return cnjDigits.replace(/(\d{7})(\d{2})(\d{4})(\d)(\d{2})(\d{4})/, '$1-$2.$3.$4.$5.$6');
 }
 
-type EscavadorNode = Record<string, unknown>;
-
-function pickProcessRoot(payload: EscavadorNode): EscavadorNode {
-  const data = payload.data;
-  if (Array.isArray(data)) {
-    return ((data[0] as EscavadorNode | undefined) || payload) as EscavadorNode;
-  }
-  if (data && typeof data === 'object') {
-    return data as EscavadorNode;
-  }
-  return payload;
-}
-
-function readMovementText(node: EscavadorNode) {
-  const candidates = [
-    node['texto'],
-    node['nome'],
-    node['descricao'],
-    node['descricao_texto'],
-    node['conteudo'],
-  ];
-
-  const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim());
-  return typeof value === 'string' ? value.trim() : 'Sem movimentação disponível';
-}
-
-function readMovementDate(node: EscavadorNode) {
-  const candidates = [
-    node['data'],
-    node['data_hora'],
-    node['data_movimentacao'],
-    node['data_publicacao'],
-    node['created_at'],
-  ];
-
-  const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim());
-  return typeof value === 'string' ? value : new Date().toISOString();
-}
-
-function pickLastMovement(processo: EscavadorNode) {
-  const fromUltima = processo['ultima_movimentacao'];
-  if (fromUltima && typeof fromUltima === 'object' && !Array.isArray(fromUltima)) {
-    return fromUltima as EscavadorNode;
-  }
-
-  const movimentacoes = processo['movimentacoes'];
-  if (Array.isArray(movimentacoes) && movimentacoes.length > 0) {
-    const parsed = movimentacoes.filter((item): item is EscavadorNode => Boolean(item && typeof item === 'object'));
-    if (!parsed.length) return null;
-    return parsed.sort((left, right) => {
-      const leftTime = new Date(readMovementDate(left)).getTime();
-      const rightTime = new Date(readMovementDate(right)).getTime();
-      return rightTime - leftTime;
-    })[0];
-  }
-
-  return null;
-}
-
 export async function fetchEscavadorProcesso(cnj: string): Promise<BrasilApiProcesso> {
   const cnjLimpo = sanitizeCnj(cnj);
-  const apiKey = import.meta.env.VITE_ESCAVADOR_API_KEY as string | undefined;
 
   if (cnjLimpo.length !== 20) {
     throw new Error('Informe um CNJ válido com 20 dígitos.');
   }
 
-  if (!apiKey) {
-    throw new Error('VITE_ESCAVADOR_API_KEY não configurada.');
+  const response = await searchEscavadorProcessos({ numero_cnj: cnjLimpo });
+  const processo = response.data[0];
+
+  if (!processo) {
+    throw new Error('Processo não encontrado no Escavador.');
   }
-
-  const resp = await fetch(`https://api.escavador.com/api/v2/processos/numero_cnj/${cnjLimpo}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-  });
-
-  const payload = (await resp.json().catch(() => null)) as EscavadorNode | null;
-
-  if (!resp.ok || !payload) {
-    const message = typeof payload?.error === 'string' ? payload.error : 'Falha ao consultar Escavador.';
-    throw new Error(message);
-  }
-
-  const processo = pickProcessRoot(payload);
-  const tribunalNode = processo['tribunal'];
-  const tribunal =
-    tribunalNode && typeof tribunalNode === 'object' && typeof (tribunalNode as EscavadorNode)['sigla'] === 'string'
-      ? String((tribunalNode as EscavadorNode)['sigla'])
-      : 'Tribunal não informado';
-
-  const lastMovement = pickLastMovement(processo);
-  const ultimoAndamento = lastMovement ? readMovementText(lastMovement) : 'Sem movimentação disponível';
-  const dataUltimoAndamento = lastMovement ? readMovementDate(lastMovement) : new Date().toISOString();
-  const status = typeof processo['status'] === 'string' && processo['status'] ? String(processo['status']) : 'Consulta Escavador';
 
   return {
-    numero: typeof processo['numero_cnj'] === 'string' && processo['numero_cnj'] ? String(processo['numero_cnj']) : formatCnj(cnjLimpo),
-    tribunal,
-    ultimoAndamento,
-    dataUltimoAndamento,
-    status,
+    numero: processo.numero_cnj || formatCnj(cnjLimpo),
+    tribunal: processo.tribunal.sigla || processo.tribunal.nome || 'Tribunal não informado',
+    ultimoAndamento: processo.titulo_polo_ativo || 'Consulta processual realizada no Escavador.',
+    dataUltimoAndamento: processo.data_ultima_movimentacao || new Date().toISOString(),
+    status: 'Consulta Escavador',
     source: 'escavador',
   };
 }
