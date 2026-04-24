@@ -52,6 +52,10 @@ function isOfficeMembersPolicyError(msg: string) {
   return msg.toLowerCase().includes('infinite recursion detected in policy for relation "office_members"');
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
 export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +69,7 @@ export function SettingsPage() {
 
   // legacy manual add
   const [addEmail, setAddEmail] = useState('');
+  const [addUserId, setAddUserId] = useState('');
   const [addRole, setAddRole] = useState<'member' | 'admin' | 'finance' | 'staff'>('member');
 
   // new invite flow
@@ -212,6 +217,34 @@ export function SettingsPage() {
       if (iErr) throw new Error(iErr.message);
 
       setAddEmail('');
+      setAddRole('member');
+      await load();
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addMemberByUserId() {
+    const userId = addUserId.trim();
+    if (!office) return;
+    if (!isUuid(userId)) {
+      setError('Informe um user_id UUID válido.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const sb = requireSupabase();
+      await getAuthedUser();
+
+      const { error: iErr } = await sb.from('office_members').insert({ office_id: office.id, user_id: userId, role: addRole });
+      if (iErr && !String(iErr.message || '').toLowerCase().includes('duplicate')) throw new Error(iErr.message);
+
+      setAddUserId('');
       setAddRole('member');
       await load();
     } catch (e: any) {
@@ -492,8 +525,8 @@ export function SettingsPage() {
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold text-white">Adicionar membro direto (legado)</div>
-                <div className="mt-2 text-xs text-white/60">Funciona apenas se a pessoa já tiver logado 1 vez.</div>
+                <div className="text-sm font-semibold text-white">Adicionar membro direto</div>
+                <div className="mt-2 text-xs text-white/60">Você pode adicionar por e-mail (usuário já logado) ou por user_id UUID.</div>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <label className="text-sm text-white/80">
@@ -512,9 +545,24 @@ export function SettingsPage() {
                   </label>
                 </div>
 
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button className="btn-ghost" disabled={saving} onClick={() => void addMember()}>
-                    {saving ? 'Salvando…' : 'Adicionar membro'}
+                    {saving ? 'Salvando…' : 'Adicionar por e-mail'}
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                  <label className="text-sm text-white/80">
+                    User ID (UUID)
+                    <input
+                      className="input"
+                      value={addUserId}
+                      onChange={(e) => setAddUserId(e.target.value)}
+                      placeholder="ex: c3dbb1b9-bd1f-4320-95ce-0df6a7e4f5f1"
+                    />
+                  </label>
+                  <button className="btn-primary self-end" disabled={saving} onClick={() => void addMemberByUserId()}>
+                    {saving ? 'Salvando…' : 'Adicionar por ID'}
                   </button>
                 </div>
               </div>
