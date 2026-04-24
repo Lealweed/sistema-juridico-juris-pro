@@ -1,4 +1,5 @@
 import { getAccessToken } from '@/lib/apiClient';
+import { requireSupabase } from '@/lib/supabaseDb';
 
 export type EscavadorProcessoItem = {
   id: string | null;
@@ -101,14 +102,26 @@ export async function searchEscavadorProcessos(params: EscavadorSearchParams): P
   if (numeroCnj) query.set('numero_cnj', numeroCnj);
   if (params.cursor) query.set('cursor', params.cursor);
 
-  const token = getAccessToken();
+  let token = getAccessToken();
+
+  if (!token) {
+    try {
+      const sb = requireSupabase();
+      const { data } = await sb.auth.getSession();
+      token = data.session?.access_token ?? null;
+    } catch {
+      token = null;
+    }
+  }
+
+  if (!token) {
+    throw new Error('Não autenticado. Faça login novamente.');
+  }
+
   const headers = new Headers({
     'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
   });
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
 
   const response = await fetch(`/api/integrations/escavador/processos?${query.toString()}`, {
     method: 'GET',
