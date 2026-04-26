@@ -245,14 +245,17 @@ export function TeamPage() {
       const normalizedOabUf = oabUf.trim().toUpperCase();
       const { data: updatedProfile, error } = await sb
         .from('user_profiles')
-        .update({
-          display_name: fullName.trim() || null,
-          oab_number: oabNumber.trim() || null,
-          oab_uf: normalizedOabUf || null,
-          phone: phone.trim() || null,
-          whatsapp: whatsapp.trim() || null,
-        })
-        .eq('user_id', userId)
+        .upsert(
+          {
+            user_id: userId,
+            display_name: fullName.trim() || null,
+            oab_number: oabNumber.trim() || null,
+            oab_uf: normalizedOabUf || null,
+            phone: phone.trim() || null,
+            whatsapp: whatsapp.trim() || null,
+          },
+          { onConflict: 'user_id' },
+        )
         .select('user_id')
         .maybeSingle();
 

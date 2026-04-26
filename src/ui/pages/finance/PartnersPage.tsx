@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
-import { createPartner, deletePartner, listPartners, type PartnerRow } from '@/lib/partners';
+import { createPartner, deletePartner, listPartners, updatePartner, type PartnerRow } from '@/lib/partners';
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export function PartnersPage() {
   const [rows, setRows] = useState<PartnerRow[]>([]);
@@ -10,6 +14,7 @@ export function PartnersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -22,8 +27,8 @@ export function PartnersPage() {
       const data = await listPartners();
       setRows(data);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar parceiros.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar parceiros.'));
       setLoading(false);
     }
   }
@@ -32,20 +37,37 @@ export function PartnersPage() {
     load();
   }, []);
 
-  async function onCreate() {
+  function resetForm() {
+    setCreateOpen(false);
+    setEditingId(null);
+    setName('');
+    setPhone('');
+    setEmail('');
+  }
+
+  function startEdit(row: PartnerRow) {
+    setCreateOpen(true);
+    setEditingId(row.id);
+    setName(row.name || '');
+    setPhone(row.phone || '');
+    setEmail(row.email || '');
+  }
+
+  async function onSave() {
     if (!name.trim()) return;
     setSaving(true);
     setError(null);
     try {
-      await createPartner({ name, phone, email });
-      setCreateOpen(false);
-      setName('');
-      setPhone('');
-      setEmail('');
-      setSaving(false);
+      if (editingId) {
+        await updatePartner(editingId, { name, phone, email });
+      } else {
+        await createPartner({ name, phone, email });
+      }
+      resetForm();
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao criar parceiro.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, editingId ? 'Falha ao atualizar parceiro.' : 'Falha ao criar parceiro.'));
+    } finally {
       setSaving(false);
     }
   }
@@ -55,8 +77,9 @@ export function PartnersPage() {
     try {
       await deletePartner(id);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao excluir parceiro.');
+      if (editingId === id) resetForm();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao excluir parceiro.'));
     }
   }
 
@@ -82,7 +105,7 @@ export function PartnersPage() {
       {createOpen ? (
         <Card>
           <div className="grid gap-4">
-            <div className="text-sm font-semibold text-white">Novo parceiro</div>
+            <div className="text-sm font-semibold text-white">{editingId ? 'Editar parceiro' : 'Novo parceiro'}</div>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="text-sm text-white/80">
                 Nome
@@ -99,10 +122,10 @@ export function PartnersPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button disabled={saving} onClick={onCreate} className="btn-primary">
-                {saving ? 'Salvando…' : 'Salvar'}
+              <button disabled={saving} onClick={onSave} className="btn-primary">
+                {saving ? 'Salvando…' : editingId ? 'Salvar alterações' : 'Salvar'}
               </button>
-              <button disabled={saving} onClick={() => setCreateOpen(false)} className="btn-ghost">
+              <button disabled={saving} onClick={resetForm} className="btn-ghost">
                 Cancelar
               </button>
             </div>
@@ -124,9 +147,14 @@ export function PartnersPage() {
                     {p.phone ? `Tel: ${p.phone}` : '—'} {p.email ? `· ${p.email}` : ''}
                   </div>
                 </div>
-                <button onClick={() => void onDelete(p.id)} className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
-                  Excluir
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => startEdit(p)} className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
+                    Editar
+                  </button>
+                  <button onClick={() => void onDelete(p.id)} className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
+                    Excluir
+                  </button>
+                </div>
               </div>
             ))}
           </div>

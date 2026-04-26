@@ -45,11 +45,38 @@
   .badge-gold {
     @apply border-amber-400/30 bg-amber-400/10 text-amber-200;
   }
+
+  .portal-bell-button {
+    @apply inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white/80 transition hover:border-amber-300/30 hover:bg-white/10 sm:w-auto;
+  }
+
+  .portal-bell-button-active {
+    @apply border-amber-300/40 bg-amber-400/10 text-amber-50 shadow-[0_0_0_1px_rgba(252,211,77,0.12),0_12px_40px_rgba(251,191,36,0.18)];
+  }
+
+  .portal-bell-icon {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70;
+  }
+
+  .portal-bell-icon-active {
+    @apply border-amber-300/40 bg-amber-300/15 text-amber-200;
+    animation: portal-bell-ring 1.2s ease-in-out infinite, portal-bell-glow 1.4s ease-in-out infinite;
+    transform-origin: top center;
+  }
+
+  .portal-live-dot-active {
+    @apply bg-amber-300;
+    animation: portal-dot-pulse 1s ease-in-out infinite;
+  }
 }
 
 html,
 body {
   height: 100%;
+}
+
+#root {
+  min-height: 100%;
 }
 
 /* Default to light to avoid flash on the public site.
@@ -229,6 +256,49 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@keyframes portal-bell-ring {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(18deg);
+  }
+  40% {
+    transform: rotate(-14deg);
+  }
+  60% {
+    transform: rotate(10deg);
+  }
+  80% {
+    transform: rotate(-6deg);
+  }
+}
+
+@keyframes portal-bell-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0.06);
+    opacity: 0.92;
+  }
+}
+
+@keyframes portal-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(252, 211, 77, 0.35);
+  }
+  50% {
+    transform: scale(1.18);
+    box-shadow: 0 0 0 8px rgba(252, 211, 77, 0);
   }
 }
 

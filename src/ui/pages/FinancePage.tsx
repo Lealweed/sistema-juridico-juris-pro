@@ -8,9 +8,11 @@ import {
   brlToCents,
   centsToBRL,
   createFinanceTx,
+  deleteFinanceTx,
   ensureCategory,
   listCategories,
   listFinanceTx,
+  updateFinanceTx,
   type FinanceCategory,
   type FinanceTx,
 } from '@/lib/finance';
@@ -45,8 +47,9 @@ export function FinancePage() {
   const [meId, setMeId] = useState<string>('');
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [type, setType] = useState<'income' | 'expense'>('income');
-  const [status, setStatus] = useState<'planned' | 'paid'>('planned');
+  const [status, setStatus] = useState<'planned' | 'paid' | 'cancelled'>('planned');
   const [occurredOn, setOccurredOn] = useState(() => todayStr());
   const [dueDate, setDueDate] = useState(() => todayStr());
   const [description, setDescription] = useState('');
@@ -132,9 +135,8 @@ export function FinancePage() {
   }, [clientFilterName, searchParams, setSearchParams]);
 
   const isAdmin = myRole === 'admin' || myRole === 'owner';
-  const isFinance = myRole === 'finance';
   const isOperator = myRole === 'staff' || myRole === 'secretary' || myRole === 'assistant';
-  const canSeeFullFinance = isAdmin || isFinance;
+  const canSeeFullFinance = isAdmin;
   const roleScopedRows = useMemo(() => {
     if (canSeeFullFinance) return rows;
     return rows.filter((r) => r.user_id === meId);
@@ -191,7 +193,41 @@ export function FinancePage() {
     };
   }, [roleScopedRows, openingAmount]);
 
-  async function onCreate() {
+  function resetForm() {
+    setEditingTxId(null);
+    setCreateOpen(false);
+    setDescription('');
+    setAmount('');
+    setNotes('');
+    setCategoryId('');
+    setNewCategoryName('');
+    setStatus('planned');
+    setType('income');
+    setPaymentMethod('pix');
+    setOccurredOn(todayStr());
+    setDueDate(todayStr());
+  }
+
+  function canManageRow() {
+    return isAdmin;
+  }
+
+  function startEdit(row: FinanceTx) {
+    setEditingTxId(row.id);
+    setCreateOpen(true);
+    setType(row.type === 'expense' ? 'expense' : 'income');
+    setStatus(row.status === 'paid' || row.status === 'cancelled' ? row.status : 'planned');
+    setOccurredOn(row.occurred_on || todayStr());
+    setDueDate(row.due_date || todayStr());
+    setDescription(row.description || '');
+    setAmount((row.amount_cents / 100).toFixed(2).replace('.', ','));
+    setPaymentMethod(row.payment_method || 'pix');
+    setCategoryId(row.category_id || '');
+    setNewCategoryName('');
+    setNotes(row.notes || '');
+  }
+
+  async function onSaveTx() {
     if (!description.trim()) return;
     const cents = brlToCents(amount);
     if (cents === null) {
@@ -216,34 +252,55 @@ export function FinancePage() {
         catId = await ensureCategory(type, newCategoryName.trim());
       }
 
-      await createFinanceTx({
-        type,
-        status,
-        occurred_on: occurredOn,
-        due_date: effectiveDueDate,
-        client_id: clientFilterId || null,
-        category_id: catId,
-        description: description.trim(),
-        amount_cents: cents,
-        payment_method: paymentMethod,
-        notes: notes.trim() || null,
-      });
+      if (editingTxId) {
+        await updateFinanceTx(editingTxId, {
+          type,
+          status,
+          occurred_on: occurredOn,
+          due_date: effectiveDueDate,
+          category_id: catId,
+          description: description.trim(),
+          amount_cents: cents,
+          payment_method: paymentMethod,
+          notes: notes.trim() || null,
+        });
+      } else {
+        await createFinanceTx({
+          type,
+          status: status === 'cancelled' ? 'planned' : status,
+          occurred_on: occurredOn,
+          due_date: effectiveDueDate,
+          client_id: clientFilterId || null,
+          category_id: catId,
+          description: description.trim(),
+          amount_cents: cents,
+          payment_method: paymentMethod,
+          notes: notes.trim() || null,
+        });
+      }
 
-      setCreateOpen(false);
-      setDescription('');
-      setAmount('');
-      setNotes('');
-      setCategoryId('');
-      setNewCategoryName('');
-      setStatus('planned');
-      setType('income');
-      setPaymentMethod('pix');
-      setOccurredOn(todayStr());
-      setDueDate(todayStr());
-      setSaving(false);
+      resetForm();
       await load();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Falha ao criar lançamento.'));
+      setError(getErrorMessage(err, editingTxId ? 'Falha ao atualizar lançamento.' : 'Falha ao criar lançamento.'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDeleteRow(row: FinanceTx) {
+    if (!canManageRow()) return;
+    if (!window.confirm('Deseja realmente excluir este lançamento financeiro?')) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteFinanceTx(row.id);
+      if (editingTxId === row.id) resetForm();
+      await load();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao excluir lançamento.'));
+    } finally {
       setSaving(false);
     }
   }
@@ -322,6 +379,9 @@ export function FinancePage() {
           <div className="flex flex-wrap gap-2">
           {canSeeFullFinance ? (
             <>
+              <Link to="/app/financeiro/categorias" className="btn-ghost">
+                Categorias
+              </Link>
               <Link to="/app/financeiro/parceiros" className="btn-ghost">
                 Parceiros
               </Link>
@@ -459,6 +519,9 @@ export function FinancePage() {
         <Card>
           <div className="grid gap-4">
             <div className="text-sm font-semibold text-white">Novo lançamento</div>
+            <div className="text-xs text-white/55">
+              {editingTxId ? 'Ajuste rápido de lançamento da equipe sem sair da listagem.' : 'Cadastre um novo lançamento financeiro.'}
+            </div>
 
             {clientFilterId ? (
               <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
@@ -476,9 +539,10 @@ export function FinancePage() {
               </label>
               <label className="text-sm text-white/80">
                 Status
-                <select className="select" value={status} onChange={(e) => setStatus(e.target.value as 'planned' | 'paid')}>
+                <select className="select" value={status} onChange={(e) => setStatus(e.target.value as 'planned' | 'paid' | 'cancelled')}>
                   <option value="planned">Previsto</option>
                   <option value="paid">Pago</option>
+                  {editingTxId ? <option value="cancelled">Cancelado</option> : null}
                 </select>
               </label>
               <label className="text-sm text-white/80">
@@ -541,10 +605,10 @@ export function FinancePage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button disabled={saving} onClick={onCreate} className="btn-primary">
-                {saving ? 'Salvando…' : 'Salvar'}
+              <button disabled={saving} onClick={onSaveTx} className="btn-primary">
+                {saving ? 'Salvando…' : editingTxId ? 'Salvar alterações' : 'Salvar'}
               </button>
-              <button disabled={saving} onClick={() => setCreateOpen(false)} className="btn-ghost">
+              <button disabled={saving} onClick={resetForm} className="btn-ghost">
                 Cancelar
               </button>
             </div>
@@ -560,7 +624,7 @@ export function FinancePage() {
 
           <div className="mt-3 grid gap-2">
             {filteredRows.map((r) => (
-              <Link key={r.id} to={`/app/financeiro/${r.id}`} className="block rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10">
+              <div key={r.id} className="rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-white">
@@ -578,9 +642,36 @@ export function FinancePage() {
                     </div>
                     {r.notes ? <div className="mt-1 text-xs text-white/50">Obs: {r.notes}</div> : null}
                   </div>
-                  <div className="text-sm font-semibold text-white">{centsToBRL(r.amount_cents)}</div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-sm font-semibold text-white">{centsToBRL(r.amount_cents)}</div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {canManageRow() ? (
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => startEdit(r)}
+                          className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs"
+                        >
+                          Editar
+                        </button>
+                      ) : null}
+                      {canManageRow() ? (
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => void onDeleteRow(r)}
+                          className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs text-red-100 hover:border-red-400/30 hover:bg-red-500/10 hover:text-red-50"
+                        >
+                          Excluir
+                        </button>
+                      ) : null}
+                      <Link to={`/app/financeiro/${r.id}`} className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
+                        Abrir
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>

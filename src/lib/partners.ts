@@ -38,6 +38,22 @@ export async function createPartner(payload: { name: string; phone?: string | nu
   if (error) throw new Error(error.message);
 }
 
+export async function updatePartner(id: string, payload: { name?: string; phone?: string | null; email?: string | null }) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { error } = await sb
+    .from('finance_parties')
+    .update({
+      name: payload.name?.trim(),
+      phone: payload.phone?.trim() || null,
+      email: payload.email?.trim() || null,
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+}
+
 export async function deletePartner(id: string) {
   const sb = requireSupabase();
   await getAuthedUser();

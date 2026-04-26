@@ -30,6 +30,7 @@ const FinancePage = lazy(() => import('@/ui/pages/FinancePage').then((m) => ({ d
 const FinanceTxDetailsPage = lazy(() =>
   import('@/ui/pages/finance/FinanceTxDetailsPage').then((m) => ({ default: m.FinanceTxDetailsPage })),
 );
+const CategoriesPage = lazy(() => import('@/ui/pages/finance/CategoriesPage').then((m) => ({ default: m.CategoriesPage })));
 const ReceiptsPage = lazy(() => import('@/ui/pages/ReceiptsPage').then((m) => ({ default: m.ReceiptsPage })));
 const PartnersPage = lazy(() => import('@/ui/pages/finance/PartnersPage').then((m) => ({ default: m.PartnersPage })));
 const PayablesPage = lazy(() => import('@/ui/pages/finance/PayablesPage').then((m) => ({ default: m.PayablesPage })));
@@ -98,17 +99,22 @@ export function AppRouter() {
               <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/financeiro" element={<FinancePage />} />
               </Route>
-              {/* Operacionais: admin e user */}
-              <Route element={<RequireRole allowed={["admin", "user"]} />}>
+              <Route element={<RequireRole allowed={["admin"]} />}>
+                <Route path="/app/financeiro/categorias" element={<CategoriesPage />} />
                 <Route path="/app/financeiro/parceiros" element={<PartnersPage />} />
                 <Route path="/app/financeiro/a-pagar" element={<PayablesPage />} />
                 <Route path="/app/financeiro/:txId" element={<FinanceTxDetailsPage />} />
+              </Route>
+              {/* Operacionais: admin e user */}
+              <Route element={<RequireRole allowed={["admin", "user"]} />}>
                 <Route path="/app/documentos/gerar" element={<DocumentsGeneratorPage />} />
               </Route>
               <Route path="/app/portal" element={<Navigate to="/portal" replace />} />
 
               <Route path="/app/relatorios-ia" element={<AiReportsPage />} />
-              <Route path="/app/relatorios-equipe" element={<TeamReportsPage />} />
+              <Route element={<RequireRole allowed={["admin"]} />}>
+                <Route path="/app/relatorios-equipe" element={<TeamReportsPage />} />
+              </Route>
               <Route path="/app/relatorio-atividades" element={<ActivityReportPage />} />
               <Route path="/app/notificacoes" element={<NotificationsPage />} />
               <Route path="/app/drive" element={<DrivePage />} />

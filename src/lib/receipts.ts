@@ -134,3 +134,58 @@ export async function updateReceiptStatusPdf(input: { id: string; status?: strin
   const { error } = await sb.from('receipts').update(patch).eq('id', input.id);
   if (error) throw new Error(error.message);
 }
+
+
+export async function updateReceiptSecure(input: {
+  id: string;
+  clientId?: string;
+  amount?: number;
+  description?: string | null;
+  status?: string;
+  issuedAt?: string;
+  paymentMethod?: string | null;
+  city?: string | null;
+  lawyerName?: string | null;
+  lawyerOab?: string | null;
+  amountWritten?: string | null;
+}) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+  const officeId = await getMyOfficeId();
+  if (!officeId) throw new Error('Escritório não encontrado para o usuário atual.');
+
+  const patch: Record<string, unknown> = {};
+  if (input.clientId !== undefined) patch.client_id = input.clientId;
+  if (input.amount !== undefined) patch.amount = input.amount;
+  if (input.description !== undefined) patch.description = input.description ?? null;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.issuedAt !== undefined) patch.issued_at = input.issuedAt;
+  if (input.paymentMethod !== undefined) patch.payment_method = input.paymentMethod ?? null;
+  if (input.city !== undefined) patch.city = input.city ?? null;
+  if (input.lawyerName !== undefined) patch.lawyer_name = input.lawyerName ?? null;
+  if (input.lawyerOab !== undefined) patch.lawyer_oab = input.lawyerOab ?? null;
+  if (input.amountWritten !== undefined) patch.amount_written = input.amountWritten ?? null;
+
+  const { error } = await sb
+    .from('receipts')
+    .update(patch)
+    .eq('id', input.id)
+    .eq('office_id', officeId);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteReceiptSecure(id: string) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+  const officeId = await getMyOfficeId();
+  if (!officeId) throw new Error('Escritório não encontrado para o usuário atual.');
+
+  const { error } = await sb
+    .from('receipts')
+    .delete()
+    .eq('id', id)
+    .eq('office_id', officeId);
+
+  if (error) throw new Error(error.message);
+}

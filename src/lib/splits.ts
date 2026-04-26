@@ -57,6 +57,29 @@ export async function createSplit(payload: {
   if (error) throw new Error(error.message);
 }
 
+export async function updateSplit(
+  splitId: string,
+  payload: {
+    party_id?: string;
+    kind?: 'percent' | 'fixed';
+    value?: number;
+    amount_cents_override?: number | null;
+  },
+) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { error } = await sb
+    .from('finance_splits')
+    .update({
+      ...payload,
+      amount_cents_override: payload.kind === 'fixed' ? payload.amount_cents_override || 0 : null,
+    })
+    .eq('id', splitId);
+
+  if (error) throw new Error(error.message);
+}
+
 export async function markSplitPaid(splitId: string) {
   const sb = requireSupabase();
   await getAuthedUser();
@@ -69,16 +92,42 @@ export async function markSplitPaid(splitId: string) {
   if (error) throw new Error(error.message);
 }
 
-export async function listPendingSplits(): Promise<SplitRow[]> {
+export async function markSplitPending(splitId: string) {
   const sb = requireSupabase();
   await getAuthedUser();
 
-  const { data, error } = await sb
+  const { error } = await sb
+    .from('finance_splits')
+    .update({ status: 'pending', paid_at: null })
+    .eq('id', splitId);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteSplit(splitId: string) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { error } = await sb.from('finance_splits').delete().eq('id', splitId);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function listSplits(status: 'all' | 'pending' | 'paid' = 'all'): Promise<SplitRow[]> {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  let query = sb
     .from('finance_splits')
     .select('id,transaction_id,party_id,kind,value,amount_cents_override,status,paid_at,created_at,party:finance_parties(name)')
-    .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(500);
+
+  if (status !== 'all') {
+    query = query.eq('status', status);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
   return (data || []) as SplitRow[];

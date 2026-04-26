@@ -35,6 +35,8 @@ export type PortalContext = {
   nextMeeting: PortalMeeting | null;
 };
 
+export type PortalMessageListener = (message: PortalMessage) => void;
+
 type PortalLoginRpcResponse = {
   session_token: string;
   client: PortalClient;
@@ -120,6 +122,36 @@ export async function sendPortalClientMessage(sessionToken: string, content: str
   const rows = (data || []) as PortalMessage[];
   if (!rows[0]) throw new Error('Falha ao enviar mensagem.');
   return rows[0];
+}
+
+export function subscribeToPortalMessages(clientId: string, onMessage: PortalMessageListener) {
+  const sb = requirePortalSupabase();
+  const channel = sb
+    .channel(`portal-client-messages:${clientId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'client_messages',
+        filter: `client_id=eq.${clientId}`,
+      },
+      (payload) => {
+        const row = payload.new as Partial<PortalMessage> | null;
+        if (!row?.id || !row?.sender || !row?.content || !row?.created_at) return;
+        onMessage({
+          id: String(row.id),
+          sender: String(row.sender),
+          content: String(row.content),
+          created_at: String(row.created_at),
+        });
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void sb.removeChannel(channel);
+  };
 }
 
 export async function listPortalClientDocuments(sessionToken: string): Promise<DocumentRow[]> {

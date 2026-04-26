@@ -42,7 +42,19 @@ export async function listOfficeMemberProfiles(officeId: string): Promise<Office
   const { data: profs, error: pErr } = await sb.from('user_profiles').select('user_id,email,display_name').in('user_id', ids).limit(500);
   if (pErr) throw new Error(pErr.message);
 
-  const sorted = (profs || []) as OfficeMemberProfile[];
-  sorted.sort((a, b) => String(a.display_name || a.email || '').localeCompare(String(b.display_name || b.email || '')));
-  return sorted;
+  const profileRows = (profs || []) as OfficeMemberProfile[];
+  const profMap = new Map(profileRows.map((p) => [p.user_id, p] as const));
+
+  const merged: OfficeMemberProfile[] = ids.map((id) => {
+    const prof = profMap.get(id);
+    if (prof) return prof;
+    return {
+      user_id: id,
+      display_name: `Usuário ${id.slice(0, 8)}`,
+      email: null,
+    };
+  });
+
+  merged.sort((a, b) => String(a.display_name || a.email || '').localeCompare(String(b.display_name || b.email || '')));
+  return merged;
 }

@@ -83,6 +83,19 @@ export async function listCategories(type: 'income' | 'expense'): Promise<Financ
   return (data || []) as FinanceCategory[];
 }
 
+export async function listAllCategories(): Promise<FinanceCategory[]> {
+  const sb = requireSupabase();
+  await getAuthedUser();
+  const { data, error } = await sb
+    .from('finance_categories')
+    .select('id,type,name')
+    .order('type', { ascending: true })
+    .order('name', { ascending: true })
+    .limit(400);
+  if (error) throw new Error(error.message);
+  return (data || []) as FinanceCategory[];
+}
+
 export async function ensureCategory(type: 'income' | 'expense', name: string): Promise<string> {
   const sb = requireSupabase();
   const user = await getAuthedUser();
@@ -100,6 +113,28 @@ export async function ensureCategory(type: 'income' | 'expense', name: string): 
   if (error) throw new Error(error.message);
   if (!data?.id) throw new Error('Falha ao criar categoria.');
   return data.id as string;
+}
+
+export async function updateCategory(id: string, payload: { type?: 'income' | 'expense'; name?: string }) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const patch: Record<string, string> = {};
+  if (payload.type) patch.type = payload.type;
+  if (payload.name !== undefined) patch.name = payload.name.trim();
+
+  const { error } = await sb.from('finance_categories').update(patch).eq('id', id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteCategory(id: string) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { error } = await sb.from('finance_categories').delete().eq('id', id);
+
+  if (error) throw new Error(error.message);
 }
 
 export async function createFinanceTx(payload: {
@@ -126,6 +161,46 @@ export async function createFinanceTx(payload: {
     payment_method: payload.payment_method || null,
     notes: payload.notes || null,
   });
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteFinanceTx(id: string) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { error } = await sb.from('finance_transactions').delete().eq('id', id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function updateFinanceTx(
+  id: string,
+  payload: {
+    type?: 'income' | 'expense';
+    status?: 'planned' | 'paid' | 'cancelled';
+    occurred_on?: string;
+    due_date?: string | null;
+    category_id?: string | null;
+    description?: string;
+    amount_cents?: number;
+    payment_method?: string | null;
+    notes?: string | null;
+  },
+) {
+  const sb = requireSupabase();
+  await getAuthedUser();
+
+  const { error } = await sb
+    .from('finance_transactions')
+    .update({
+      ...payload,
+      due_date: payload.due_date || null,
+      category_id: payload.category_id || null,
+      payment_method: payload.payment_method || null,
+      notes: payload.notes || null,
+    })
+    .eq('id', id);
 
   if (error) throw new Error(error.message);
 }

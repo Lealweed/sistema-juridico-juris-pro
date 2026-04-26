@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ClipboardCopy, Download, Eye, FileText, Loader2, Send, X } from 'lucide-react';
+import { ClipboardCopy, Download, Eye, FileText, Loader2, Pencil, Send, Trash2, X } from 'lucide-react';
 
 import { brlToCents, centsToBRL } from '@/lib/finance';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import { createClientQuick } from '@/lib/clients';
 import { getMyOfficeRole, isCollaboratorRole } from '@/lib/roles';
-import { createReceiptSecure, listReceipts, updateReceiptStatusPdf, type Receipt } from '@/lib/receipts';
+import { createReceiptSecure, deleteReceiptSecure, listReceipts, updateReceiptSecure, updateReceiptStatusPdf, type Receipt } from '@/lib/receipts';
 import { buildReceiptHtml, buildReceiptPdfBlob } from '@/lib/receiptPdf';
 import { valorExtenso } from '@/lib/money';
 import { getMyOfficeId } from '@/lib/officeContext';
@@ -201,6 +201,7 @@ export function ReceiptsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
 
   // Form state
   const [clientQuery, setClientQuery] = useState('');
@@ -217,6 +218,7 @@ export function ReceiptsPage() {
   const [issuedAt, setIssuedAt] = useState(todayIsoLocal());
 
   const isCollaborator = isCollaboratorRole(role);
+  const isAdmin = role === 'admin';
 
   async function load() {
     setLoading(true);
@@ -309,7 +311,67 @@ export function ReceiptsPage() {
     }
   }
 
-  async function onCreateReceipt() {
+
+  function resetForm() {
+    setAmount('');
+    setDescription('');
+    setPaymentMethod('');
+    setCardInstallments('1');
+    setCardInstallmentAmount('');
+    setClientQuery('');
+    setSelectedClient(null);
+    setIssuedAt(todayIsoLocal());
+    setCity('Fortaleza – CE');
+    setLawyerName('');
+    setLawyerOab('');
+    setEditingReceiptId(null);
+  }
+
+  function startEditReceipt(r: Receipt) {
+    const existingClient = clients.find(c => c.id === r.client_id) || { id: r.client_id, name: r.client?.name || 'Cliente', cpf: r.client?.cpf || null, phone: null };
+    setSelectedClient(existingClient);
+    setClientQuery(existingClient.name || '');
+    setAmount(Number(r.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setDescription(r.description || '');
+
+    const pm = String(r.payment_method || '');
+    const cardMatch = pm.match(/cart[aã]o de cr[eé]dito\s+em\s+(\d+)x(?:\s+de\s+R\$\s*([\d\.,]+))?/i);
+    if (cardMatch) {
+      setPaymentMethod('Cartão de crédito');
+      setCardInstallments(String(Math.max(1, Number(cardMatch[1] || '1'))));
+      setCardInstallmentAmount(String(cardMatch[2] || '').trim());
+    } else {
+      setPaymentMethod(pm || '');
+      setCardInstallments('1');
+      setCardInstallmentAmount('');
+    }
+
+    setCity(r.city || 'Fortaleza – CE');
+    setLawyerName(r.lawyer_name || '');
+    setLawyerOab(r.lawyer_oab || '');
+    setIssuedAt(String(r.issued_at || '').split('T')[0] || todayIsoLocal());
+    setEditingReceiptId(r.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleDeleteReceipt(id: string) {
+    if (!isAdmin) return;
+    if (!confirm('Deseja realmente excluir este recibo?')) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteReceiptSecure(id);
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      if (editingReceiptId === id) resetForm();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao excluir recibo.'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onSaveReceipt() {
     if (!selectedClient) { setError('Selecione o cliente.'); return; }
     const cents = brlToCents(amount);
     if (cents === null || cents <= 0) { setError('Informe um valor válido maior que zero.'); return; }
@@ -325,7 +387,8 @@ export function ReceiptsPage() {
       const amountNum = cents / 100;
       const amtWritten = valorExtenso(amountNum);
 
-      const receiptId = await createReceiptSecure({
+      const isEditing = Boolean(editingReceiptId);
+      const receiptId = isEditing ? String(editingReceiptId) : await createReceiptSecure({
         clientId: selectedClient.id,
         amount: amountNum,
         description: description.trim() || null,
@@ -336,6 +399,22 @@ export function ReceiptsPage() {
         lawyerOab: lawyerOab || null,
         amountWritten: amtWritten || null,
       });
+
+      if (isEditing) {
+        await updateReceiptSecure({
+          id: receiptId,
+          clientId: selectedClient.id,
+          amount: amountNum,
+          description: description.trim() || null,
+          status: 'emitido',
+          issuedAt: `${issuedAt}T12:00:00.000Z`,
+          paymentMethod: effectivePaymentMethod || null,
+          city: city || null,
+          lawyerName: lawyerName || null,
+          lawyerOab: lawyerOab || null,
+          amountWritten: amtWritten || null,
+        });
+      }
 
       const localReceipt: Receipt = {
         id: receiptId,
@@ -374,16 +453,15 @@ export function ReceiptsPage() {
         console.warn('PDF falhou (recibo salvo sem pdf_url):', pdfErr);
       }
 
-      setRows(prev => [{ ...localReceipt, pdf_url: pdfUrl }, ...prev]);
-      setAmount('');
-      setDescription('');
-      setPaymentMethod('');
-      setCardInstallments('1');
-      setCardInstallmentAmount('');
-      setClientQuery('');
-      setSelectedClient(null);
+      setRows(prev => {
+        if (isEditing) {
+          return prev.map((r) => (r.id === receiptId ? { ...localReceipt, pdf_url: pdfUrl || r.pdf_url } : r));
+        }
+        return [{ ...localReceipt, pdf_url: pdfUrl }, ...prev];
+      });
+      resetForm();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Falha ao criar recibo.'));
+      setError(getErrorMessage(err, editingReceiptId ? 'Falha ao atualizar recibo.' : 'Falha ao criar recibo.'));
     } finally {
       setSaving(false);
     }
@@ -625,7 +703,7 @@ export function ReceiptsPage() {
             </div>
 
             <button
-              onClick={() => void onCreateReceipt()}
+              onClick={() => void onSaveReceipt()}
               disabled={saving || !selectedClient}
               className={cn(
                 'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:opacity-50',
@@ -635,8 +713,18 @@ export function ReceiptsPage() {
               )}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-              {saving ? 'Gerando recibo…' : 'Gerar e Salvar Recibo'}
+              {saving ? (editingReceiptId ? 'Salvando edição…' : 'Gerando recibo…') : (editingReceiptId ? 'Salvar edição do recibo' : 'Gerar e Salvar Recibo')}
             </button>
+
+            {editingReceiptId && (
+              <button
+                onClick={resetForm}
+                type="button"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                Cancelar edição
+              </button>
+            )}
           </div>
         </Card>
 
@@ -724,6 +812,15 @@ export function ReceiptsPage() {
                       <Eye className="h-3.5 w-3.5" />
                       Visualizar
                     </button>
+                    {isAdmin && (
+                      <button
+                        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
+                        onClick={() => startEditReceipt(r)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Editar
+                      </button>
+                    )}
                     {r.pdf_url && (
                       <button
                         className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white transition"
@@ -740,6 +837,15 @@ export function ReceiptsPage() {
                       <Send className="h-3.5 w-3.5" />
                       WhatsApp
                     </button>
+                    {isAdmin && (
+                      <button
+                        className="flex items-center gap-1.5 rounded-lg border border-red-400/20 bg-red-400/10 px-2.5 py-1 text-xs text-red-200 hover:bg-red-400/20 transition"
+                        onClick={() => void handleDeleteReceipt(r.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Excluir
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -191,6 +191,10 @@ export function SettingsPage() {
 
   async function addMember() {
     // legacy/manual add (kept) — requires user to have logged in once
+    if (!isAdmin) {
+      setError('Apenas admin pode adicionar membros.');
+      return;
+    }
     const email = addEmail.trim().toLowerCase();
     if (!email) return;
     if (!office) return;
@@ -227,6 +231,10 @@ export function SettingsPage() {
   }
 
   async function addMemberByUserId() {
+    if (!isAdmin) {
+      setError('Apenas admin pode adicionar membros.');
+      return;
+    }
     const userId = addUserId.trim();
     if (!office) return;
     if (!isUuid(userId)) {
@@ -255,6 +263,10 @@ export function SettingsPage() {
   }
 
   async function createInvite() {
+    if (!isAdmin) {
+      setError('Apenas admin pode criar convites.');
+      return;
+    }
     if (!office) return;
 
     setSaving(true);
@@ -317,6 +329,10 @@ export function SettingsPage() {
   // (revogar convite) será adicionado quando listarmos convites do escritório para admin
 
   async function setRole(memberId: string, role: string) {
+    if (!isAdmin) {
+      setError('Apenas admin pode alterar permissões.');
+      return;
+    }
     if (!office) return;
 
     setSaving(true);
@@ -336,6 +352,10 @@ export function SettingsPage() {
   }
 
   async function removeMember(memberId: string) {
+    if (!isAdmin) {
+      setError('Apenas admin pode remover membros.');
+      return;
+    }
     if (!office) return;
     if (!confirm('Remover este membro do escritório?')) return;
 

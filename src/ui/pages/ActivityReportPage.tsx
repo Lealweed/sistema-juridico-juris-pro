@@ -293,7 +293,7 @@ export function ActivityReportPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([emptyActivity()]);
   const [notes, setNotes] = useState('');
 
-  const isLocked = currentReport?.status === 'aprovado';
+  const isLocked = false;
 
   // boot
   useEffect(() => {
@@ -469,7 +469,7 @@ export function ActivityReportPage() {
               </span>
             </span>
             {isLocked && (
-              <span className="ml-auto text-xs text-white/30">(bloqueado para edição)</span>
+              <span className="ml-auto text-xs text-white/30">(você pode corrigir e reenviar)</span>
             )}
           </div>
         )}
