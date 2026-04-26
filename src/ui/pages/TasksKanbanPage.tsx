@@ -39,6 +39,10 @@ type TaskSubtask = {
   doneByUserId: string | null;
 };
 
+type TaskStatusPatch = Partial<Pick<TaskRow, 'paused_at' | 'pause_reason' | 'cancelled_at' | 'cancel_reason' | 'done_at'>> & {
+  status_v2: TaskStatus;
+};
+
 type TaskRow = {
   id: string;
   title: string;
@@ -346,7 +350,7 @@ export function TasksKanbanPage() {
       return;
     }
 
-    const patch: any = { status_v2: next };
+    const patch: TaskStatusPatch = { status_v2: next };
     const nowIso = new Date().toISOString();
 
     if (next === 'in_progress') {

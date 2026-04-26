@@ -13,6 +13,30 @@ import { getErrorMessage } from '@/lib/errors';
 /** user_id reservado para leads captados automaticamente (site/n8n/webhook) */
 const LEAD_BOT_ID = '00000000-0000-0000-0000-000000000000';
 
+type ClientInsertPayload = {
+  contact_type: 'client';
+  user_id: string;
+  person_type: 'pf' | 'pj';
+  name: string;
+  whatsapp: string;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  notes: string;
+  gov_login_hint: string | null;
+  gov_notes: string | null;
+  address_cep: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  portal_pin: string | null;
+  cpf?: string | null;
+  cnpj?: string | null;
+};
+
 type ClientRow = {
   id: string;
   name: string;
@@ -345,7 +369,7 @@ export function ClientsPage() {
       }
       const extraBlock = extraLines.length ? `\n${extraLines.join('\n')}` : '';
 
-      const payload: any = {
+      const payload: ClientInsertPayload = {
         contact_type: 'client',
         user_id: user.id,
         person_type: personType,

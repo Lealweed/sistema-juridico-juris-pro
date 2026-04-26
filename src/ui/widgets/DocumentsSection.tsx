@@ -9,6 +9,14 @@ import { deleteDocument, getDocumentDownloadUrl, listClientDocuments, uploadClie
 import { requireSupabase, getAuthedUser } from '@/lib/supabaseDb';
 import { getErrorMessage } from '@/lib/errors';
 
+type DocumentClientData = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  document?: string | null;
+};
+
 export function DocumentsSection({ clientId, caseId }: { clientId: string; caseId?: string | null }) {
   const [rows, setRows] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +32,7 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
   const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  const [clientData, setClientData] = useState<any>(null);
+  const [clientData, setClientData] = useState<DocumentClientData | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);

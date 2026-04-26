@@ -10,6 +10,13 @@ import { loadClientsLite } from '@/lib/loadClientsLite';
 import type { ClientLite } from '@/lib/types';
 import { getErrorMessage } from '@/lib/errors';
 
+type DriveDocumentRow = DocumentRow & { client?: Array<{ name?: string | null }> | { name?: string | null } | null };
+
+function getDriveClientName(client: DriveDocumentRow['client']) {
+  const row = Array.isArray(client) ? client[0] : client;
+  return row?.name || 'Desconhecido';
+}
+
 export function DrivePage() {
   const [rows, setRows] = useState<(DocumentRow & { client_name?: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,9 +53,9 @@ export function DrivePage() {
 
       if (fetchErr) throw new Error(fetchErr.message);
 
-      const docs = (data || []).map((d: any) => ({
+      const docs = ((data || []) as DriveDocumentRow[]).map((d) => ({
         ...d,
-        client_name: d.client?.[0]?.name || 'Desconhecido'
+        client_name: getDriveClientName(d.client),
       }));
 
       setRows(docs);

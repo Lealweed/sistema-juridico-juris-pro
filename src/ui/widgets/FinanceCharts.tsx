@@ -160,7 +160,7 @@ export function FinanceCharts({ months = 6 }: { months?: number }) {
                     borderRadius: 12,
                   }}
                   labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
-                  formatter={(value: any) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, '']}
+                  formatter={(value: number | string | undefined) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, '']}
                 />
                 <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }} />
                 <Bar name="Receitas pagas" dataKey="incomePaid" fill="rgba(212,175,55,0.85)" radius={[10, 10, 0, 0]} />
@@ -218,7 +218,7 @@ export function FinanceCharts({ months = 6 }: { months?: number }) {
                     borderRadius: 12,
                   }}
                   labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
-                  formatter={(value: any) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, 'Total']}
+                  formatter={(value: number | string | undefined) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, 'Total']}
                 />
                 <Bar dataKey="totalPaid" fill="rgba(212,175,55,0.85)" radius={[10, 10, 10, 10]} />
               </BarChart>

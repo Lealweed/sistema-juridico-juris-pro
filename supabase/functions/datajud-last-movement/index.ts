@@ -66,7 +66,12 @@ serve(async (req) => {
 
     // Best-effort extraction: adjust once we confirm exact schema.
     // Try common shapes: data.movimentacoes[0].descricao or similar.
-    const movements = (data?.movimentacoes || data?.movements || data?.hits?.hits?.[0]?._source?.movimentacoes || []) as any[];
+    const responseData = data as {
+      movimentacoes?: DataJudMovement[];
+      movements?: DataJudMovement[];
+      hits?: { hits?: Array<{ _source?: { movimentacoes?: DataJudMovement[] } }> };
+    } | null;
+    const movements = responseData?.movimentacoes || responseData?.movements || responseData?.hits?.hits?.[0]?._source?.movimentacoes || [];
     const last = movements?.[0] || null;
 
     const movementText =
