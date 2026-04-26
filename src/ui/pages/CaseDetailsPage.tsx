@@ -300,12 +300,12 @@ export function CaseDetailsPage() {
       if (!isLoadMore) {
         setEscavadorSelecionado(result.data[0] || null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setEscavadorResultados([]);
       setEscavadorSelecionado(null);
       setEscavadorCursor(null);
       setEscavadorHeaders(null);
-      setEscavadorErro(err?.message || 'Falha ao consultar Escavador.');
+      setEscavadorErro(getErrorMessage(err, 'Falha ao consultar Escavador.'));
     } finally {
       setEscavadorLoading(false);
     }

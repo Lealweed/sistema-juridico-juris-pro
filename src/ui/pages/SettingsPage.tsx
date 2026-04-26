@@ -231,8 +231,8 @@ export function SettingsPage() {
       setAddEmail('');
       setAddRole('member');
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
@@ -263,8 +263,8 @@ export function SettingsPage() {
       setAddUserId('');
       setAddRole('member');
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
@@ -285,8 +285,8 @@ export function SettingsPage() {
       setInviteEmail('');
       setInviteRole('member');
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
@@ -352,8 +352,8 @@ export function SettingsPage() {
       const { error: uErr } = await sb.from('office_members').update({ role }).eq('id', memberId);
       if (uErr) throw new Error(uErr.message);
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
@@ -376,8 +376,8 @@ export function SettingsPage() {
       const { error: dErr } = await sb.from('office_members').delete().eq('id', memberId);
       if (dErr) throw new Error(dErr.message);
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
@@ -404,8 +404,8 @@ export function SettingsPage() {
       );
       if (upErr) throw new Error(upErr.message);
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
