@@ -40,7 +40,7 @@ const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MESSAGE_NOTIFICATION_COOLDOWN_MS = 5000;
 const MESSAGE_BADGE_STORAGE_PREFIX = 'clientPortalLastSeenMessageAt:';
 const PORTAL_NOTIFICATION_TAG = 'client-portal-office-message';
-const PORTAL_MESSAGES_POLL_INTERVAL_MS = 25000;
+const PORTAL_MESSAGES_POLL_INTERVAL_MS = 8000;
 
 type PortalState = 'login' | 'authenticated';
 type TabKey = 'home' | 'drive' | 'finance' | 'messages';
@@ -75,6 +75,13 @@ export function ClientPortalPage() {
 
   function getLatestMessageTimestamp(items: PortalMessage[]) {
     return items.length ? items[items.length - 1]?.created_at || null : null;
+  }
+
+  function getLatestMessageTimestampBySender(items: PortalMessage[], sender: PortalMessage['sender']) {
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      if (items[index]?.sender === sender) return items[index]?.created_at || null;
+    }
+    return null;
   }
 
   function countUnreadOfficeMessages(items: PortalMessage[], lastSeenAt: string | null) {
@@ -420,8 +427,16 @@ export function ClientPortalPage() {
       return;
     }
 
+    const lastClientMessageAt = getLatestMessageTimestampBySender(messages, 'client');
+    const derivedUnreadCount = lastClientMessageAt
+      ? countUnreadOfficeMessages(messages, lastClientMessageAt)
+      : messages.filter((item) => item.sender === 'office').length;
+
+    setUnreadMessagesCount(derivedUnreadCount);
+
+    if (derivedUnreadCount > 0) return;
+
     const latestTimestamp = getLatestMessageTimestamp(messages);
-    setUnreadMessagesCount(0);
     if (typeof window !== 'undefined' && latestTimestamp) {
       sessionStorage.setItem(storageKey, latestTimestamp);
     }
@@ -482,6 +497,8 @@ export function ClientPortalPage() {
         if (cancelled) return;
       }
     }
+
+    void pollPortalMessages();
 
     const intervalId = window.setInterval(() => {
       void pollPortalMessages();
