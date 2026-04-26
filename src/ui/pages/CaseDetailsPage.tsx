@@ -11,6 +11,7 @@ import { formatBrPhone } from '@/lib/phone';
 import { apiFetch } from '@/lib/apiClient';
 import { parseMoneyInput, formatBRL } from '@/lib/money';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type CaseRow = {
   id: string;
@@ -149,7 +150,7 @@ export function CaseDetailsPage() {
       setOfficeMembers([]);
       if (r?.office_id) {
         const { data: ms } = await sb.from('office_members').select('user_id').eq('office_id', r.office_id).limit(200);
-        const ids = Array.from(new Set((ms || []).map((m: any) => m.user_id).filter(Boolean)));
+        const ids = Array.from(new Set((ms || []).map((m: { user_id: string | null }) => m.user_id).filter(Boolean)));
         if (ids.length) {
           const { data: profs } = await sb.from('user_profiles').select('user_id,email,display_name').in('user_id', ids).limit(500);
           const sorted = (profs || []) as { user_id: string; display_name: string | null; email: string | null }[];
@@ -170,8 +171,8 @@ export function CaseDetailsPage() {
         setAllClients((clientsData || []) as { id: string; name: string }[]);
       }
       setPickedClientId(r?.client_id || '');
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar.'));
       setLoading(false);
     }
   }
@@ -214,8 +215,8 @@ export function CaseDetailsPage() {
       if (uErr) throw new Error(uErr.message);
       await load();
       setSaving(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao salvar.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao salvar.'));
       setSaving(false);
     }
   }
@@ -234,8 +235,8 @@ export function CaseDetailsPage() {
       if (uErr) throw new Error(uErr.message);
       setClientPickerOpen(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao atualizar cliente.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao atualizar cliente.'));
     } finally {
       setSavingClient(false);
     }
@@ -272,8 +273,8 @@ export function CaseDetailsPage() {
       await load();
       setActionMsg({ type: 'ok', text: 'Movimentação atualizada via Escavador.' });
       setChecking(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao consultar Escavador.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao consultar Escavador.'));
       setActionMsg(null);
       setChecking(false);
     }
@@ -372,8 +373,8 @@ export function CaseDetailsPage() {
       setBillingAmount('');
       setActionMsg({ type: 'ok', text: 'Cobrança gerada e enviada por WhatsApp!' });
       await load();
-    } catch (err: any) {
-      const message = err?.message || 'Falha ao gerar cobrança PIX.';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Falha ao gerar cobrança PIX.');
       setError(billingCreated ? `Cobrança criada, mas o WhatsApp falhou: ${message}` : message);
     } finally {
       setBillingSending(false);
@@ -427,8 +428,8 @@ export function CaseDetailsPage() {
                   }),
                 });
                 setActionMsg({ type: 'ok', text: `Notificação enviada para ${first.name}!` });
-              } catch (err: any) {
-                setActionMsg({ type: 'err', text: err?.message || 'Falha ao enviar WhatsApp.' });
+              } catch (err: unknown) {
+                setActionMsg({ type: 'err', text: getErrorMessage(err, 'Falha ao enviar WhatsApp.') });
               } finally { setWppSending(false); }
             }}
             className="flex items-center gap-2 rounded-lg border border-green-400/30 bg-green-500/20 px-4 py-2 text-sm font-medium text-green-200 transition-colors hover:bg-green-500/30 disabled:opacity-50"

@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/authStore';
 import { signInWithPassword } from '@/auth/supabaseAuth';
 import { env } from '@/env';
 import { setRole, setTokens } from '@/lib/apiClient';
+import { getErrorMessage } from '@/lib/errors';
 
 type LoginResponse = {
   accessToken: string;
@@ -94,8 +95,8 @@ export function LoginPage() {
       setIsRecoveryMode(false);
       setPassword('');
       nav('/app');
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao atualizar senha.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao atualizar senha.'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +120,7 @@ export function LoginPage() {
 
           nav('/app');
           return;
-        } catch (backendErr: any) {
+        } catch (backendErr: unknown) {
           // Se der erro de credenciais no backend novo, vamos tentar no Supabase antigo antes de falhar
           if (env.supabaseUrl && env.supabaseAnonKey) {
             const { error: sbError } = await signInWithPassword(email, password);
@@ -144,8 +145,8 @@ export function LoginPage() {
       if (error) throw new Error(error.message || 'Falha no login.');
 
       nav('/app');
-    } catch (err: any) {
-      setError(err?.message || 'Falha no login.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha no login.'));
     } finally {
       setLoading(false);
     }
@@ -250,8 +251,8 @@ export function LoginPage() {
                   const { error: resetErr } = await import('@/auth/supabaseAuth').then(m => m.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/app/login' }));
                   if (resetErr) throw resetErr;
                   alert('Um link seguro para definir sua senha foi enviado para seu e-mail!');
-                } catch (e: any) {
-                  setError(e?.message || 'Falha ao enviar e-mail de redefinição.');
+                } catch (e: unknown) {
+                  setError(getErrorMessage(e, 'Falha ao enviar e-mail de redefinição.'));
                 } finally {
                   setLoading(false);
                 }

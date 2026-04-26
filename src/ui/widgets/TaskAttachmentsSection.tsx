@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import type { DocumentRow } from '@/lib/documents';
 import { deleteDocument, getDocumentDownloadUrl, listTaskDocuments, uploadTaskDocument } from '@/lib/documents';
+import { getErrorMessage } from '@/lib/errors';
 
 export function TaskAttachmentsSection({
   taskId,
@@ -29,8 +30,8 @@ export function TaskAttachmentsSection({
       const data = await listTaskDocuments(taskId);
       setRows(data);
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar anexos.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar anexos.'));
       setLoading(false);
     }
   }
@@ -64,8 +65,8 @@ export function TaskAttachmentsSection({
       setFile(null);
       setSaving(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao enviar arquivo.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao enviar arquivo.'));
       setSaving(false);
     }
   }
@@ -74,8 +75,8 @@ export function TaskAttachmentsSection({
     try {
       const url = await getDocumentDownloadUrl(doc.file_path);
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao gerar link de download.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao gerar link de download.'));
     }
   }
 
@@ -85,8 +86,8 @@ export function TaskAttachmentsSection({
     try {
       await deleteDocument({ id: doc.id, file_path: doc.file_path });
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao excluir anexo.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao excluir anexo.'));
     }
   }
 

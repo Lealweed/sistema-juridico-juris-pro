@@ -4,6 +4,7 @@ import { BellRing, Scale, Search, CheckCircle2, ChevronRight, FileText } from 'l
 
 import { Card } from '@/ui/widgets/Card';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type PublicationRow = {
   id: string;
@@ -51,8 +52,8 @@ export function PublicationsPage() {
 
       setRows((data || []) as PublicationRow[]);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar intimações.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar intimações.'));
       setLoading(false);
     }
   }
@@ -84,8 +85,8 @@ export function PublicationsPage() {
       if (error) throw new Error(error.message);
       
       setRows(prev => prev.map(r => r.id === id ? { ...r, is_read: true } : r));
-    } catch (err: any) {
-      alert('Falha ao marcar como lida: ' + err.message);
+    } catch (err: unknown) {
+      alert('Falha ao marcar como lida: ' + getErrorMessage(err, 'Erro'));
     }
   }
 

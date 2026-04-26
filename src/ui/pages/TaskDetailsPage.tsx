@@ -7,6 +7,7 @@ import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getMyOfficeRole } from '@/lib/roles';
 import { listOfficeMemberProfiles, type OfficeMemberProfile } from '@/lib/officeContext';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type TaskRow = {
   id: string;
@@ -156,8 +157,8 @@ export function TaskDetailsPage() {
       setAddPartRole('assignee');
       setAddingPart(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao adicionar participante.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao adicionar participante.'));
       setAddingPart(false);
     }
   }
@@ -187,8 +188,8 @@ export function TaskDetailsPage() {
       setDelegateTo('');
       setDelegating(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao delegar.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao delegar.'));
       setDelegating(false);
     }
   }
@@ -254,8 +255,8 @@ export function TaskDetailsPage() {
       );
 
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar tarefa.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar tarefa.'));
       setLoading(false);
     }
   }
@@ -295,8 +296,8 @@ export function TaskDetailsPage() {
 
       setSubtasks(normalized);
       setRow((prev) => (prev ? { ...prev, subtasks: normalized } : prev));
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao salvar etapas da tarefa.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao salvar etapas da tarefa.'));
     } finally {
       setSavingSubtasks(false);
     }
@@ -376,8 +377,8 @@ export function TaskDetailsPage() {
       if (updateErr) throw new Error(updateErr.message);
 
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao concluir tarefa.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao concluir tarefa.'));
     }
   }
 
@@ -445,8 +446,8 @@ export function TaskDetailsPage() {
                         if (updateErr) throw new Error(updateErr.message);
                         setEditing(false);
                         await load();
-                      } catch (e: any) {
-                        setError(e?.message || 'Falha ao salvar alterações.');
+                      } catch (e: unknown) {
+                        setError(getErrorMessage(e, 'Falha ao salvar alterações.'));
                       } finally {
                         setSavingEdit(false);
                       }
@@ -817,8 +818,8 @@ export function TaskDetailsPage() {
                     if (rErr) throw new Error(rErr.message);
                     setSavingPart(false);
                     await load();
-                  } catch (e: any) {
-                    setError(e?.message || 'Falha ao salvar sua conclusão.');
+                  } catch (e: unknown) {
+                    setError(getErrorMessage(e, 'Falha ao salvar sua conclusão.'));
                     setSavingPart(false);
                   }
                 }}

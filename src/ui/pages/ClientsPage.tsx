@@ -8,6 +8,7 @@ import { formatCpf, isValidCpf, onlyDigits } from '@/lib/cpf';
 import { formatCnpj, isValidCnpj } from '@/lib/cnpj';
 import { formatBrPhone } from '@/lib/phone';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 /** user_id reservado para leads captados automaticamente (site/n8n/webhook) */
 const LEAD_BOT_ID = '00000000-0000-0000-0000-000000000000';
@@ -150,8 +151,8 @@ export function ClientsPage() {
       if (qErr) throw new Error(qErr.message);
       setRows((data || []) as ClientRow[]);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar clientes.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar clientes.'));
       setLoading(false);
     }
   }
@@ -224,7 +225,7 @@ export function ClientsPage() {
       })
       .catch((err) => {
         if (!active) return;
-        setLookupError(err instanceof Error ? err.message : 'Falha ao consultar CEP.');
+        setLookupError(err instanceof Error ? getErrorMessage(err, 'Erro') : 'Falha ao consultar CEP.');
       })
       .finally(() => {
         if (!active) return;
@@ -282,7 +283,7 @@ export function ClientsPage() {
       })
       .catch((err) => {
         if (!active) return;
-        setLookupError(err instanceof Error ? err.message : 'Falha ao consultar CNPJ.');
+        setLookupError(err instanceof Error ? getErrorMessage(err, 'Erro') : 'Falha ao consultar CNPJ.');
       })
       .finally(() => {
         if (!active) return;
@@ -398,8 +399,8 @@ export function ClientsPage() {
       resetForm();
       setSaving(false);
       await load();
-    } catch (err: any) {
-      const msg = err?.message || 'Falha ao criar cliente.';
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err, 'Falha ao criar cliente.');
       // Friendly duplicate doc message
       if (String(msg).includes('clients_office_cpf_uniq')) setError('Este CPF já está cadastrado.');
       else if (String(msg).includes('clients_office_cnpj_uniq')) setError('Este CNPJ já está cadastrado.');

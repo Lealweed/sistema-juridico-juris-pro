@@ -4,6 +4,7 @@ import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { createOfficeInvite } from '@/lib/offices';
 import { Card } from '@/ui/widgets/Card';
 import { Activity, Briefcase, CheckCircle, Clock, Users } from 'lucide-react';
+import { getErrorMessage } from '@/lib/errors';
 
 type Member = {
   id: string;
@@ -198,8 +199,8 @@ export function TeamPage() {
       await createOfficeInvite({ officeId: myMembership.office_id as string, email: normalizedInviteEmail, role: inviteRole });
       setInviteSuccess(`Convite enviado para ${normalizedInviteEmail}`);
       setInviteEmail('');
-    } catch (err: any) {
-      setInviteError(err?.message || 'Erro ao enviar convite.');
+    } catch (err: unknown) {
+      setInviteError(getErrorMessage(err, 'Erro ao enviar convite.'));
     } finally {
       setInviting(false);
     }
@@ -266,8 +267,8 @@ export function TeamPage() {
 
       setProfileFeedback({ type: 'ok', text: 'Perfil salvo com sucesso.' });
       await loadTeam();
-    } catch (err: any) {
-      const message = err?.message || 'Erro ao atualizar perfil.';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Erro ao atualizar perfil.');
       setProfileFeedback({ type: 'err', text: message });
     } finally {
       setSavingProfile(false);

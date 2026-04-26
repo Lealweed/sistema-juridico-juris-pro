@@ -11,6 +11,7 @@ import { loadClientsLite } from '@/lib/loadClientsLite';
 import { loadCasesLite, type CaseLite } from '@/lib/loadCasesLite';
 import type { ClientLite } from '@/lib/types';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type AgendaItem = {
   id: string;
@@ -30,6 +31,47 @@ type AgendaItem = {
   last_responsible_at?: string | null;
   client_id: string | null;
   case_id: string | null;
+};
+
+
+type AgendaReminder = {
+  id: string;
+  send_at: string;
+  status: string | null;
+  message: string | null;
+  to_kind: 'internal' | 'custom' | string | null;
+  to_phone: string | null;
+  last_error: string | null;
+};
+
+type AgendaItemInsert = {
+  user_id: string;
+  kind: 'commitment' | 'deadline';
+  title: string;
+  notes: string | null;
+  location: string | null;
+  all_day: boolean;
+  status: 'confirmed';
+  agenda_id: string | null;
+  responsible_user_id: string;
+  client_id: string | null;
+  case_id: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  due_date: string | null;
+};
+
+type AgendaReminderInsert = {
+  office_id: string;
+  agenda_item_id: string;
+  channel: 'whatsapp';
+  to_kind: 'internal' | 'custom';
+  to_user_id: string | null;
+  to_phone: string | null;
+  to_client_id?: string | null;
+  message: string;
+  send_at: string;
+  status: 'pending';
 };
 
 type ViewMode = 'today' | 'week' | 'month';
@@ -131,7 +173,7 @@ export function AgendaPage() {
   const [casePickerQ, setCasePickerQ] = useState('');
 
   const [remindersOpen, setRemindersOpen] = useState<null | { item: AgendaItem }>(null);
-  const [reminders, setReminders] = useState<any[]>([]);
+  const [reminders, setReminders] = useState<AgendaReminder[]>([]);
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [remSendAt, setRemSendAt] = useState('');
   const [remTarget, setRemTarget] = useState<'responsible' | 'custom'>('responsible');
@@ -231,8 +273,8 @@ export function AgendaPage() {
       if (qErr) throw new Error(qErr.message);
       setRows((data || []) as AgendaItem[]);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar agenda.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar agenda.'));
       setLoading(false);
     }
   }
@@ -293,7 +335,7 @@ export function AgendaPage() {
       const sb = requireSupabase();
       const user = await getAuthedUser();
 
-      const payload: any = {
+      const payload: AgendaItemInsert = {
         user_id: user.id,
         kind,
         title: title.trim(),
@@ -305,6 +347,9 @@ export function AgendaPage() {
         responsible_user_id: responsibleUserId || user.id,
         client_id: linkClientId || null,
         case_id: linkCaseId || null,
+        starts_at: null,
+        ends_at: null,
+        due_date: null,
       };
 
       if (kind === 'commitment') {
@@ -344,7 +389,7 @@ export function AgendaPage() {
                 ? `Lembrete (prazo): ${created.title} · Data ${created.due_date}`
                 : `Lembrete (compromisso): ${created.title}`;
 
-            const inserts: any[] = [];
+            const inserts: AgendaReminderInsert[] = [];
 
             // 1) responsável (ou criador)
             inserts.push({
@@ -397,8 +442,8 @@ export function AgendaPage() {
       setCasePickerQ('');
       setSaving(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao criar item na agenda.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao criar item na agenda.'));
       setSaving(false);
     }
   }
@@ -433,8 +478,8 @@ export function AgendaPage() {
           : `Lembrete (compromisso): ${item.title}`,
       );
       setRemindersLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar lembretes.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar lembretes.'));
       setRemindersLoading(false);
     }
   }
@@ -459,7 +504,7 @@ export function AgendaPage() {
       const item = remindersOpen.item;
       const sendAtIso = new Date(remSendAt).toISOString();
 
-      const payload: any = {
+      const payload: AgendaReminderInsert = {
         office_id,
         agenda_item_id: item.id,
         channel: 'whatsapp',
@@ -481,8 +526,8 @@ export function AgendaPage() {
 
       setSaving(false);
       await openReminders(item);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao criar lembrete.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao criar lembrete.'));
       setSaving(false);
     }
   }
@@ -500,8 +545,8 @@ export function AgendaPage() {
 
       setSaving(false);
       if (remindersOpen) await openReminders(remindersOpen.item);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao excluir lembrete.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao excluir lembrete.'));
       setSaving(false);
     }
   }
@@ -524,8 +569,8 @@ export function AgendaPage() {
       setDelegatingItemId(null);
       setDelegateTo('');
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao delegar item.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao delegar item.'));
       setDelegatingItemId(null);
     }
   }
@@ -547,8 +592,8 @@ export function AgendaPage() {
       setAgendaColor('#f59e0b');
       setSaving(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao criar agenda.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao criar agenda.'));
       setSaving(false);
     }
   }
@@ -1238,7 +1283,7 @@ export function AgendaPage() {
 
             {!remindersLoading && reminders.length ? (
               <div className="divide-y divide-white/10">
-                {reminders.map((r: any) => (
+                {reminders.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                     <div>
                       <div className="text-sm font-semibold text-white">

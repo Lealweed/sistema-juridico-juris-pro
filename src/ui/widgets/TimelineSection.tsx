@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AuditLogRow } from '@/lib/audit';
 import { listAuditLogs } from '@/lib/audit';
 import { humanizeAudit } from '@/ui/widgets/timelineHumanize';
+import { getErrorMessage } from '@/lib/errors';
 
 function fmtWhen(iso: string) {
   return new Date(iso).toLocaleString();
@@ -49,8 +50,8 @@ export function TimelineSection({
       });
       setRows(data);
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar timeline.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar timeline.'));
       setLoading(false);
     }
   }

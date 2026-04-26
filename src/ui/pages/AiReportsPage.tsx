@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/ui/widgets/Card';
 import { apiFetch } from '@/lib/apiClient';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type TaskLite = {
   id: string;
@@ -99,9 +100,9 @@ export function AiReportsPage() {
         setAgenda((aRes.data || []) as AgendaLite[]);
         setProfiles((pRes.data || []) as ProfileLite[]);
         setLoading(false);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!active) return;
-        setError(e?.message || 'Falha ao carregar relatórios.');
+        setError(getErrorMessage(e, 'Falha ao carregar relatórios.'));
         setLoading(false);
       }
     })();
@@ -250,8 +251,8 @@ export function AiReportsPage() {
 
       setWeeklySummaryText(summary);
       setWeeklyFeedback('Relatório semanal gerado. Você pode revisar e editar o texto antes do envio.');
-    } catch (e: any) {
-      setWeeklyError(e?.message || 'Falha ao gerar fechamento semanal.');
+    } catch (e: unknown) {
+      setWeeklyError(getErrorMessage(e, 'Falha ao gerar fechamento semanal.'));
     } finally {
       setBuildingSummary(false);
     }
@@ -284,8 +285,8 @@ export function AiReportsPage() {
         }),
       });
       setWeeklyFeedback('Resumo enviado com sucesso no WhatsApp.');
-    } catch (e: any) {
-      setWeeklyError(e?.message || 'Falha ao enviar o resumo no WhatsApp.');
+    } catch (e: unknown) {
+      setWeeklyError(getErrorMessage(e, 'Falha ao enviar o resumo no WhatsApp.'));
     } finally {
       setSendingWeekly(false);
     }

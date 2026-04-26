@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { getErrorMessage } from '@/lib/errors';
 
 const areaOptions = [
   'Cível',
@@ -80,7 +81,7 @@ export function LeadForm() {
       setDescription('');
     } catch (err: unknown) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : 'Erro inesperado no servidor.';
+      const msg = getErrorMessage(err, typeof err === 'string' ? err : 'Erro inesperado no servidor.');
       setError(msg);
     } finally {
       setLoading(false);

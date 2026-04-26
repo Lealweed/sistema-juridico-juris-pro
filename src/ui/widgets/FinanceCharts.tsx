@@ -12,6 +12,7 @@ import {
 
 import { Card } from '@/ui/widgets/Card';
 import { centsToBRL, type FinanceTx, listFinanceTx } from '@/lib/finance';
+import { getErrorMessage } from '@/lib/errors';
 
 function monthKey(d: Date) {
   const y = d.getFullYear();
@@ -53,9 +54,9 @@ export function FinanceCharts({ months = 6 }: { months?: number }) {
         if (!alive) return;
         setRows(data);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!alive) return;
-        setError(err?.message || 'Falha ao carregar dados do financeiro.');
+        setError(getErrorMessage(err, 'Falha ao carregar dados do financeiro.'));
         setLoading(false);
       }
     })();

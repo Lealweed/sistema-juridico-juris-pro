@@ -19,6 +19,7 @@ import { loadClientsLite } from '@/lib/loadClientsLite';
 import type { ClientLite } from '@/lib/types';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type TaskStatus = 'open' | 'in_progress' | 'paused' | 'done' | 'cancelled';
 
@@ -248,8 +249,8 @@ export function TasksKanbanPage() {
       setCases(casesLite);
       setProfiles((ps || []) as Profile[]);
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar kanban.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar kanban.'));
       setLoading(false);
     }
   }
@@ -387,8 +388,8 @@ export function TasksKanbanPage() {
       // optimistic update
       setRows((prev) => prev.map((t) => (t.id === task.id ? ({ ...t, ...patch } as TaskRow) : t)));
       setBusyId(null);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao atualizar tarefa.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao atualizar tarefa.'));
       setBusyId(null);
     }
   }

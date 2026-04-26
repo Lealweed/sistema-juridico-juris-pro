@@ -6,6 +6,7 @@ import { listAuditLogs } from '@/lib/audit';
 import { getMyOfficeRole } from '@/lib/roles';
 import { Card } from '@/ui/widgets/Card';
 import { humanizeAudit } from '@/ui/widgets/timelineHumanize';
+import { getErrorMessage } from '@/lib/errors';
 
 type TableName = 'all' | 'clients' | 'cases' | 'tasks' | 'documents' | 'finance_transactions' | 'office_members';
 type ActionName = 'all' | 'insert' | 'update' | 'delete';
@@ -71,8 +72,8 @@ export function AuditPage() {
       const data = await listAuditLogs({ limit: 120 });
       setRows(data);
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar auditoria.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar auditoria.'));
       setLoading(false);
     }
   }

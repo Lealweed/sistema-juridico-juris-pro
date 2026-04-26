@@ -7,6 +7,7 @@ import { saveAs } from 'file-saver';
 import type { DocumentRow } from '@/lib/documents';
 import { deleteDocument, getDocumentDownloadUrl, listClientDocuments, uploadClientDocument, toggleDocumentVisibility } from '@/lib/documents';
 import { requireSupabase, getAuthedUser } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 export function DocumentsSection({ clientId, caseId }: { clientId: string; caseId?: string | null }) {
   const [rows, setRows] = useState<DocumentRow[]>([]);
@@ -73,8 +74,8 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
       if (cData) setClientData(cData);
       
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar documentos.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar documentos.'));
       setLoading(false);
     }
   }
@@ -104,8 +105,8 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
       setIsPublic(false);
       setSaving(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao enviar documento.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao enviar documento.'));
       setSaving(false);
     }
   }
@@ -114,8 +115,8 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
     try {
       await toggleDocumentVisibility(doc.id, !doc.is_public);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao alterar visibilidade.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao alterar visibilidade.'));
     }
   }
 
@@ -175,9 +176,9 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
       // Always trigger download for the lawyer
       saveAs(out, generatedFileName);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || 'Falha ao gerar documento. O arquivo não é um .docx válido ou as chaves estão mal formatadas.');
+      setError(getErrorMessage(err, 'Falha ao gerar documento. O arquivo não é um .docx válido ou as chaves estão mal formatadas.'));
     } finally {
       setSaving(false);
     }
@@ -187,8 +188,8 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
     try {
       const url = await getDocumentDownloadUrl(doc.file_path);
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao gerar link de download.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao gerar link de download.'));
     }
   }
 
@@ -197,8 +198,8 @@ export function DocumentsSection({ clientId, caseId }: { clientId: string; caseI
     try {
       await deleteDocument({ id: doc.id, file_path: doc.file_path });
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao excluir documento.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao excluir documento.'));
     }
   }
 

@@ -8,6 +8,7 @@ import { deleteDocument, getDocumentDownloadUrl, toggleDocumentVisibility, uploa
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import type { ClientLite } from '@/lib/types';
+import { getErrorMessage } from '@/lib/errors';
 
 export function DrivePage() {
   const [rows, setRows] = useState<(DocumentRow & { client_name?: string })[]>([]);
@@ -56,8 +57,8 @@ export function DrivePage() {
       setClients(loadedClients);
 
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar documentos do Drive.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar documentos do Drive.'));
       setLoading(false);
     }
   }
@@ -107,8 +108,8 @@ export function DrivePage() {
     try {
       const url = await getDocumentDownloadUrl(doc.file_path);
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      alert('Falha ao gerar link de download: ' + err.message);
+    } catch (err: unknown) {
+      alert('Falha ao gerar link de download: ' + getErrorMessage(err, 'Erro'));
     }
   }
 
@@ -116,8 +117,8 @@ export function DrivePage() {
     try {
       await toggleDocumentVisibility(doc.id, !doc.is_public);
       await load();
-    } catch (err: any) {
-      alert('Falha ao alterar visibilidade: ' + err.message);
+    } catch (err: unknown) {
+      alert('Falha ao alterar visibilidade: ' + getErrorMessage(err, 'Erro'));
     }
   }
 
@@ -126,8 +127,8 @@ export function DrivePage() {
     try {
       await deleteDocument({ id: doc.id, file_path: doc.file_path });
       await load();
-    } catch (err: any) {
-      alert('Falha ao excluir documento: ' + err.message);
+    } catch (err: unknown) {
+      alert('Falha ao excluir documento: ' + getErrorMessage(err, 'Erro'));
     }
   }
 
@@ -163,8 +164,8 @@ export function DrivePage() {
       setUpPublic(false);
       setSaving(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao enviar documento.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao enviar documento.'));
       setSaving(false);
     }
   }

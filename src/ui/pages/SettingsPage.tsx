@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
-import { acceptOfficeInvite, createOfficeInvite, listMyOfficeInvites } from '@/lib/offices';
+import { acceptOfficeInvite, listMyOfficeInvites } from '@/lib/offices';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type Office = {
   id: string;
@@ -178,8 +179,8 @@ export function SettingsPage() {
         }, {} as Record<string, { phone: string; whatsapp: string }>),
       );
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
       setLoading(false);
     }
   }
@@ -291,8 +292,8 @@ export function SettingsPage() {
     try {
       await acceptOfficeInvite(inviteId);
       await load();
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, String(e)));
     } finally {
       setSaving(false);
     }
@@ -317,8 +318,8 @@ export function SettingsPage() {
         throw new Error('Nao foi possivel atualizar seu WhatsApp. Verifique as permissoes RLS da tabela user_profiles.');
       }
       setProfileNotice({ type: 'ok', text: 'WhatsApp salvo com sucesso.' });
-    } catch (e: any) {
-      const message = e?.message || String(e);
+    } catch (e: unknown) {
+      const message = getErrorMessage(e, String(e));
       setError(message);
       setProfileNotice({ type: 'err', text: message });
     } finally {
@@ -475,8 +476,8 @@ export function SettingsPage() {
               
               {isAdmin ? (
                 <div className="grid gap-2">
-                  <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10" to="/app/configuracoes/equipe">
-                    👥 Gerenciar Equipe
+                  <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10" to="/app/configuracoes/membros">
+                    👥 Membros do Escritório (informações e configurações)
                   </Link>
                   <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-amber-200 transition-colors hover:bg-white/10" to="/app/configuracoes/auditoria">
                     🛡️ Auditoria e Logs

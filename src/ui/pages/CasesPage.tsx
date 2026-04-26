@@ -7,6 +7,7 @@ import { getMyOfficeId, listOfficeMemberProfiles, type OfficeMemberProfile } fro
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import type { ClientLite } from '@/lib/types';
+import { getErrorMessage } from '@/lib/errors';
 
 type CaseRow = {
   id: string;
@@ -103,8 +104,8 @@ export function CasesPage() {
       setRows((casesData || []) as CaseRow[]);
       setClients(clientsLite);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar casos.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar casos.'));
       setLoading(false);
     }
   }
@@ -196,8 +197,8 @@ export function CasesPage() {
       setNewPoloPassivo('');
       setSaving(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao criar caso.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao criar caso.'));
       setSaving(false);
     }
   }

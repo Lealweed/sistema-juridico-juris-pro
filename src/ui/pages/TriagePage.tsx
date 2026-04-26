@@ -8,6 +8,7 @@ import { formatCpf } from '@/lib/cpf';
 import { formatBrPhone } from '@/lib/phone';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { Card } from '@/ui/widgets/Card';
+import { getErrorMessage } from '@/lib/errors';
 
 /** user_id reservado para leads captados automaticamente (site/n8n/webhook) */
 const LEAD_BOT_ID = '00000000-0000-0000-0000-000000000000';
@@ -344,8 +345,8 @@ export function TriagePage() {
 
       console.debug('[Triagem] Leads carregados:', leads.length);
       setRows(leads);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar fila de triagem.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar fila de triagem.'));
     } finally {
       setLoading(false);
     }
@@ -359,7 +360,7 @@ export function TriagePage() {
       setRows((prev) => prev.filter((r) => r.id !== row.id));
       if (selectedLead?.id === row.id) setSelectedLead(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Falha ao converter lead.';
+      const msg = err instanceof Error ? getErrorMessage(err, 'Erro') : 'Falha ao converter lead.';
       setError(msg);
     } finally {
       setConverting((prev) => {

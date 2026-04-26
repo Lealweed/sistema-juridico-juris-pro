@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/roles';
 import type { ClientLite } from '@/lib/types';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import { createClientLink, deleteClientLink, listClientLinksByClient } from '@/lib/clientLinks';
+import { getErrorMessage } from '@/lib/errors';
 
 const RELATION_TYPES = [
   { id: 'responsavel', label: 'Responsável' },
@@ -83,8 +84,8 @@ export function ClientLinksSection({ clientId }: { clientId: string }) {
 
       // Keep officeId in closure by returning it (TS unused prevention)
       void officeId;
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar vínculos.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar vínculos.'));
       setLoading(false);
     }
   }
@@ -119,8 +120,8 @@ export function ClientLinksSection({ clientId }: { clientId: string }) {
       setNotes('');
       setSaving(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao criar vínculo.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao criar vínculo.'));
       setSaving(false);
     }
   }
@@ -135,8 +136,8 @@ export function ClientLinksSection({ clientId }: { clientId: string }) {
       await deleteClientLink(id);
       setSaving(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao excluir vínculo.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao excluir vínculo.'));
       setSaving(false);
     }
   }

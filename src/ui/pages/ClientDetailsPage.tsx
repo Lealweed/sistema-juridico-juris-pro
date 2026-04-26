@@ -12,6 +12,7 @@ import { buildProcuracaoData, generateDocumentDocx } from '@/lib/docGenerator';
 import { apiFetch } from '@/lib/apiClient';
 import { subscribeToPortalMessages } from '@/lib/clientPortal';
 import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
+import { getErrorMessage } from '@/lib/errors';
 
 function extractSourceFromNotes(notes: string | null) {
   if (!notes) return null;
@@ -71,7 +72,7 @@ type ClientRow = {
   address_state: string | null;
   address_cep: string | null;
   portal_pin?: string | null;
-  officeId?: string | null;
+  office_id?: string | null;
 };
 
 type CaseLite = {
@@ -236,7 +237,7 @@ export function ClientDetailsPage() {
       await apiFetch('/api/messages/send', {
         method: 'POST',
         body: JSON.stringify({
-          officeId: row.officeId,
+          officeId: row.office_id,
           clientId: row.id,
           channel: 'whatsapp',
           text: msg,
@@ -244,7 +245,7 @@ export function ClientDetailsPage() {
       });
       alert('✅ Mensagem enviada com sucesso!');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha ao enviar WhatsApp.';
+      const message = err instanceof Error ? getErrorMessage(err, 'Erro') : 'Falha ao enviar WhatsApp.';
       alert(`❌ Erro: ${message}`);
     }
   }
@@ -422,12 +423,12 @@ export function ClientDetailsPage() {
     try {
       const sb = requireSupabase();
       const user = await getAuthedUser();
-      if (!(row as any)?.office_id) throw new Error('Office não encontrado');
+      if (!row?.office_id) throw new Error('Office não encontrado');
 
       const fullDatetime = new Date(`${agendaDate}T${agendaTime}:00`).toISOString();
 
       const { error: iErr } = await sb.from('agenda').insert({
-        office_id: (row as any).office_id,
+        office_id: row.office_id,
         created_by: user.id,
         client_id: clientId,
         title: agendaTitle.trim(),
@@ -440,8 +441,8 @@ export function ClientDetailsPage() {
       setAgendaModalOpen(false);
       setAgendaTitle('');
       alert('Agendamento salvo com sucesso!');
-    } catch (err: any) {
-      setError(err?.message || String(err));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, String(err)));
     } finally {
       setAgendaSaving(false);
     }

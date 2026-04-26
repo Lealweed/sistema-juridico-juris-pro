@@ -8,6 +8,7 @@ import {
   User,
 } from 'lucide-react';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
+import { getErrorMessage } from '@/lib/errors';
 
 // ─── Tipos ─────────────────────────────────────────────────────────────────
 
@@ -110,8 +111,8 @@ export function MemberPortalPage() {
       if (!data.user) throw new Error('Usuário não encontrado.');
       setAuthed(true);
       await loadProfile(data.user.id, data.user.email ?? '');
-    } catch (err: any) {
-      setAuthError(err?.message || 'E-mail ou senha inválidos.');
+    } catch (err: unknown) {
+      setAuthError(getErrorMessage(err, 'E-mail ou senha inválidos.'));
     } finally {
       setAuthLoading(false);
     }
@@ -150,8 +151,8 @@ export function MemberPortalPage() {
           : prev
       );
       setFeedback({ ok: true, text: 'Dados salvos com sucesso!' });
-    } catch (err: any) {
-      setFeedback({ ok: false, text: err?.message || 'Erro ao salvar.' });
+    } catch (err: unknown) {
+      setFeedback({ ok: false, text: getErrorMessage(err, 'Erro ao salvar.') });
     } finally {
       setSaving(false);
     }

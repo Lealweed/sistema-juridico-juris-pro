@@ -7,6 +7,7 @@ import { loadClientsLite } from '@/lib/loadClientsLite';
 import type { ClientLite } from '@/lib/types';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type TaskStatus = 'open' | 'in_progress' | 'paused' | 'done' | 'cancelled';
 
@@ -229,8 +230,8 @@ export function TasksPage() {
       setClients(clientsLite);
       setCases(casesLite);
       setLoading(false);
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao carregar tarefas.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao carregar tarefas.'));
       setLoading(false);
     }
   }
@@ -393,8 +394,8 @@ export function TasksPage() {
       setSubtasks([]);
       setSaving(false);
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao criar tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao criar tarefa.'));
       setSaving(false);
     }
   }
@@ -420,8 +421,8 @@ export function TasksPage() {
         completed_by_user_id: user.id,
       });
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao concluir tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao concluir tarefa.'));
     }
   }
 
@@ -436,8 +437,8 @@ export function TasksPage() {
         pause_reason: reason.trim(),
       });
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao pausar tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao pausar tarefa.'));
     }
   }
 
@@ -452,8 +453,8 @@ export function TasksPage() {
         cancel_reason: reason.trim(),
       });
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao cancelar tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao cancelar tarefa.'));
     }
   }
 
@@ -461,8 +462,8 @@ export function TasksPage() {
     try {
       await updateTask(t.id, { status_v2: 'in_progress' });
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao iniciar tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao iniciar tarefa.'));
     }
   }
 
@@ -486,8 +487,8 @@ export function TasksPage() {
       setDelegatingId(null);
       setDelegateTo('');
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao delegar tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao delegar tarefa.'));
       setDelegatingId(null);
     }
   }
@@ -504,8 +505,8 @@ export function TasksPage() {
         pause_reason: null,
       });
       await load();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao reabrir tarefa.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Falha ao reabrir tarefa.'));
     }
   }
 

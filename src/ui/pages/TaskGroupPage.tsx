@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getErrorMessage } from '@/lib/errors';
 
 type TaskStatus = 'open' | 'in_progress' | 'paused' | 'done' | 'cancelled' | string;
 
@@ -63,8 +64,8 @@ export function TaskGroupPage() {
         setRows((tasks || []) as TaskRow[]);
         setProfiles((ps || []) as Profile[]);
         setLoading(false);
-      } catch (e: any) {
-        setError(e?.message || 'Falha ao carregar lote.');
+      } catch (e: unknown) {
+        setError(getErrorMessage(e, 'Falha ao carregar lote.'));
         setLoading(false);
       }
     })();

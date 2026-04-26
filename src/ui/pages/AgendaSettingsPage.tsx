@@ -5,6 +5,7 @@ import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeId } from '@/lib/officeContext';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getOfficeSettings, updateOfficeSettings, type OfficeSettings } from '@/lib/officeSettings';
+import { getErrorMessage } from '@/lib/errors';
 
 export function AgendaSettingsPage() {
   const [role, setRole] = useState('');
@@ -36,8 +37,8 @@ export function AgendaSettingsPage() {
       setOfficeWhatsapp((s.office_whatsapp || '').toString());
       setTimezone(s.timezone || 'America/Sao_Paulo');
       setLoading(false);
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao carregar configurações.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao carregar configurações.'));
       setLoading(false);
     }
   }
@@ -67,8 +68,8 @@ export function AgendaSettingsPage() {
       });
       setSaving(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Falha ao salvar.');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Falha ao salvar.'));
       setSaving(false);
     }
   }

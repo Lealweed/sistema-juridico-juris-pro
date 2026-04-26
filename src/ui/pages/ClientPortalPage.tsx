@@ -32,7 +32,7 @@ import type { DocumentRow } from '@/lib/documents';
 import { centsToBRL, type FinanceTx } from '@/lib/finance';
 import { hasSupabaseEnv, supabase } from '@/lib/supabaseClient';
 import { DOCS_BUCKET } from '@/lib/documents';
-import { listReceipts } from '@/lib/receipts';
+import { listReceipts, type Receipt } from '@/lib/receipts';
 import toast from 'react-hot-toast';
 import { AppToaster } from '@/ui/widgets/AppToaster';
 
@@ -158,7 +158,7 @@ export function ClientPortalPage() {
   const [transactions, setTransactions] = useState<FinanceTx[]>([]);
   const [financeLoading, setFinanceLoading] = useState(false);
   // Recibos
-  const [receipts, setReceipts] = useState<any[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
     // Fetch recibos do cliente autenticado
     useEffect(() => {
@@ -553,7 +553,7 @@ export function ClientPortalPage() {
           .upload(path, file, { upsert: false, contentType: file.type || undefined });
         if (upErr) {
           const msg = upErr.message || '';
-          const status = String((upErr as any).statusCode || '');
+          const status = String((upErr as { statusCode?: string | number }).statusCode || '');
           if (msg.toLowerCase().includes('bucket not found') || msg.toLowerCase().includes('the resource was not found') || status === '404') {
             console.error('[Portal] Bucket não encontrado:', DOCS_BUCKET, upErr);
             throw new Error(`Bucket de documentos não configurado. Avise o administrador (bucket: ${DOCS_BUCKET}).`);
