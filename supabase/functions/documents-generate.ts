@@ -1,6 +1,6 @@
 import { serve } from 'std/server';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
-import { generateDocumentFromTemplate } from '@/lib/documents';
+import { generateDocumentFromTemplate } from '@/lib/documentTemplates';
 
 serve(async (req) => {
   if (req.method !== 'POST') {
@@ -49,7 +49,8 @@ serve(async (req) => {
         'Content-Disposition': `attachment; filename=documento_gerado.${ext}`,
       },
     });
-  } catch (e: any) {
-    return new Response(e.message || 'Erro ao gerar documento', { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Erro ao gerar documento';
+    return new Response(message, { status: 500 });
   }
 });

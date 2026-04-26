@@ -78,7 +78,7 @@ export function AuditPage() {
   }
 
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(load);
   }, []);
 
   const filtered = useMemo(() => {

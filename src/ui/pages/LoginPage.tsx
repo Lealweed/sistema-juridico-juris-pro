@@ -42,7 +42,7 @@ export function LoginPage() {
           // You could also check event types here if exported, 
           // but we rely on the URL hash mostly.
         });
-      } catch (e) {
+      } catch {
         // ignore
       }
     };

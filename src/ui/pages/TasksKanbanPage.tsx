@@ -345,7 +345,7 @@ export function TasksKanbanPage() {
       return;
     }
 
-    let patch: any = { status_v2: next };
+    const patch: any = { status_v2: next };
     const nowIso = new Date().toISOString();
 
     if (next === 'in_progress') {

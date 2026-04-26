@@ -724,11 +724,9 @@ export function AgendaPage() {
             </div>
           ) : null}
 
-          {true ? (
-            <button onClick={() => setCreateAgendaOpen(true)} className="btn-ghost">
-              Nova agenda
-            </button>
-          ) : null}
+          <button onClick={() => setCreateAgendaOpen(true)} className="btn-ghost">
+            Nova agenda
+          </button>
 
           <button onClick={() => setCreateOpen(true)} className="btn-primary">
             Novo
@@ -1143,8 +1141,7 @@ export function AgendaPage() {
                       Lembretes
                     </button>
 
-                    {true ? (
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <select
                           className="select !mt-0 !w-[200px]"
                           value={delegatingItemId === it.id ? delegateTo : ''}
@@ -1164,7 +1161,6 @@ export function AgendaPage() {
                           ))}
                         </select>
                       </div>
-                    ) : null}
 
                     <div className="text-xs font-semibold text-white/60">{it.status}</div>
                   </div>

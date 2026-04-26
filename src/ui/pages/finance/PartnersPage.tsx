@@ -34,7 +34,7 @@ export function PartnersPage() {
   }
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, []);
 
   function resetForm() {

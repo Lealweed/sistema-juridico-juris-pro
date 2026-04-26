@@ -335,7 +335,7 @@ export function ReceiptsPage() {
     setDescription(r.description || '');
 
     const pm = String(r.payment_method || '');
-    const cardMatch = pm.match(/cart[aã]o de cr[eé]dito\s+em\s+(\d+)x(?:\s+de\s+R\$\s*([\d\.,]+))?/i);
+    const cardMatch = pm.match(/cart[aã]o de cr[eé]dito\s+em\s+(\d+)x(?:\s+de\s+R\$\s*([\d.,]+))?/i);
     if (cardMatch) {
       setPaymentMethod('Cartão de crédito');
       setCardInstallments(String(Math.max(1, Number(cardMatch[1] || '1'))));
