@@ -14,9 +14,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 
 
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 export function PayablesPage() {
   const [splits, setSplits] = useState<SplitRow[]>([]);

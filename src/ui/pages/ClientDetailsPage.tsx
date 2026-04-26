@@ -39,9 +39,6 @@ function buildClientNotes(existingNotes: string | null, notice: string, national
   return parts.length ? parts.join('\n') : null;
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 function mergeClientMessages(current: ClientMessageRow[], incoming: ClientMessageRow) {
   if (current.some((item) => item.id === incoming.id)) return current;

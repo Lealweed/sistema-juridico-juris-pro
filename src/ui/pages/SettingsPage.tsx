@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
-import { acceptOfficeInvite, listMyOfficeInvites } from '@/lib/offices';
+import { acceptOfficeInvite, createOfficeInvite, listMyOfficeInvites } from '@/lib/offices';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { getErrorMessage } from '@/lib/errors';
 

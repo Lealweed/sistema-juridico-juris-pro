@@ -158,17 +158,17 @@ export function TeamPage() {
       // 4) Constrói membros sem filtrar placeholders/domínios: mostrar todos os vínculos do office
       const enriched: Member[] = memberRows.map((m) => {
         const p = profilesMap.get(m.user_id);
-        const email = String(p.email || '').trim().toLowerCase();
-        const displayName = String(p.display_name || '').trim();
+        const email = String(p?.email || '').trim().toLowerCase();
+        const displayName = String(p?.display_name || '').trim();
 
         return {
           ...m,
           email: email || '—',
           full_name: displayName || email || `Usuário ${String(m.user_id || '').slice(0, 8)}`,
-          oab_number: p.oab_number || '',
-          oab_uf: p.oab_uf || '',
-          phone: p.phone || '',
-          whatsapp: p.whatsapp || '',
+          oab_number: p?.oab_number || '',
+          oab_uf: p?.oab_uf || '',
+          phone: p?.phone || '',
+          whatsapp: p?.whatsapp || '',
           stats: { activeCases: 0, tasksDone: 0, tasksOverdue: 0 },
         } as Member;
       });
