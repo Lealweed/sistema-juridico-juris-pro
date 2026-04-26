@@ -41,7 +41,7 @@ async function getNotificationContext() {
   return { sb, userId: user.id, officeId };
 }
 
-function applyNotificationScope<TQuery extends { eq: (...args: any[]) => any; or: (...args: any[]) => any }>(
+function applyNotificationScope<TQuery extends { eq: (column: string, value: string) => TQuery; or: (filters: string) => TQuery }>(
   query: TQuery,
   userId: string,
   officeId: string | null,

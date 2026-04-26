@@ -8,6 +8,11 @@ import { brlToCents } from '@/lib/finance';
 import { computeSplitAmountCents, deleteSplit, listSplits, markSplitPaid, markSplitPending, updateSplit, type SplitRow } from '@/lib/splits';
 
 type Row = SplitRow & { tx?: FinanceTx | null; amountCents: number; partnerName: string };
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;

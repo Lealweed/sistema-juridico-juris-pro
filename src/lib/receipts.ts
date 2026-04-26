@@ -20,6 +20,15 @@ export type Receipt = {
   client?: { name: string; cpf?: string | null } | null;
 };
 
+type ReceiptQueryRow = Partial<Omit<Receipt, 'client'>> & {
+  client?: Array<{ name?: string | null; cpf?: string | null }> | { name?: string | null; cpf?: string | null } | null;
+};
+
+function normalizeReceiptClient(client: ReceiptQueryRow['client']): Receipt['client'] {
+  const row = Array.isArray(client) ? client[0] : client;
+  return row?.name ? { name: String(row.name), cpf: row.cpf ?? null } : null;
+}
+
 export async function listReceipts(limit = 100): Promise<Receipt[]> {
   const sb = requireSupabase();
   await getAuthedUser();
@@ -29,7 +38,7 @@ export async function listReceipts(limit = 100): Promise<Receipt[]> {
   const selectBase =
     'id,office_id,client_id,created_by,amount,description,status,issued_at,pdf_url,created_at,client:clients(name,cpf)';
 
-  let data: any[] | null = null;
+  let data: ReceiptQueryRow[] | null = null;
   let error: { message: string } | null = null;
 
   ({ data, error } = await sb
@@ -53,25 +62,23 @@ export async function listReceipts(limit = 100): Promise<Receipt[]> {
   if (error) throw new Error(error.message);
   if (!data) return [];
   // Tipagem segura: converte cada item explicitamente
-  return data.map((r: any) => ({
-    id: r.id,
-    office_id: r.office_id,
-    client_id: r.client_id,
-    created_by: r.created_by,
-    amount: r.amount,
-    description: r.description,
-    status: r.status,
-    issued_at: r.issued_at,
-    pdf_url: r.pdf_url,
-    created_at: r.created_at,
+  return data.map((r) => ({
+    id: String(r.id),
+    office_id: String(r.office_id),
+    client_id: String(r.client_id),
+    created_by: String(r.created_by),
+    amount: Number(r.amount || 0),
+    description: r.description ?? null,
+    status: String(r.status),
+    issued_at: String(r.issued_at),
+    pdf_url: r.pdf_url ?? null,
+    created_at: String(r.created_at),
     payment_method: r.payment_method ?? null,
     city: r.city ?? null,
     lawyer_name: r.lawyer_name ?? null,
     lawyer_oab: r.lawyer_oab ?? null,
     amount_written: r.amount_written ?? null,
-    client: r.client && Array.isArray(r.client) && r.client.length > 0
-      ? { name: String(r.client[0].name), cpf: r.client[0].cpf ?? null }
-      : null,
+    client: normalizeReceiptClient(r.client),
   }));
 }
 
