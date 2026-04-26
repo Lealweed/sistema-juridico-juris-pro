@@ -125,6 +125,7 @@ export function AppRouter() {
 
               <Route element={<RequireRole allowed={["admin"]} />}>
                 <Route path="/app/configuracoes/equipe" element={<TeamPage />} />
+                <Route path="/app/configuracoes/membros" element={<Navigate to="/app/configuracoes/equipe" replace />} />
                 <Route path="/app/configuracoes/auditoria" element={<AuditPage />} />
               </Route>
             </Route>
