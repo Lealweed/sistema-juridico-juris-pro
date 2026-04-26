@@ -37,6 +37,12 @@ type TaskSubtask = {
   doneByUserId: string | null;
 };
 
+type UserProfileRow = {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+};
+
 type Participant = {
   id: string;
   task_id: string;
@@ -241,16 +247,19 @@ export function TaskDetailsPage() {
       const list = (ps || []) as Participant[];
       const userIds = Array.from(new Set(list.map((p) => p.user_id).filter(Boolean)));
 
-      let profMap = new Map<string, any>();
+      let profMap = new Map<string, UserProfileRow>();
       if (userIds.length) {
         const { data: profs } = await sb.from('user_profiles').select('user_id,email,display_name').in('user_id', userIds).limit(500);
-        profMap = new Map((profs || []).map((p: any) => [p.user_id, p]));
+        profMap = new Map(((profs || []) as UserProfileRow[]).map((p) => [p.user_id, p]));
       }
 
       setParticipants(
         list.map((p) => ({
           ...p,
-          profile: profMap.get(p.user_id) ? { email: profMap.get(p.user_id).email ?? null, display_name: profMap.get(p.user_id).display_name ?? null } : null,
+          profile: (() => {
+            const profile = profMap.get(p.user_id);
+            return profile ? { email: profile.email ?? null, display_name: profile.display_name ?? null } : null;
+          })(),
         })) as Participant[],
       );
 

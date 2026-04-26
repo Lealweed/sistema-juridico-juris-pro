@@ -6,6 +6,8 @@ import { Card } from '@/ui/widgets/Card';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { getErrorMessage } from '@/lib/errors';
 
+type PublicationParty = Record<string, unknown>;
+
 type PublicationRow = {
   id: string;
   case_id: string | null;
@@ -17,8 +19,8 @@ type PublicationRow = {
   data_disponibilizacao: string;
   meio: string;
   link: string;
-  destinatarios: any[];
-  destinatario_advogados: any[];
+  destinatarios: PublicationParty[];
+  destinatario_advogados: PublicationParty[];
   is_read: boolean;
   created_at: string;
   

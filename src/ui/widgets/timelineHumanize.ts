@@ -36,7 +36,7 @@ function actionLabel(action: string) {
   }
 }
 
-function diffKeys(before: any, after: any, keys: string[]) {
+function diffKeys(before: Record<string, unknown>, after: Record<string, unknown>, keys: string[]) {
   const changed: string[] = [];
   for (const k of keys) {
     const b = before?.[k];
@@ -47,9 +47,10 @@ function diffKeys(before: any, after: any, keys: string[]) {
   return changed;
 }
 
-function fmtValue(k: string, v: any) {
+function fmtValue(k: string, v: unknown) {
   if (v === null || v === undefined || v === '') return '—';
   if (k.endsWith('_at') || k.endsWith('_on')) {
+    if (typeof v !== 'string' && typeof v !== 'number' && !(v instanceof Date)) return String(v);
     const d = new Date(v);
     if (!Number.isFinite(d.getTime())) return String(v);
     return d.toLocaleString();

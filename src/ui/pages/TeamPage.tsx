@@ -6,6 +6,23 @@ import { Card } from '@/ui/widgets/Card';
 import { Activity, Briefcase, CheckCircle, Clock, Users } from 'lucide-react';
 import { getErrorMessage } from '@/lib/errors';
 
+type OfficeMemberQueryRow = {
+  id: string;
+  user_id: string;
+  role: string;
+  created_at: string;
+};
+
+type TeamProfileRow = {
+  user_id: string;
+  display_name: string | null;
+  email: string | null;
+  oab_number?: string | null;
+  oab_uf?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+};
+
 type Member = {
   id: string;
   user_id: string;
@@ -121,7 +138,8 @@ export function TeamPage() {
 
       if (error) throw error;
 
-      const userIds = (data || []).map((m: any) => m.user_id).filter(Boolean) as string[];
+      const memberRows = (data || []) as OfficeMemberQueryRow[];
+      const userIds = memberRows.map((m) => m.user_id).filter(Boolean);
       if (!userIds.length) {
         setMembers([]);
         setLoading(false);
@@ -135,11 +153,11 @@ export function TeamPage() {
         .in('user_id', userIds)
         .limit(1000);
 
-      const profilesMap = new Map((profilesData || []).map((p: any) => [p.user_id, p]));
+      const profilesMap = new Map(((profilesData || []) as TeamProfileRow[]).map((p) => [p.user_id, p]));
 
       // 4) Constrói membros sem filtrar placeholders/domínios: mostrar todos os vínculos do office
-      const enriched: Member[] = (data || []).map((m: any) => {
-        const p = profilesMap.get(m.user_id) || {};
+      const enriched: Member[] = memberRows.map((m) => {
+        const p = profilesMap.get(m.user_id);
         const email = String(p.email || '').trim().toLowerCase();
         const displayName = String(p.display_name || '').trim();
 

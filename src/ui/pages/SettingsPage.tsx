@@ -26,6 +26,13 @@ type OfficeMemberRow = {
   } | null;
 };
 
+type UserProfileRow = {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  whatsapp?: string | null;
+};
+
 type OfficeInviteRow = {
   id: string;
   office_id: string;
@@ -106,7 +113,7 @@ export function SettingsPage() {
         .select('whatsapp')
         .eq('user_id', user.id)
         .maybeSingle();
-      setMyWhatsapp((selfProfile as any)?.whatsapp || '');
+      setMyWhatsapp((selfProfile as UserProfileRow | null)?.whatsapp || '');
 
       // Find my office by membership
       const { data: myMembership, error: memErr } = await sb
@@ -157,10 +164,10 @@ export function SettingsPage() {
       const userIds = Array.from(new Set(members.map((m) => m.user_id).filter(Boolean)));
 
       // Avoid PostgREST relationship cache errors by fetching profiles separately.
-      let profMap = new Map<string, any>();
+      let profMap = new Map<string, UserProfileRow>();
       if (userIds.length) {
         const { data: profs } = await sb.from('user_profiles').select('user_id,email,display_name,phone,whatsapp').in('user_id', userIds).limit(1000);
-        profMap = new Map((profs || []).map((p: any) => [p.user_id, p]));
+        profMap = new Map(((profs || []) as UserProfileRow[]).map((p) => [p.user_id, p]));
       }
 
       setOffice((officeRow || null) as Office | null);
