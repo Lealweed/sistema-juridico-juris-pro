@@ -42,7 +42,7 @@ const PublicationsPage = lazy(() => import('@/ui/pages/PublicationsPage').then((
 const DrivePage = lazy(() => import('@/ui/pages/DrivePage').then((m) => ({ default: m.DrivePage })));
 const SettingsPage = lazy(() => import('@/ui/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const SettingsN8nDocsPage = lazy(() => import('@/ui/pages/SettingsN8nDocsPage').then((m) => ({ default: m.SettingsN8nDocsPage })));
-const TeamPage = lazy(() => import('@/ui/pages/TeamPage').then((m) => ({ default: m.TeamPage })));
+const MembersSettingsPage = lazy(() => import('@/ui/pages/MembersSettingsPage').then((m) => ({ default: m.MembersSettingsPage })));
 const AuditPage = lazy(() => import('@/ui/pages/AuditPage').then((m) => ({ default: m.AuditPage })));
 const TeamReportsPage = lazy(() => import('@/ui/pages/TeamReportsPage').then((m) => ({ default: m.TeamReportsPage })));
 const ActivityReportPage = lazy(() => import('@/ui/pages/ActivityReportPage').then((m) => ({ default: m.ActivityReportPage })));
@@ -124,8 +124,8 @@ export function AppRouter() {
               <Route path="/app/configuracoes/n8n-docs" element={<SettingsN8nDocsPage />} />
 
               <Route element={<RequireRole allowed={["admin"]} />}>
-                <Route path="/app/configuracoes/equipe" element={<TeamPage />} />
-                <Route path="/app/configuracoes/membros" element={<Navigate to="/app/configuracoes/equipe" replace />} />
+                <Route path="/app/configuracoes/equipe" element={<Navigate to="/app/configuracoes/membros" replace />} />
+                <Route path="/app/configuracoes/membros" element={<MembersSettingsPage />} />
                 <Route path="/app/configuracoes/auditoria" element={<AuditPage />} />
               </Route>
             </Route>

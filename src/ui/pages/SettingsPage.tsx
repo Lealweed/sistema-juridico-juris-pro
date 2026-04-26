@@ -483,8 +483,8 @@ export function SettingsPage() {
               
               {isAdmin ? (
                 <div className="grid gap-2">
-                  <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10" to="/app/configuracoes/equipe">
-                    👥 Equipe do Escritório (membros e configurações)
+                  <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10" to="/app/configuracoes/membros">
+                    👥 Membros do Escritório (informações e configurações)
                   </Link>
                   <Link className="block w-full rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-amber-200 transition-colors hover:bg-white/10" to="/app/configuracoes/auditoria">
                     🛡️ Auditoria e Logs
