@@ -424,13 +424,15 @@ export function ClientDetailsPage() {
 
       const fullDatetime = new Date(`${agendaDate}T${agendaTime}:00`).toISOString();
 
-      const { error: iErr } = await sb.from('agenda').insert({
+      const { error: iErr } = await sb.from('agenda_items').insert({
         office_id: row.office_id,
-        created_by: user.id,
+        user_id: user.id,
         client_id: clientId,
         title: agendaTitle.trim(),
-        start_time: fullDatetime,
-        end_time: fullDatetime,
+        kind: 'commitment',
+        status: 'confirmed',
+        starts_at: fullDatetime,
+        ends_at: fullDatetime,
       });
 
       if (iErr) throw new Error(iErr.message);
