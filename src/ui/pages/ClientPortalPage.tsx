@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BRAND } from '@/lib/brand';
 import {
   AlertTriangle,
   Bell,
@@ -656,8 +657,8 @@ export function ClientPortalPage() {
         <AppToaster />
         <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
           <img
-            src="/brand/logo.jpg"
-            alt="Lima, Lopes & Diógenes"
+            src={BRAND.logoDark}
+            alt={BRAND.fullName}
             className="h-16 w-auto rounded-xl shadow-lg"
           />
           <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
@@ -738,7 +739,7 @@ export function ClientPortalPage() {
       <div className="min-h-screen w-full bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] px-3 py-4 sm:px-4 sm:py-6">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
       <div className="mt-2 flex w-full items-start justify-between gap-3 sm:mt-4">
-        <img src="/brand/logo.jpg" alt="Lima, Lopes & Diógenes" className="h-16 w-auto rounded-2xl border-2 border-white/10 shadow-2xl sm:h-20" />
+        <img src={BRAND.logoDark} alt={BRAND.fullName} className="h-16 w-auto rounded-2xl border-2 border-white/10 shadow-2xl sm:h-20" />
         <button
           type="button"
           onClick={handlePortalExit}
@@ -1031,7 +1032,7 @@ export function ClientPortalPage() {
         </div>
       </div>
       <p className="mt-12 text-[11px] text-white/30 mb-24 md:mb-0">
-        Lima, Lopes &amp; Diógenes Advogados &bull; Portal do Cliente
+        {BRAND.fullName} &bull; Portal do Cliente
       </p>
       </div>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BRAND } from '@/lib/brand';
 import type { LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -118,7 +119,7 @@ export function Sidebar() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
           <div className="text-xs font-semibold text-white">Usuário Logado</div>
           <div className="mt-1 text-sm text-white/80">{userName}</div>
-          <div className="mt-2 text-[10px] uppercase font-bold text-amber-200/70 tracking-wider">Lima, Lopes & Diógenes</div>
+          <div className="mt-2 text-[10px] uppercase font-bold text-amber-200/70 tracking-wider">{BRAND.name}</div>
         </div>
       </div>
     </aside>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BRAND } from '@/lib/brand';
 
 import { ShimmerButton } from '@/ui/primitives/ShimmerButton';
 
@@ -64,14 +65,14 @@ export function PublicNavbar() {
         <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
           <div className="grid size-10 place-items-center overflow-hidden rounded-xl border border-brand-gold/20 bg-brand-black">
             <img
-              src="/brand/logo.jpg"
-              alt="Lima, Lopes & Diógenes Advocacia"
-              className="h-full w-full object-cover"
+              src={BRAND.icon}
+              alt={BRAND.fullName}
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight text-white">Lima, Lopes & Diógenes</div>
-            <div className="text-xs text-brand-gold/70">Advocacia</div>
+            <div className="text-sm font-semibold tracking-tight text-white">{BRAND.name}</div>
+            <div className="text-xs text-brand-gold/70">{BRAND.tagline}</div>
           </div>
         </Link>
 

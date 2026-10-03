@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BRAND } from '@/lib/brand';
 
 import { LeadForm } from '@/ui/widgets/LeadForm';
 
@@ -43,7 +44,6 @@ const areas = [
 const partners = [
   { name: 'Dr. Nilton Lima da Silva', role: 'Sócio', oab: 'OAB/PA 40881', image: '' },
   { name: 'Dra. Karolline Diógenes', role: 'Sócia', oab: 'OAB/PA 35857', image: '' },
-  { name: 'Dr. José Lopes da Silva Filho', role: 'Sócio', oab: 'OAB/PA 36029', image: '' },
 ];
 
 const staff = [
@@ -110,8 +110,8 @@ export function LandingPage() {
               </div>
 
               <h1 className="mt-8 text-5xl font-light leading-[1.1] tracking-tight text-white md:text-7xl font-serif">
-                Lima, Lopes &<br />Diógenes
-                <span className="mt-3 block text-3xl font-medium text-brand-gold md:text-4xl">Advogados Associados</span>
+                {BRAND.name}
+                <span className="mt-3 block text-3xl font-medium text-brand-gold md:text-4xl">{BRAND.tagline}</span>
               </h1>
 
               <div className="mt-6 h-px w-16 bg-gradient-to-r from-brand-gold to-transparent" />
@@ -162,7 +162,7 @@ export function LandingPage() {
               <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] backdrop-blur-xl">
                 <div className="mb-8 flex flex-col items-center justify-center space-y-4">
                   <div className="grid size-20 place-items-center rounded-2xl bg-gradient-to-br from-brand-gold/20 to-brand-gold/5 text-3xl font-serif text-brand-gold shadow-inner border border-brand-gold/10">
-                    LLD
+                    LD
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-serif text-white">Portal do Cliente</div>
@@ -231,7 +231,7 @@ export function LandingPage() {
                 Princípios e<br/>Compromisso Ético
               </h2>
               <p className="mt-6 text-base text-neutral-600 leading-relaxed">
-                Lima, Lopes & Diógenes Advocacia foi fundado com o propósito de oferecer uma advocacia organizada, ágil e absolutamente transparente. 
+                O escritório {BRAND.name} foi fundado com o propósito de oferecer uma advocacia organizada, ágil e absolutamente transparente.
                 Rejeitamos promessas irreais de resultado; focamos no estudo profundo de cada caso e na comunicação assertiva.
               </p>
 

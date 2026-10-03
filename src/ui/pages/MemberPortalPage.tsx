@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BRAND } from '@/lib/brand';
 import {
   Eye,
   EyeOff,
@@ -185,8 +186,8 @@ export function MemberPortalPage() {
     return (
       <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-10">
         <img
-          src="/brand/logo.jpg"
-          alt="Logo"
+          src={BRAND.logoDark}
+          alt={BRAND.fullName}
           className="h-16 w-auto rounded-xl shadow-lg"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
@@ -259,8 +260,8 @@ export function MemberPortalPage() {
       {/* Cabeçalho */}
       <div className="w-full max-w-xl flex items-center justify-between mb-8">
         <img
-          src="/brand/logo.jpg"
-          alt="Logo"
+          src={BRAND.logoDark}
+          alt={BRAND.fullName}
           className="h-14 w-auto rounded-xl border border-white/10 shadow-xl"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
