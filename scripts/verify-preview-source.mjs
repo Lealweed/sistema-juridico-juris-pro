@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rules = fs.readFileSync(path.join(root, '.vercelignore'), 'utf8');
 const matcher = ignore().add(rules);
 const git = (...args) => execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, ...args], { cwd: root, encoding: 'utf8' }).trim();
-const includeCases = ['src/lib/receipts.ts', 'api/public/submit-lead.ts', 'api/integrations/escavador/processos.ts', 'public/hero-bg.mp4', 'public/brand/lima-diogenes-logo-dark.png', 'public/templates/PROCURAÇÃO.docx', 'package.json', 'package-lock.json', 'tsconfig.app.json', 'vite.config.ts', 'vercel.json', '.vercelignore'];
+const includeCases = ['src/lib/receipts.ts', 'api/public/submit-lead.ts', 'api/integrations/escavador/processos.ts', 'public/hero-bg.mp4', 'public/brand/lima-diogenes-logo-dark.png', 'public/templates/PROCURACAO.docx', 'public/templates/CONTRATO_MODELO_RECLAMACAO_TRABALHISTA.docx', 'package.json', 'package-lock.json', 'tsconfig.app.json', 'vite.config.ts', 'vercel.json', '.vercelignore'];
 includeCases.push(...(fs.existsSync(path.join(root, 'tailwind.config.cjs'))
   ? ['tailwind.config.cjs', 'tailwind.legacy-theme.json']
   : ['tailwind.config.js']));
@@ -24,6 +24,13 @@ for (const name of includeCases) assert.equal(matcher.ignores(name), false, `Req
 for (const name of excludeCases) assert.equal(matcher.ignores(name), true, `Private/operational path allowed: ${name}`);
 
 const entries = [];
+for (const [original, alias] of [
+  ['PROCURAÇÃO.docx', 'PROCURACAO.docx'],
+  ['CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx', 'CONTRATO_MODELO_RECLAMACAO_TRABALHISTA.docx'],
+]) {
+  assert.ok(fs.readFileSync(path.join(root, 'public/templates', original)).equals(
+    fs.readFileSync(path.join(root, 'public/templates', alias))), `Template alias changed content: ${alias}`);
+}
 function collect(relativeDirectory = '') {
   for (const item of fs.readdirSync(path.join(root, relativeDirectory), { withFileTypes: true })) {
     const relative = [relativeDirectory, item.name].filter(Boolean).join('/');

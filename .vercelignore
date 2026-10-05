@@ -1,9 +1,12 @@
 # Source upload only; build Vite remotely. Local builds and private material stay out.
 /*
 !/.vercelignore
-!/api/
-!/src/
-!/public/
+!/api
+!/api/**
+!/src
+!/src/**
+!/public
+!/public/**
 !/package.json
 !/package-lock.json
 !/index.html
@@ -19,6 +22,8 @@
 !/vercel.json
 
 # Keep these excluded even inside an allowed source/assets directory.
+/public/templates/CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx
+/public/templates/PROCURAÇÃO.docx
 **/.git
 **/.git/**
 **/.vercel

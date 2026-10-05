@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { generateDocumentDocx } from '@/lib/docGenerator';
+import { generateDocumentDocx, resolveTemplateAssetName } from '@/lib/docGenerator';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import { getAuthedUser } from '@/lib/supabaseDb';
 import type { ClientLite } from '@/lib/types';
@@ -487,7 +487,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
 
   async function handleRegenerate(entry: HistoryEntry) {
     try {
-      const resp = await fetch(`/templates/${entry.templateFile}`);
+      const resp = await fetch(`/templates/${resolveTemplateAssetName(entry.templateFile)}`);
       if (!resp.ok) throw new Error('Template indisponível.');
       showToast(`Abra o template "${entry.templateLabel}" e preencha os dados novamente.`, 'success');
     } catch (err: unknown) {

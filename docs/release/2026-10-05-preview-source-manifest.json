@@ -1,11 +1,11 @@
 {
   "format": "local-preview-source-selection-v1",
-  "generatedAt": "2026-10-05T23:09:14.180Z",
+  "generatedAt": "2026-10-05T23:19:48.117Z",
   "branch": "codex/visual-producao-compat",
-  "gitHead": "e6862a548542f942d7a815eddbb6b8467094046e",
+  "gitHead": "2d8e607ec3ab4814bd1699280d65a4bc1a1fb121",
   "hasLocalSourceChanges": true,
-  "trackedSourceChangeCount": 71,
-  "newSourceFileCount": 0,
+  "trackedSourceChangeCount": 3,
+  "newSourceFileCount": 2,
   "localProject": {
     "projectId": "prj_RT4saSl2wdhp3yNFNlyxTzkDaHz7",
     "orgId": "team_y35fbHQP9VHZ6K0Ft02Swbds",
@@ -16,17 +16,17 @@
     "package": "ignore",
     "version": "5.3.2"
   },
-  "requiredPathCases": 14,
+  "requiredPathCases": 15,
   "excludedPathCases": 77,
   "checkedLocalImports": 352,
   "fileCount": 161,
-  "totalBytes": 5392506,
-  "sourceSetSha256": "2c7d9b74bb77a8880eeb687c9a8b412a38c3894f6edacf904f768901e29b37ff",
+  "totalBytes": 5393079,
+  "sourceSetSha256": "8c5d6e56f783cbcffec72f1eb2f28a080579a0cf4e560a25e0858122f7ef1961",
   "files": [
     {
       "path": ".vercelignore",
-      "bytes": 959,
-      "sha256": "ad15795f592db0f74162d06bb6d66546cc481b29783158342967f41f14337afe"
+      "bytes": 1082,
+      "sha256": "21cc93b02ab4f17cad4e6467112f6eaaa2cad20d409d3d949fb79d40893b5cc7"
     },
     {
       "path": "api/integrations/escavador/processos.ts",
@@ -104,12 +104,12 @@
       "sha256": "b792800f5455d4bebaf3d81057c292b19376f92fe77447e65a7f2f29a944db63"
     },
     {
-      "path": "public/templates/CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx",
+      "path": "public/templates/CONTRATO_MODELO_RECLAMACAO_TRABALHISTA.docx",
       "bytes": 313303,
       "sha256": "1acaca82038490fcc22577d764540890e55e52a8c093c4fb98d3e1a32c5236bf"
     },
     {
-      "path": "public/templates/PROCURAÇÃO.docx",
+      "path": "public/templates/PROCURACAO.docx",
       "bytes": 245364,
       "sha256": "a14424db427823f2250f7033be207d7bd981606b66415589438372f0f377f9cc"
     },
@@ -265,8 +265,8 @@
     },
     {
       "path": "src/lib/docGenerator.ts",
-      "bytes": 3134,
-      "sha256": "56fc190a71e04e6d36ee7cd52348f21fa6037f9e7a8d560113a4a642457126c1"
+      "bytes": 3534,
+      "sha256": "57aa6af7065991679dabe6dbced14a7491cce2c916e019d8487447adc2d169eb"
     },
     {
       "path": "src/lib/documentTemplates.ts",
@@ -545,8 +545,8 @@
     },
     {
       "path": "src/ui/pages/DocumentsGeneratorPage.tsx",
-      "bytes": 36082,
-      "sha256": "01f5035c5b9ba0dd94e75a8916d6eedd507cd16b535909bd48e30d70e18200d4"
+      "bytes": 36132,
+      "sha256": "84c0c298f69ae80d97ab53f1e19796b7099baa993a7fcde92f2032c1c6b8caea"
     },
     {
       "path": "src/ui/pages/DrivePage.tsx",
