@@ -26,3 +26,7 @@ dist-ssr
 # OpenClaw
 .clawhub
 .vercel
+
+# Local QA material and environment files stay out of this worktree's commits.
+/tmp/
+/.env*

@@ -15,7 +15,7 @@ export function PublicFooter() {
 
           <div>
             <div className="text-sm font-semibold text-white mb-3">Contato</div>
-            <div className="space-y-2 text-sm text-neutral-400">
+            <div className="legacy-space-y-2 text-sm text-neutral-400">
               <a href="mailto:advkarolldiogenes@gmail.com" className="block hover:text-brand-gold transition-colors">advkarolldiogenes@gmail.com</a>
               <a href="https://wa.me/5594984233181" target="_blank" rel="noreferrer" className="block hover:text-brand-gold transition-colors">(94) 98423-3181</a>
               <a href={BRAND.websiteUrl} className="block hover:text-brand-gold transition-colors">{new URL(BRAND.websiteUrl).hostname}</a>

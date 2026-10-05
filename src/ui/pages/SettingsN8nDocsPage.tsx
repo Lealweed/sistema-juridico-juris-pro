@@ -13,7 +13,7 @@ export function SettingsN8nDocsPage() {
       
       <Card className="mb-6">
         <h2 className="text-xl font-semibold mb-3 text-amber-400">Endpoints Disponíveis</h2>
-        <div className="space-y-3">
+        <div className="legacy-space-y-3">
           <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
             <div className="text-xs text-white/50 mb-1">Envio de mensagens (WhatsApp)</div>
             <code className="text-sm text-blue-300 font-mono select-all">{messagesSendUrl}</code>

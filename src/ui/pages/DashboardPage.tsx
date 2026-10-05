@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BRAND } from '@/lib/brand';
-import { Briefcase, DollarSign, Clock, AlertTriangle, CheckCircle2, CalendarDays, Users, Filter, Search } from 'lucide-react';
+import { Briefcase, DollarSign, Clock, AlertTriangle, CheckCircle2, CheckSquare, CalendarDays, Users, Filter, Search, ArrowRight, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { Hero1951 } from '@/components/ui/hero-195-1';
 import { fetchEscavadorProcesso, type BrasilApiProcesso } from '@/lib/datajud';
 import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { getWorkspaceVisual } from '@/lib/workspaceVisual';
+import { ClassicDashboardPage } from '../legacy/ClassicDashboardPage';
 
 import {
   Area,
@@ -131,14 +131,18 @@ function formatRadarDate(value: string) {
 }
 
 export function DashboardPage() {
+  return getWorkspaceVisual() === 'reference' ? <ReferenceDashboardPage /> : <ClassicDashboardPage />;
+}
+
+function ReferenceDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [counts, setCounts] = useState<{ clients: number; cases: number }>({ clients: 0, cases: 0 });
-  const [execCards, setExecCards] = useState<{ triagem: number; honorarios: number; tarefasPendentes: number }>({
-    triagem: 0,
-    honorarios: 0,
-    tarefasPendentes: 0,
+  const [execCards, setExecCards] = useState<{ triagem: number | null; honorarios: number | null; tarefasPendentes: number | null }>({
+    triagem: null,
+    honorarios: null,
+    tarefasPendentes: null,
   });
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
@@ -147,7 +151,8 @@ export function DashboardPage() {
   const [teamTasks, setTeamTasks] = useState<TeamTaskRow[]>([]);
   const [teamProfiles, setTeamProfiles] = useState<ProfileLite[]>([]);
   const [myTasksLite, setMyTasksLite] = useState<TeamTaskRow[]>([]);
-  const [trend, setTrend] = useState<{ day: string; criadas: number; concluidas: number }[]>([]);
+  const [trend, setTrend] = useState<{ day: string; criadas: number | null; concluidas: number | null }[]>([]);
+  const [trendUnavailable, setTrendUnavailable] = useState({ created: false, done: false });
   const [taskFilter, setTaskFilter] = useState<'all' | 'overdue' | 'today' | 'upcoming' | 'paused'>('all');
   const [radarCnj, setRadarCnj] = useState('');
   const [radarLoading, setRadarLoading] = useState(false);
@@ -228,28 +233,7 @@ export function DashboardPage() {
           sb.from('tasks').select('id', { count: 'exact', head: true }).in('status_v2', ['open', 'in_progress', 'paused']),
         ]);
 
-        // compute trend
-        try {
-          const createdMap = new Map<string, number>();
-          for (const d of days) createdMap.set(d, 0);
-          for (const r of (created14.data || []) as { created_at: string }[]) {
-            const d = toDateStr(new Date(r.created_at));
-            createdMap.set(d, (createdMap.get(d) || 0) + 1);
-          }
-          const doneMap = new Map<string, number>();
-          for (const d of days) doneMap.set(d, 0);
-          for (const r of (done14.data || []) as { done_at: string }[]) {
-            const d = toDateStr(new Date(r.done_at));
-            doneMap.set(d, (doneMap.get(d) || 0) + 1);
-          }
-          setTrend(days.map((d) => ({ day: d.slice(5), criadas: createdMap.get(d) || 0, concluidas: doneMap.get(d) || 0 })));
-        } catch {
-          setTrend([]);
-        }
-
-        setRole(roleNow);
-
-        if (c1.error || c2.error || t1.error || a1.error || myLite.error || created14.error || done14.error || teamT.error || teamP.error) {
+        if (c1.error || c2.error || t1.error || a1.error || myLite.error || teamT.error || teamP.error) {
           throw new Error(
             c1.error?.message ||
               c2.error?.message ||
@@ -264,6 +248,33 @@ export function DashboardPage() {
 
         if (!alive) return;
 
+        // An unavailable trend or executive indicator does not hide the work queue.
+        setTrendUnavailable({ created: Boolean(created14.error), done: Boolean(done14.error) });
+        try {
+          const createdMap = new Map<string, number>();
+          for (const d of days) createdMap.set(d, 0);
+          for (const r of (created14.data || []) as { created_at: string }[]) {
+            const d = toDateStr(new Date(r.created_at));
+            createdMap.set(d, (createdMap.get(d) || 0) + 1);
+          }
+          const doneMap = new Map<string, number>();
+          for (const d of days) doneMap.set(d, 0);
+          for (const r of (done14.data || []) as { done_at: string }[]) {
+            const d = toDateStr(new Date(r.done_at));
+            doneMap.set(d, (doneMap.get(d) || 0) + 1);
+          }
+          setTrend(days.map((d) => ({
+            day: d.slice(5),
+            criadas: created14.error ? null : createdMap.get(d) || 0,
+            concluidas: done14.error ? null : doneMap.get(d) || 0,
+          })));
+        } catch {
+          setTrend([]);
+          setTrendUnavailable({ created: true, done: true });
+        }
+
+        setRole(roleNow);
+
         setCounts({ clients: c1.count || 0, cases: c2.count || 0 });
 
         // Executive cards
@@ -272,9 +283,9 @@ export function DashboardPage() {
           0,
         );
         setExecCards({
-          triagem: execTriagem.count || 0,
-          honorarios: honorariosCents,
-          tarefasPendentes: execTarefas.count || 0,
+          triagem: execTriagem.error ? null : execTriagem.count ?? null,
+          honorarios: execHonorarios.error ? null : honorariosCents,
+          tarefasPendentes: execTarefas.error ? null : execTarefas.count ?? null,
         });
 
         setTasks((t1.data || []) as TaskRow[]);
@@ -365,60 +376,22 @@ export function DashboardPage() {
     }
 
     const statusData = [
-      { name: 'Aberto', key: 'open', value: statusCounts.get('open') || 0, color: '#f59e0b' },
-      { name: 'Andamento', key: 'in_progress', value: statusCounts.get('in_progress') || 0, color: '#93c5fd' },
-      { name: 'Pausado', key: 'paused', value: statusCounts.get('paused') || 0, color: '#fbbf24' },
-      { name: 'Concluído', key: 'done', value: statusCounts.get('done') || 0, color: '#86efac' },
-      { name: 'Cancelado', key: 'cancelled', value: statusCounts.get('cancelled') || 0, color: '#fca5a5' },
+      { name: 'Aberto', key: 'open', value: statusCounts.get('open') || 0, color: '#b49a68' },
+      { name: 'Andamento', key: 'in_progress', value: statusCounts.get('in_progress') || 0, color: '#172026' },
+      { name: 'Pausado', key: 'paused', value: statusCounts.get('paused') || 0, color: '#dac9a6' },
+      { name: 'Concluído', key: 'done', value: statusCounts.get('done') || 0, color: '#89a38c' },
+      { name: 'Cancelado', key: 'cancelled', value: statusCounts.get('cancelled') || 0, color: '#b9babe' },
     ].filter((x) => x.value > 0);
 
     const riskData = [
       { name: 'Atrasadas', value: risk.overdue, color: '#f87171' },
-      { name: 'Hoje', value: risk.today, color: '#f59e0b' },
-      { name: '48h', value: risk.due48, color: '#fbbf24' },
+      { name: 'Hoje', value: risk.today, color: '#b49a68' },
+      { name: '48h', value: risk.due48, color: '#dac9a6' },
       { name: 'Sem prazo', value: risk.noDue, color: '#a3a3a3' },
     ];
 
     return { statusData, riskData };
   }, [role, teamTasks, myTasksLite]);
-
-  const baseTasks = role === 'admin' ? teamTasks : myTasksLite;
-
-  const kpis = useMemo(() => {
-    let pending = 0;
-    let overdue = 0;
-    let paused = 0;
-    let today = 0;
-    let due48 = 0;
-
-    const now = Date.now();
-    for (const t of baseTasks) {
-      const st = (t.status_v2 || 'open') as string;
-      if (st === 'paused') paused += 1;
-      if (st !== 'done' && st !== 'cancelled') pending += 1;
-
-      if (t.due_at) {
-        const due = new Date(t.due_at).getTime();
-        const diffH = (due - now) / 36e5;
-        if (diffH < 0) overdue += 1;
-        else if (diffH <= 24) today += 1;
-        else if (diffH <= 48) due48 += 1;
-      }
-    }
-
-    const agendaToday = agenda.filter((a) => a.kind === 'deadline' ? (a.due_date || '') === todayStr : true).length;
-
-    return { pending, overdue, paused, today, due48, agendaToday };
-  }, [baseTasks, agenda, todayStr]);
-
-  const kpiCards = [
-    { label: 'Pendentes', value: kpis.pending, to: '/app/tarefas', tone: 'text-white', chip: 'Visão geral' },
-    { label: 'Atrasadas', value: kpis.overdue, to: '/app/tarefas', tone: 'text-red-200', chip: 'Atenção' },
-    { label: 'Pausadas', value: kpis.paused, to: '/app/tarefas', tone: 'text-amber-200', chip: 'Bloqueios' },
-    { label: 'Vencem hoje', value: kpis.today, to: '/app/tarefas', tone: 'text-white', chip: 'Urgente' },
-    { label: 'Próx. 48h', value: kpis.due48, to: '/app/tarefas', tone: 'text-white', chip: 'Janela crítica' },
-    { label: 'Agenda hoje', value: kpis.agendaToday, to: '/app/agenda', tone: 'text-white', chip: 'Compromissos' },
-  ] as const;
 
   const filteredTasks = useMemo(() => {
     if (taskFilter === 'all') return tasks;
@@ -495,440 +468,106 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(600px_200px_at_0%_0%,rgba(251,191,36,0.15),transparent_60%)]" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">{BRAND.name}</p>
-            <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Dashboard executivo</h1>
-            <p className="mt-1 text-sm text-white/60">Visão geral de clientes, casos, agenda e tarefas em tempo real.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link to="/app/clientes" className="btn-ghost !border-white/20 !bg-white/10">
-              Clientes
-            </Link>
-            <Link to="/app/casos" className="btn-ghost !border-white/20 !bg-white/10">
-              Casos
-            </Link>
-            <Link to="/app/tarefas" className="btn-primary shadow-[0_10px_30px_rgba(255,255,255,0.18)]">
-              Nova tarefa
-            </Link>
-          </div>
+    <div className="dashboard-reference legacy-space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#172026] sm:text-[28px]">Visão geral do escritório</h1>
+          <p className="mt-1 text-sm text-[#717778]">Clientes, processos e prioridades para organizar o seu dia.</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-md border border-[#e2e2dc] bg-white px-3 py-2.5 text-xs text-[#535d62]">
+          <CalendarDays className="size-4 text-[#927443]" />
+          {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
       </div>
-
-      {error ? <div className="text-sm text-red-200">{error}</div> : null}
-
-      {/* Executive KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {/* Card 1 — Casos em Triagem */}
-        <Link
-          to="/app/casos"
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-amber-500/15 via-white/10 to-white/5 p-5 transition-all hover:-translate-y-1 hover:border-amber-400/40 hover:shadow-[0_12px_40px_rgba(251,191,36,0.15)]"
-        >
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-amber-400/10 blur-2xl transition-all group-hover:bg-amber-400/20" />
-          <div className="relative flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/20">
-              <Briefcase size={20} />
+      {error ? <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Clientes cadastrados', value: counts.clients, icon: Users, to: '/app/clientes', caption: 'Cadastro do escritório' },
+          { label: 'Casos cadastrados', value: counts.cases, icon: Briefcase, to: '/app/casos', caption: execCards.triagem === null ? 'Triagem indisponível' : `${execCards.triagem} em triagem` },
+          role === 'admin'
+            ? { label: 'Receitas planejadas', value: execCards.honorarios === null ? null : (execCards.honorarios / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: DollarSign, to: '/app/financeiro', caption: 'Entradas planejadas carregadas' }
+            : { label: 'Agenda próxima', value: agenda.length, icon: CalendarDays, to: '/app/agenda', caption: 'Itens de agenda carregados' },
+          { label: 'Tarefas pendentes', value: execCards.tarefasPendentes, icon: CheckSquare, to: '/app/tarefas', caption: 'Abertas, em andamento e pausadas' },
+        ].map((item) => (
+          <Link key={item.label} to={item.to} className="dashboard-metric flex min-w-0 items-center gap-3 rounded-lg border border-[#e5e5e0] bg-white px-4 py-4 transition-colors hover:border-[#b49a68]">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-md bg-[#b49a68] text-white"><item.icon className="size-5" strokeWidth={1.7} /></div>
+            <div className="min-w-0">
+              <div className="text-xs font-medium text-[#535d62]">{item.label}</div>
+              <div className="mt-1 break-words text-[25px] font-bold leading-tight tracking-tight text-[#172026]">{loading || error || item.value === null ? '—' : item.value}</div>
+              <div className="mt-1 text-[10px] leading-relaxed text-[#8a8e91]">{loading ? 'Carregando dados...' : error || item.value === null ? 'Dados indisponíveis' : item.caption}</div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-200/80">Casos em Triagem</p>
-              <p className="mt-0.5 text-3xl font-bold text-white">{loading ? '—' : execCards.triagem}</p>
-            </div>
-          </div>
-          <div className="relative mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-300 transition-all"
-              style={{ width: `${Math.min(100, (execCards.triagem / Math.max(counts.cases, 1)) * 100)}%` }}
-            />
-          </div>
-        </Link>
-
-        {/* Card 2 — Honorários a Receber */}
-        <Link
-          to="/app/financeiro"
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/15 via-white/10 to-white/5 p-5 transition-all hover:-translate-y-1 hover:border-emerald-400/40 hover:shadow-[0_12px_40px_rgba(52,211,153,0.12)]"
-        >
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-400/10 blur-2xl transition-all group-hover:bg-emerald-400/20" />
-          <div className="relative flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-400/20">
-              <DollarSign size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-200/80">Honorários a Receber</p>
-              <p className="mt-0.5 text-3xl font-bold text-white">
-                {loading
-                  ? '—'
-                  : (execCards.honorarios / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </p>
-            </div>
-          </div>
-          <div className="relative mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all" />
-          </div>
-        </Link>
-
-        {/* Card 3 — Tarefas Pendentes */}
-        <Link
-          to="/app/tarefas"
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-sky-500/15 via-white/10 to-white/5 p-5 transition-all hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-[0_12px_40px_rgba(56,189,248,0.12)]"
-        >
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-sky-400/10 blur-2xl transition-all group-hover:bg-sky-400/20" />
-          <div className="relative flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/20">
-              <Clock size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-sky-200/80">Tarefas Pendentes</p>
-              <p className="mt-0.5 text-3xl font-bold text-white">{loading ? '—' : execCards.tarefasPendentes}</p>
-            </div>
-          </div>
-          <div className="relative mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-300 transition-all"
-              style={{ width: `${Math.min(100, execCards.tarefasPendentes * 5)}%` }}
-            />
-          </div>
-        </Link>
+          </Link>
+        ))}
       </div>
-
-      <Card className="border-white/15 bg-gradient-to-br from-[#0f1115] via-[#12161d] to-black shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-sm font-semibold text-white">Radar de Processos (Escavador)</div>
-            <div className="mt-1 text-xs text-white/60">
-              Consulte um processo em formato CNJ para inspecionar tribunal, última movimentação e status atual via Escavador.
-            </div>
-          </div>
-          <span className="badge border-amber-300/30 bg-amber-300/10 text-amber-100">API Escavador</span>
-        </div>
-
-        <form onSubmit={handleRadarSubmit} className="mt-4 flex flex-col gap-3 lg:flex-row">
-          <div className="flex-1">
-            <Input
-              value={radarCnj}
-              onChange={(event) => setRadarCnj(formatCnjInput(event.target.value))}
-              inputMode="numeric"
-              placeholder="0000000-00.0000.0.00.0000"
-              className="h-11 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/35"
-            />
-          </div>
-          <Button
-            type="submit"
-            disabled={radarLoading}
-            className="h-11 rounded-xl bg-amber-400 px-5 text-black hover:bg-amber-300 disabled:bg-amber-400/60"
-          >
-            <Search className="mr-2 size-4" />
-            {radarLoading ? 'Buscando...' : 'Buscar processo'}
-          </Button>
-        </form>
-
-        <div className="mt-2 text-[11px] text-white/45">
-          Formato aceito: XXXXXXX-XX.XXXX.X.XX.XXXX
-        </div>
-
-        {radarWarning ? <div className="mt-3 text-sm text-amber-200/90">{radarWarning}</div> : null}
-        {radarError ? <div className="mt-3 text-sm text-red-200">{radarError}</div> : null}
-
-        {radarResult ? (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-[0.18em] text-white/45">Processo</div>
-                <div className="mt-1 text-lg font-semibold text-white">{radarResult.numero}</div>
-              </div>
-              <span className="badge border-green-400/30 bg-green-400/10 text-green-200">
-                {radarResult.status}
-              </span>
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="text-[11px] uppercase tracking-wider text-white/45">Tribunal</div>
-                <div className="mt-1 text-sm font-medium text-amber-200">{radarResult.tribunal}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
-                <div className="text-[11px] uppercase tracking-wider text-white/45">Última movimentação</div>
-                <div className="mt-1 text-sm font-medium text-white">{radarResult.ultimoAndamento}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="text-[11px] uppercase tracking-wider text-white/45">Data</div>
-                <div className="mt-1 text-sm font-medium text-amber-200">{formatRadarDate(radarResult.dataUltimoAndamento)}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
-                <div className="text-[11px] uppercase tracking-wider text-white/45">Status</div>
-                <div className="mt-1 text-sm font-medium text-amber-200">{radarResult.status}</div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </Card>
-
-      <Hero1951 />
-
       <Tabs defaultValue="insights" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 rounded-2xl border border-white/15 bg-gradient-to-r from-white/10 to-white/5 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-          <TabsTrigger value="insights">Insights</TabsTrigger>
+        <TabsList className="dashboard-tabs flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-[#deded8] bg-transparent p-0">
+          <TabsTrigger value="insights">Visão geral</TabsTrigger>
           <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
           <TabsTrigger value="agenda">Agenda</TabsTrigger>
           <TabsTrigger value="equipe">Equipe</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="insights" className="mt-4 space-y-6">
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {kpiCards.map((k) => (
-              <Link
-                key={k.label}
-                to={k.to}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-4 transition-all hover:-translate-y-0.5 hover:border-amber-300/30 hover:from-white/15 hover:to-white/10"
-              >
-                <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-amber-300/10 blur-2xl transition-opacity group-hover:bg-amber-300/20" />
-                <div className="relative flex items-start justify-between gap-3">
-                  <div className="text-xs text-white/65">{k.label}</div>
-                  <span className="badge border-white/15 bg-white/5 text-[10px] text-white/70">{k.chip}</span>
-                </div>
-                <div className={`relative mt-2 text-2xl font-semibold ${k.tone}`}>{loading ? '—' : k.value}</div>
-                <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-300/50 to-white/40 transition-all group-hover:w-2/3" />
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-white">Esteira (14 dias)</div>
-                  <div className="text-xs text-white/60">Criadas vs Concluídas — se criadas &gt; concluídas, a fila cresce.</div>
-                </div>
-                <span className="badge border-amber-300/30 bg-amber-300/10 text-amber-100">Produtividade</span>
-              </div>
-
-              <div className="mt-4 h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trend}>
-                    <XAxis dataKey="day" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                    <Tooltip />
-                    <Legend />
-                    <Area type="monotone" dataKey="criadas" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.15} />
-                    <Area type="monotone" dataKey="concluidas" stroke="#86efac" fill="#86efac" fillOpacity={0.12} />
-                  </AreaChart>
-                </ResponsiveContainer>
+        <TabsContent value="insights" className="mt-4 legacy-space-y-4">
+          <div className="grid min-w-0 gap-3 lg:grid-cols-3">
+            <Card className="dashboard-card">
+              <h2 className="text-sm font-semibold">Tarefas por situação</h2>
+              <p className="mt-1 text-[11px] text-[#8a8e91]">Pendências carregadas · {role === 'admin' ? 'equipe' : 'acesso do usuário'}</p>
+              <div className="relative mt-2 h-[210px]">
+                {loading || error ? <div className="dashboard-chart-empty">{loading ? 'Carregando...' : 'Dados indisponíveis'}</div> : chartBase.statusData.length ? <>
+                  <ResponsiveContainer width="100%" height="100%"><PieChart>
+                    <Pie data={chartBase.statusData} dataKey="value" nameKey="name" isAnimationActive={false} innerRadius={54} outerRadius={76} paddingAngle={1} cy="43%">
+                      {chartBase.statusData.map((item) => <Cell key={item.key} fill={item.color} />)}
+                    </Pie><Tooltip /><Legend iconType="square" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
+                  </PieChart></ResponsiveContainer>
+                  <div className="pointer-events-none absolute left-1/2 top-[43%] -translate-x-1/2 -translate-y-1/2 text-center"><div className="text-2xl font-bold">{chartBase.statusData.reduce((sum, item) => sum + item.value, 0)}</div><div className="text-[10px] text-[#8a8e91]">tarefas</div></div>
+                </> : <div className="dashboard-chart-empty">Nenhuma tarefa pendente.</div>}
               </div>
             </Card>
-
-            <Card className="border-white/15 bg-gradient-to-b from-white/10 to-white/5">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-white">Atalhos</div>
-                <span className="badge">Ações rápidas</span>
+            <Card className="dashboard-card">
+              <h2 className="text-sm font-semibold">Tarefas criadas</h2><p className="mt-1 text-[11px] text-[#8a8e91]">Evolução nos últimos 14 dias</p>
+              <div className="mt-4 h-[190px]">
+                {loading || error || trendUnavailable.created ? <div className="dashboard-chart-empty">{loading ? 'Carregando...' : 'Dados indisponíveis'}</div> : <ResponsiveContainer width="100%" height="100%"><BarChart data={trend} margin={{ left: -22, right: 3, bottom: 0 }}>
+                  <XAxis dataKey="day" stroke="#969c9f" fontSize={10} tickLine={false} axisLine={{ stroke: '#e2e2dc' }} interval={3} /><YAxis allowDecimals={false} stroke="#969c9f" fontSize={10} tickLine={false} axisLine={false} /><Tooltip /><Bar name="Criadas" dataKey="criadas" isAnimationActive={false} fill="#b49a68" radius={[2, 2, 0, 0]} maxBarSize={22} />
+                </BarChart></ResponsiveContainer>}
               </div>
-              <div className="mt-3 grid gap-2">
-                <Link to="/app/tarefas/kanban" className="btn-primary">Kanban</Link>
-                <Link to="/app/agenda" className="btn-ghost">Agenda</Link>
-                <Link to="/app/casos" className="btn-ghost">Casos</Link>
+            </Card>
+            <Card className="dashboard-card">
+              <h2 className="text-sm font-semibold">Tarefas concluídas</h2><p className="mt-1 text-[11px] text-[#8a8e91]">Evolução nos últimos 14 dias</p>
+              <div className="mt-4 h-[190px]">
+                {loading || error || trendUnavailable.done ? <div className="dashboard-chart-empty">{loading ? 'Carregando...' : 'Dados indisponíveis'}</div> : <ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ left: -22, right: 3, bottom: 0 }}>
+                  <XAxis dataKey="day" stroke="#969c9f" fontSize={10} tickLine={false} axisLine={{ stroke: '#e2e2dc' }} interval={3} /><YAxis allowDecimals={false} stroke="#969c9f" fontSize={10} tickLine={false} axisLine={false} /><Tooltip /><Area name="Concluídas" type="monotone" dataKey="concluidas" isAnimationActive={false} stroke="#172026" fill="#172026" fillOpacity={0.08} strokeWidth={2} dot={{ r: 2 }} />
+                </AreaChart></ResponsiveContainer>}
               </div>
             </Card>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="text-xs text-white/60">Clientes</div>
-          <div className="mt-2 flex items-end justify-between gap-4">
-            <div className="text-3xl font-semibold text-white">{loading ? '—' : counts.clients}</div>
-            <Link className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs" to="/app/clientes">
-              Abrir
-            </Link>
-          </div>
-        </Card>
-        <Card>
-          <div className="text-xs text-white/60">Casos</div>
-          <div className="mt-2 flex items-end justify-between gap-4">
-            <div className="text-3xl font-semibold text-white">{loading ? '—' : counts.cases}</div>
-            <Link className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs" to="/app/casos">
-              Abrir
-            </Link>
-          </div>
-        </Card>
-      </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <div className="flex items-end justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-white">Saúde das tarefas</div>
-              <div className="text-xs text-white/60">Distribuição por status (pontos secos aparecem em Pausado/Atrasadas).</div>
+          <Card className="dashboard-card">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-semibold">Fila de trabalho</h2><p className="mt-1 text-[11px] text-[#8a8e91]">Até 12 pendências carregadas, organizadas por prazo</p></div><Link to="/app/tarefas/kanban" className="dashboard-action"><Plus className="size-3.5" />Abrir Kanban</Link></div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { name: 'Atrasadas', rows: taskSections.overdue, tone: 'bg-[#fae7e3] text-[#9c493c]' },
+                { name: 'Próximas 24h', rows: taskSections.today, tone: 'bg-[#f7edcf] text-[#87682f]' },
+                { name: 'Próximos dias', rows: taskSections.upcoming, tone: 'bg-[#e8edf2] text-[#4d6176]' },
+                { name: 'Sem prazo', rows: taskSections.noDue, tone: 'bg-[#e9eae8] text-[#596262]' },
+              ].map((column) => <div key={column.name} className="min-w-0 rounded-md border border-[#ecece7] bg-[#fafaf8]"><div className={`flex items-center justify-between rounded-t-md px-3 py-2 text-xs font-semibold ${column.tone}`}><span>{column.name}</span><span>{loading || error ? '—' : column.rows.length}</span></div><div className="p-2">
+                {loading || error ? <p className="p-2 text-xs text-[#8a8e91]">{loading ? 'Carregando...' : 'Dados indisponíveis'}</p> : column.rows.length ? column.rows.slice(0, 3).map((task) => <Link key={task.id} to={`/app/tarefas/${task.id}`} className="block border-b border-[#ecece7] px-2 py-2.5 last:border-0 hover:bg-white"><div className="truncate text-xs font-semibold text-[#253037]">{task.title}</div><div className="mt-1 truncate text-[11px] text-[#8a8e91]">{task.client?.[0]?.name || task.case?.[0]?.title || 'Tarefa do escritório'}</div><div className="mt-1 text-[10px] text-[#8a8e91]">{fmtShort(task.due_at)}</div></Link>) : <p className="p-2 text-xs text-[#8a8e91]">Nenhuma pendência.</p>}
+              </div></div>)}
             </div>
+          </Card>
+          <div className="grid gap-3 lg:grid-cols-3">
+            <Card className="dashboard-card"><div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Próximas tarefas</h2><Link to="/app/tarefas" className="text-[11px] text-[#927443] hover:underline">Ver todas</Link></div><div className="mt-3 legacy-space-y-3">
+              {!loading && !error && tasks.length === 0 ? <p className="text-xs text-[#8a8e91]">Nenhuma tarefa pendente.</p> : null}
+              {tasks.slice(0, 3).map((task) => <Link key={task.id} to={`/app/tarefas/${task.id}`} className="flex items-start gap-2.5"><CheckSquare className="mt-0.5 size-4 shrink-0 text-[#8a8e91]" strokeWidth={1.5} /><div className="min-w-0 flex-1"><div className="truncate text-xs font-medium">{task.title}</div><div className="mt-1 text-[11px] text-[#8a8e91]">{fmtShort(task.due_at)}</div></div>{dueKind(task.due_at) ? <span className={dueKind(task.due_at)!.cls}>{dueKind(task.due_at)!.label}</span> : null}</Link>)}
+            </div></Card>
+            <Card className="dashboard-card"><div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Prazos e compromissos</h2><Link to="/app/agenda" className="text-[11px] text-[#927443] hover:underline">Ver todos</Link></div><div className="mt-3 legacy-space-y-3">
+              {!loading && !error && agenda.length === 0 ? <p className="text-xs text-[#8a8e91]">Nenhum item agendado.</p> : null}
+              {agenda.slice(0, 3).map((item) => <Link key={item.id} to="/app/agenda" className="flex items-start gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#f0e9db] text-[#927443]"><CalendarDays className="size-4" /></span><div className="min-w-0"><div className="truncate text-xs font-medium">{item.title}</div><div className="mt-1 text-[11px] text-[#8a8e91]">{item.kind === 'deadline' ? `Prazo · ${item.due_date?.split('-').reverse().join('/') || '—'}` : fmtShort(item.starts_at)}</div></div></Link>)}
+            </div></Card>
+            <Card className="dashboard-card"><h2 className="text-sm font-semibold">Acesso rápido</h2><div className="mt-3 legacy-space-y-2">
+              {[['/app/tarefas', 'Tarefas e prazos'], ['/app/clientes', 'Cadastro de clientes'], ['/app/documentos/gerar', 'Gerar documentos'], ['/app/casos', 'Casos e processos']].map(([to, label]) => <Link key={to} to={to} className="flex items-center justify-between rounded-md border border-[#e8e8e3] px-3 py-2 text-xs text-[#535d62] hover:border-[#b49a68]">{label}<ArrowRight className="size-3.5 text-[#927443]" /></Link>)}
+            </div></Card>
           </div>
-
-          <div className="mt-4 h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={chartBase.statusData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90} paddingAngle={3}>
-                  {chartBase.statusData.map((e, idx) => (
-                    <Cell key={idx} fill={e.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-white">Risco / Gargalos</div>
-              <div className="text-xs text-white/60">Atrasadas, hoje, 48h e sem prazo.</div>
-            </div>
-          </div>
-
-          <div className="mt-4 h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartBase.riskData}>
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="value">
-                  {chartBase.riskData.map((e, idx) => (
-                    <Cell key={idx} fill={e.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      {/* Heavy finance charts removed from Dashboard to keep mobile fast. */}
-
-      {teamStats ? (
-        <Card>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-white">Equipe (gestão)</div>
-              <div className="text-xs text-white/60">Pendências por responsável (admin).</div>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-white/80">
-                Críticas (48h): <span className="text-amber-200">{teamStats.due48All}</span>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-semibold text-white/80">
-                Atrasadas: <span className="text-red-200">{teamStats.overdueAll}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            {teamStats.rows.slice(0, 8).map((r) => (
-              <div key={r.userId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-gradient-to-r from-white/10 to-white/5 p-3">
-                <div className="text-sm font-semibold text-white">{r.label}</div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="badge border-white/20 bg-white/10">{r.total} abertas</span>
-                  {r.due48 ? <span className="badge badge-gold">{r.due48} (48h)</span> : null}
-                  {r.overdue ? <span className="badge border-red-400/30 bg-red-400/10 text-red-200">{r.overdue} atras.</span> : null}
-                </div>
-              </div>
-            ))}
-            {teamStats.rows.length === 0 ? <div className="text-sm text-white/60">Sem tarefas pendentes.</div> : null}
-          </div>
-        </Card>
-      ) : null}
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-white">Lembretes de tarefas</div>
-              <div className="text-xs text-white/60">Atrasadas · hoje · próximas</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link to="/app/tarefas/kanban" className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
-                Kanban
-              </Link>
-              <Link to="/app/tarefas" className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
-                Ver todas
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            {loading ? <div className="text-sm text-white/70">Carregando…</div> : null}
-            {!loading && tasks.length === 0 ? <div className="text-sm text-white/60">Nada pendente.</div> : null}
-            {tasks.map((t) => {
-              const due = dueKind(t.due_at);
-              return (
-                <Link
-                  key={t.id}
-                  to={`/app/tarefas/${t.id}`}
-                  className="rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="text-sm font-semibold text-white">{t.title}</div>
-                    <div className="flex items-center gap-2">
-                      {due ? <span className={due.cls}>{due.label}</span> : null}
-                      <span className={badgeStatus(t.status_v2)}>{t.status_v2}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 grid gap-1 text-xs text-white/60">
-                    <div>
-                      Prazo: <span className="text-white/80">{t.due_at ? fmtShort(t.due_at) : '—'}</span> · Prioridade:{' '}
-                      <span className="text-white/80">{t.priority}</span>
-                    </div>
-                    {t.client?.[0] ? (
-                      <div>
-                        Cliente: <span className="text-white/80">{t.client[0].name}</span>
-                      </div>
-                    ) : null}
-                    {t.case?.[0] ? (
-                      <div>
-                        Caso: <span className="text-white/80">{t.case[0].title}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-white">Agenda</div>
-              <div className="text-xs text-white/60">Próximos itens</div>
-            </div>
-            <Link to="/app/agenda" className="btn-ghost !rounded-lg !px-3 !py-1.5 !text-xs">
-              Abrir agenda
-            </Link>
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            {loading ? <div className="text-sm text-white/70">Carregando…</div> : null}
-            {!loading && agenda.length === 0 ? <div className="text-sm text-white/60">Nada agendado.</div> : null}
-            {agenda.map((a) => (
-              <Link key={a.id} to="/app/agenda" className="rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10">
-                <div className="text-sm font-semibold text-white">
-                  {a.title}{' '}
-                  <span className={a.kind === 'deadline' ? 'badge badge-gold' : 'badge'}>
-                    {a.kind === 'deadline' ? 'Prazo' : 'Compromisso'}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-white/60">
-                  {a.kind === 'deadline' ? `Data: ${a.due_date || '—'}` : `Início: ${fmtShort(a.starts_at)}`}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Card>
-          </div>
+          <p className="text-[10px] text-[#8a8e91]">Os gráficos usam as tarefas acessíveis nesta conta e os limites de carregamento do painel.</p>
         </TabsContent>
-
-        <TabsContent value="tarefas" className="mt-4 space-y-4">
+        <TabsContent value="tarefas" className="mt-4 legacy-space-y-4">
           <Card>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -1018,7 +657,7 @@ export function DashboardPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="agenda" className="mt-4 space-y-4">
+        <TabsContent value="agenda" className="mt-4 legacy-space-y-4">
           <Card>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -1099,7 +738,7 @@ export function DashboardPage() {
           })}
         </TabsContent>
 
-        <TabsContent value="equipe" className="mt-4 space-y-4">
+        <TabsContent value="equipe" className="mt-4 legacy-space-y-4">
           {role === 'admin' ? (
             <>
               <Card>
@@ -1135,8 +774,8 @@ export function DashboardPage() {
                   <div className="mt-4 h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={teamWorkload} layout="vertical">
-                        <XAxis type="number" stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                        <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.5)" fontSize={11} width={90} />
+                        <XAxis type="number" stroke="#969c9f" fontSize={12} />
+                        <YAxis dataKey="name" type="category" stroke="#969c9f" fontSize={11} width={90} />
                         <Tooltip />
                         <Legend />
                         <Bar dataKey="abertas" stackId="a" fill="#93c5fd" name="Abertas" />
@@ -1221,6 +860,83 @@ export function DashboardPage() {
           )}
         </TabsContent>
       </Tabs>
+      <details className="rounded-lg border border-[#e5e5e0] bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#535d62]">Consultar processo no Escavador</summary>
+        <div className="px-1 pb-1">
+      <Card className="dashboard-card">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-white">Radar de Processos (Escavador)</div>
+            <div className="mt-1 text-xs text-white/60">
+              Consulte um processo em formato CNJ para inspecionar tribunal, última movimentação e status atual via Escavador.
+            </div>
+          </div>
+          <span className="badge border-amber-300/30 bg-amber-300/10 text-amber-100">API Escavador</span>
+        </div>
+
+        <form onSubmit={handleRadarSubmit} className="mt-4 flex flex-col gap-3 lg:flex-row">
+          <div className="flex-1">
+            <Input
+              value={radarCnj}
+              onChange={(event) => setRadarCnj(formatCnjInput(event.target.value))}
+              inputMode="numeric"
+              placeholder="0000000-00.0000.0.00.0000"
+              className="h-11 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/35"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={radarLoading}
+            className="h-11 rounded-xl bg-amber-400 px-5 text-black hover:bg-amber-300 disabled:bg-amber-400/60"
+          >
+            <Search className="mr-2 size-4" />
+            {radarLoading ? 'Buscando...' : 'Buscar processo'}
+          </Button>
+        </form>
+
+        <div className="mt-2 text-[11px] text-white/45">
+          Formato aceito: XXXXXXX-XX.XXXX.X.XX.XXXX
+        </div>
+
+        {radarWarning ? <div className="mt-3 text-sm text-amber-200/90">{radarWarning}</div> : null}
+        {radarError ? <div className="mt-3 text-sm text-red-200">{radarError}</div> : null}
+
+        {radarResult ? (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-white/45">Processo</div>
+                <div className="mt-1 text-lg font-semibold text-white">{radarResult.numero}</div>
+              </div>
+              <span className="badge border-green-400/30 bg-green-400/10 text-green-200">
+                {radarResult.status}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Tribunal</div>
+                <div className="mt-1 text-sm font-medium text-amber-200">{radarResult.tribunal}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Última movimentação</div>
+                <div className="mt-1 text-sm font-medium text-white">{radarResult.ultimoAndamento}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Data</div>
+                <div className="mt-1 text-sm font-medium text-amber-200">{formatRadarDate(radarResult.dataUltimoAndamento)}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
+                <div className="text-[11px] uppercase tracking-wider text-white/45">Status</div>
+                <div className="mt-1 text-sm font-medium text-amber-200">{radarResult.status}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
+        </div>
+      </details>
     </div>
   );
 }

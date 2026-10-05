@@ -13,6 +13,9 @@ const rules = fs.readFileSync(path.join(root, '.vercelignore'), 'utf8');
 const matcher = ignore().add(rules);
 const git = (...args) => execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, ...args], { cwd: root, encoding: 'utf8' }).trim();
 const includeCases = ['src/lib/receipts.ts', 'api/public/submit-lead.ts', 'api/integrations/escavador/processos.ts', 'public/hero-bg.mp4', 'public/brand/lima-diogenes-logo-dark.png', 'public/templates/PROCURAÇÃO.docx', 'package.json', 'package-lock.json', 'tsconfig.app.json', 'vite.config.ts', 'vercel.json', '.vercelignore'];
+includeCases.push(...(fs.existsSync(path.join(root, 'tailwind.config.cjs'))
+  ? ['tailwind.config.cjs', 'tailwind.legacy-theme.json']
+  : ['tailwind.config.js']));
 const excludeCases = ['.git', '.git/config', '.vercel/project.json', '.env', '.env.example', '.env.production.local', 'node_modules/pkg/index.js', 'tmp/qa.json', 'dist/index.html', 'update_n8n_flow.js', 'cliente google email advkarolldioge.md', 'schema.sql', 'supabase/functions/provision-staff/index.ts', 'modelos-de_documentos/RECIBO (2).docx', 'docs/audits/private.md', 'scripts/verify-preview-source.mjs', 'public/templates/README.md'];
 for (const prefix of ['src', 'api', 'public']) {
   excludeCases.push(...['.git/config', '.vercel/project.json', '.env.local', 'node_modules/pkg/index.js', 'tmp/private.json', 'dist/index.html', 'backup/old.ts', 'backups/old.ts', 'private/config.json', 'logs/access.log', 'update_n8n_flow.js', 'cliente google email teste.md', 'db.sql', 'db.dump', 'db.sqlite', 'key.pem', 'key.key', 'archive.zip', 'old.ts.bak', 'old.ts.backup'].map(p => `${prefix}/${p}`));
@@ -62,12 +65,21 @@ const receipt = entries.find(e => e.path === 'src/lib/receipts.ts');
 assert.equal(receipt.sha256, 'bda16cdbdad9684a011dc76f88d201b50c614c52d02bc8ace961462fc658be3a', 'Receipt parser differs from the verified transport fixture');
 const projectPath = path.join(root, '.vercel', 'project.json');
 const localProject = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-assert.deepEqual(Object.keys(localProject).sort(), ['orgId', 'projectId', 'projectName']);
+assert.deepEqual(localProject, {
+  projectId: 'prj_RT4saSl2wdhp3yNFNlyxTzkDaHz7',
+  orgId: 'team_y35fbHQP9VHZ6K0Ft02Swbds',
+  projectName: 'sistema-juridico-juris-pro',
+}, 'Local linkage must identify the verified law-office project');
+const localSourceChanges = git('diff', '--name-only', 'HEAD').split(/\r?\n/).filter(name => selected.has(name));
+const newSourceFiles = git('ls-files', '--others', '--exclude-standard', '--', 'src', 'api', 'public', 'tailwind.config.cjs', 'tailwind.legacy-theme.json').split(/\r?\n/).filter(name => selected.has(name));
 const manifest = {
   format: 'local-preview-source-selection-v1',
   generatedAt: new Date().toISOString(),
   branch: git('branch', '--show-current'),
   gitHead: git('rev-parse', 'HEAD'),
+  hasLocalSourceChanges: Boolean(localSourceChanges.length || newSourceFiles.length),
+  trackedSourceChangeCount: localSourceChanges.length,
+  newSourceFileCount: newSourceFiles.length,
   localProject,
   ruleSource: '.vercelignore',
   matcher: { package: 'ignore', version: JSON.parse(fs.readFileSync(path.join(root, 'node_modules', 'ignore', 'package.json'), 'utf8')).version },
@@ -83,4 +95,4 @@ const manifest = {
 const destination = path.join(root, 'docs', 'release', '2026-10-05-preview-source-manifest.json');
 fs.mkdirSync(path.dirname(destination), { recursive: true });
 fs.writeFileSync(destination, JSON.stringify(manifest, null, 2) + '\n');
-console.log(JSON.stringify({ manifest: path.relative(root, destination).replaceAll('\\', '/'), gitHead: manifest.gitHead, files: manifest.fileCount, bytes: manifest.totalBytes, checkedLocalImports, requiredPathCases: includeCases.length, excludedPathCases: excludeCases.length, sourceSetSha256: manifest.sourceSetSha256, receiptSha256: receipt.sha256, localProject }, null, 2));
+console.log(JSON.stringify({ manifest: path.relative(root, destination).replaceAll('\\', '/'), gitHead: manifest.gitHead, hasLocalSourceChanges: manifest.hasLocalSourceChanges, files: manifest.fileCount, bytes: manifest.totalBytes, checkedLocalImports, requiredPathCases: includeCases.length, excludedPathCases: excludeCases.length, sourceSetSha256: manifest.sourceSetSha256, receiptSha256: receipt.sha256, localProject }, null, 2));

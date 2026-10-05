@@ -49,7 +49,7 @@ export function NotificationsPage() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <Card className="overflow-hidden border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

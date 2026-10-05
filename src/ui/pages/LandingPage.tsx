@@ -159,7 +159,7 @@ export function LandingPage() {
               <div className="absolute -inset-10 rounded-[40px] bg-[radial-gradient(circle_at_50%_50%,rgba(212,175,55,0.12),transparent_60%)] blur-3xl" />
 
               <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] backdrop-blur-xl">
-                <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+                <div className="mb-8 flex flex-col items-center justify-center legacy-space-y-4">
                   <div className="grid size-20 place-items-center rounded-2xl bg-gradient-to-br from-brand-gold/20 to-brand-gold/5 text-3xl font-serif text-brand-gold shadow-inner border border-brand-gold/10">
                     LD
                   </div>
@@ -207,7 +207,7 @@ export function LandingPage() {
               
               <div className="text-xl font-serif text-neutral-900">{a.title}</div>
               
-              <div className="mt-6 space-y-3">
+              <div className="mt-6 legacy-space-y-3">
                 {a.items.map((it) => (
                   <div key={it} className="flex items-start gap-3">
                     <span className="mt-1.5 flex size-1.5 shrink-0 rounded-full bg-gold/60" />
@@ -429,7 +429,7 @@ export function LandingPage() {
                 Envie uma mensagem descrevendo brevemente seu cenário. Retornaremos com agilidade para analisar a viabilidade do atendimento.
               </p>
 
-              <div className="mt-10 space-y-6">
+              <div className="mt-10 legacy-space-y-6">
                 <div className="flex items-start gap-4">
                   <div className="mt-1 text-gold">✦</div>
                   <div>

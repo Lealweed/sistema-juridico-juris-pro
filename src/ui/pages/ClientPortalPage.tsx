@@ -805,7 +805,7 @@ export function ClientPortalPage() {
         </nav>
         <div className="flex-1 w-full px-1 pb-28 pt-4 sm:px-0 md:rounded-2xl md:border md:border-white/10 md:bg-white/5 md:px-4 md:py-6 md:mt-4 md:mb-4 min-h-[60vh]">
           {showLegacyCards && (
-            <div className="space-y-6">
+            <div className="legacy-space-y-6">
               <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
                 <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
                 <div className="text-sm text-white/80 min-h-[32px]">{clientNotes}</div>
@@ -822,7 +822,7 @@ export function ClientPortalPage() {
             </div>
           )}
           {showLegacyCards && (
-            <div className="space-y-6">
+            <div className="legacy-space-y-6">
               <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
                 <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
                 <div className="text-sm text-white/80 min-h-[32px]">{clientNotes}</div>
@@ -839,7 +839,7 @@ export function ClientPortalPage() {
             </div>
           )}
           {tab === 'home' && (
-            <div className="space-y-6">
+            <div className="legacy-space-y-6">
               <div className="rounded-xl border border-amber-300/30 bg-amber-400/5 p-4">
                 <div className="font-semibold text-white mb-1">Aviso do Advogado</div>
                 <div className="text-sm text-white/80 min-h-[32px]">{clientNotes}</div>
@@ -856,7 +856,7 @@ export function ClientPortalPage() {
             </div>
           )}
           {tab === 'drive' && (
-            <div className="space-y-6">
+            <div className="legacy-space-y-6">
               <label className={`relative flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${uploading ? 'border-amber-400/40 bg-amber-400/5' : 'border-white/15 bg-white/5 hover:border-amber-300/40 hover:bg-white/10'}`}>
                 <Upload className={`size-8 ${uploading ? 'animate-bounce text-amber-400' : 'text-white/40'}`} />
                 <span className="text-sm font-medium text-white">{uploading ? 'Enviando...' : 'Anexar Documentos'}</span>
@@ -881,7 +881,7 @@ export function ClientPortalPage() {
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-2">Meus Arquivos</div>
                 {docsLoading ? <div className="text-white/40 text-sm">Carregando...</div> : documents.length > 0 ? (
-                  <ul className="space-y-2">
+                  <ul className="legacy-space-y-2">
                     {documents.map((doc) => (
                       <li key={doc.id} className="flex items-center gap-2 text-sm text-white/80">
                         <FileText className="size-4 text-amber-300" />
@@ -894,11 +894,11 @@ export function ClientPortalPage() {
             </div>
           )}
           {tab === 'finance' && (
-            <div className="space-y-6">
+            <div className="legacy-space-y-6">
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-2">Meus Recibos</div>
                 {receiptsLoading ? <div className="text-white/40 text-sm">Carregando...</div> : receipts.length > 0 ? (
-                  <ul className="space-y-3">
+                  <ul className="legacy-space-y-3">
                     {receipts.map((r) => (
                       <li key={r.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-white/5 pb-2">
                         <div>
@@ -924,7 +924,7 @@ export function ClientPortalPage() {
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="font-semibold text-white mb-2">Financeiro</div>
                 {financeLoading ? <div className="text-white/40 text-sm">Carregando...</div> : transactions.length > 0 ? (
-                  <ul className="space-y-3">
+                  <ul className="legacy-space-y-3">
                     {transactions.map((tx) => (
                       <li key={tx.id} className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
                         <div>
@@ -972,7 +972,7 @@ export function ClientPortalPage() {
                   ) : null}
                 </div>
               ) : null}
-              <div ref={messagesWrapRef} className="flex-1 overflow-y-auto space-y-3 mb-2 pr-1 max-h-[50vh]">
+              <div ref={messagesWrapRef} className="flex-1 overflow-y-auto legacy-space-y-3 mb-2 pr-1 max-h-[50vh]">
                 {messagesError && (
                   <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">
                     {messagesError}

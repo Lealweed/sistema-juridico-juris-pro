@@ -365,7 +365,7 @@ export function FinancePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(500px_180px_at_0%_0%,rgba(251,191,36,0.15),transparent_60%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">

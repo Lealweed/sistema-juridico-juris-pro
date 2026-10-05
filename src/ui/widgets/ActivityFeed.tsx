@@ -6,7 +6,7 @@ export function ActivityFeed() {
   ];
 
   return (
-    <div className="mt-3 space-y-2">
+    <div className="mt-3 legacy-space-y-2">
       {items.map((it) => (
         <div key={it.when + it.text} className="rounded-xl border border-white/10 bg-white/5 p-3">
           <div className="text-xs text-white/50">{it.when}</div>

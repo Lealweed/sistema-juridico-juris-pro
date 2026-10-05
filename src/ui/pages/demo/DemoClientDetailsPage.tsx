@@ -22,7 +22,7 @@ export function DemoClientDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div>
         <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs text-amber-200">
           MODO DEMONSTRAÇÃO
@@ -61,7 +61,7 @@ export function DemoClientDetailsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <div className="text-sm font-semibold text-white">Casos vinculados</div>
-          <ul className="mt-3 space-y-2 text-sm">
+          <ul className="mt-3 legacy-space-y-2 text-sm">
             {client.cases.map((x) => (
               <li key={x} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white/80">
                 {x}
@@ -72,7 +72,7 @@ export function DemoClientDetailsPage() {
 
         <Card>
           <div className="text-sm font-semibold text-white">Últimas mensagens</div>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 legacy-space-y-2">
             {client.messages.map((m, i) => (
               <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <div className="text-xs text-white/50">{m.when}</div>

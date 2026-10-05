@@ -112,7 +112,7 @@ export function LeadForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-xl space-y-5">
+    <form onSubmit={handleSubmit} className="mx-auto max-w-xl legacy-space-y-5">
       {/* Nome */}
       <div>
         <label htmlFor="lead-name" className="mb-1.5 block text-sm font-medium text-neutral-700">

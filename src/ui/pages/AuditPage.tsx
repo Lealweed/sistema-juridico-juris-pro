@@ -125,7 +125,7 @@ export function AuditPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Smart Audit & Segurança</h1>
         <p className="text-sm text-white/60">Linha do tempo inteligente de rastreio. Veja quem fez o que, quando e onde no sistema.</p>
@@ -227,7 +227,7 @@ export function AuditPage() {
 
                       {h.changes.length ? (
                         <div className="mt-3 bg-black/20 rounded-lg p-3 border border-white/5">
-                          <ul className="space-y-1.5 text-xs text-white/70">
+                          <ul className="legacy-space-y-1.5 text-xs text-white/70">
                             {h.changes.map((c, i) => {
                               // Highlights para exclusões ou valores financeiros
                               const isVal = c.includes('R$');

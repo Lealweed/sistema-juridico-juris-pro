@@ -9,7 +9,7 @@ export function MembersSettingsPage() {
   const [tab, setTab] = useState<TabKey>('informacoes');
 
   return (
-    <div className="space-y-4">
+    <div className="legacy-space-y-4">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

@@ -399,7 +399,7 @@ export function ActivityReportPage() {
   // admins are redirected to management view
   if (isAdmin) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
+      <div className="mx-auto max-w-2xl legacy-space-y-6 px-4 py-10">
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 px-6 py-4 text-sm text-amber-200">
           Como gestor, você visualiza os relatórios da equipe em{' '}
           <a href="/app/relatorios-equipe" className="underline underline-offset-2">
@@ -412,7 +412,7 @@ export function ActivityReportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+    <div className="mx-auto max-w-3xl legacy-space-y-8 px-4 py-8">
       {/* page header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Relatório de Atividades</h1>
@@ -485,7 +485,7 @@ export function ActivityReportPage() {
       )}
 
       {/* activity list */}
-      <div className="space-y-3">
+      <div className="legacy-space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">
             Atividades{' '}
@@ -572,7 +572,7 @@ export function ActivityReportPage() {
 
       {/* history */}
       {history.length > 0 && (
-        <div className="space-y-3">
+        <div className="legacy-space-y-3">
           <h2 className="text-sm font-semibold text-white">Histórico</h2>
           {history.map((r) => (
             <HistoryItem

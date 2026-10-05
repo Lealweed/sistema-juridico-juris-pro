@@ -279,7 +279,7 @@ export function MemberPortalPage() {
       {loadingProfile ? (
         <div className="text-white/50 text-sm mt-10">Carregando perfil...</div>
       ) : profile ? (
-        <div className="w-full max-w-xl space-y-4">
+        <div className="w-full max-w-xl legacy-space-y-4">
           {/* Identificação */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex items-center gap-4">
             <div className="size-14 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center shrink-0">

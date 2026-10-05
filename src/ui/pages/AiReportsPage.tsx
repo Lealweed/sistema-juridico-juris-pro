@@ -4,6 +4,7 @@ import { Card } from '@/ui/widgets/Card';
 import { apiFetch } from '@/lib/apiClient';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { getErrorMessage } from '@/lib/errors';
+import { BRAND } from '@/lib/brand';
 
 type TaskLite = {
   id: string;
@@ -238,7 +239,7 @@ export function AiReportsPage() {
       const paidAmount = weeklyPaidFinance.reduce((acc, item) => acc + Number(item.amount_cents || 0), 0) / 100;
 
       const summary = [
-        '📊 *Fechamento Semanal - Lima Lopes & Diógenes*',
+        `📊 *Fechamento Semanal - ${BRAND.name}*`,
         `✅ Tarefas Concluídas: ${weeklyTasks.length}`,
         `🚀 Novos Casos: ${weeklyCases.length}`,
         `💰 Faturamento (Pago): R$ ${paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -293,7 +294,7 @@ export function AiReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Relatórios internos</h1>
         <p className="text-sm text-white/60">Produtividade semanal, visão operacional e resumo executivo.</p>
@@ -341,7 +342,7 @@ export function AiReportsPage() {
           {loading ? (
             <div className="mt-3 text-sm text-white/70">Carregando…</div>
           ) : (
-            <div className="mt-3 space-y-2 text-sm text-white/80">
+            <div className="mt-3 legacy-space-y-2 text-sm text-white/80">
               <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">Receitas pagas: <strong>R$ {report.weekIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">Despesas pagas: <strong>R$ {report.weekExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">Saldo líquido: <strong className={report.net >= 0 ? 'text-emerald-300' : 'text-red-200'}>R$ {report.net.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>

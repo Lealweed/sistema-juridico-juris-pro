@@ -7,8 +7,10 @@ import './index.css';
 import { AppRouter } from './router/AppRouter';
 import { AuthProvider } from '@/auth/authStore';
 import { initTheme } from '@/lib/theme';
+import { initializeWorkspaceVisual } from '@/lib/workspaceVisual';
 
 initTheme();
+initializeWorkspaceVisual();
 
 const queryClient = new QueryClient({
   defaultOptions: {

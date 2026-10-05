@@ -247,7 +247,7 @@ function DetailsDrawer({
         </div>
 
         {/* body */}
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+        <div className="flex-1 legacy-space-y-6 overflow-y-auto px-6 py-6">
           {/* Status banner + tipo de dados */}
           <div className={cn('flex items-center gap-3 rounded-2xl border px-5 py-3.5', statusBadge(localStatus))}>
             <span className="text-sm font-bold">{statusLabel(localStatus)}</span>
@@ -271,7 +271,7 @@ function DetailsDrawer({
             const drillCards: Array<{ key: 'total' | 'concluidas' | 'pendentes'; label: string; value: number; activeClass: string }> = [
               { key: 'total', label: 'Total', value: report.total_tasks, activeClass: 'border-amber-400/50 bg-amber-400/10 ring-1 ring-amber-400/30' },
               { key: 'concluidas', label: 'Concluídas', value: report.completed_tasks, activeClass: 'border-emerald-400/50 bg-emerald-400/10 ring-1 ring-emerald-400/30' },
-              { key: 'pendentes', label: 'Pendentes', value: report.pending_tasks, activeClass: 'border-red-400/40 bg-red-400/8 ring-1 ring-red-400/25' },
+              { key: 'pendentes', label: 'Pendentes', value: report.pending_tasks, activeClass: 'border-red-400/40  ring-1 ring-red-400/25' },
             ];
             const filtered = drillFilter === 'total'
               ? report.activities
@@ -354,7 +354,7 @@ function DetailsDrawer({
                       </p>
                     </div>
                   ) : (
-                    <ul className="space-y-2">
+                    <ul className="legacy-space-y-2">
                       {filtered.map((act, idx) => (
                         <li key={idx} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                           <div className="flex items-start gap-3">
@@ -475,7 +475,7 @@ function DetailsDrawer({
               <Clock className="h-3.5 w-3.5" />
               Linha do Tempo
             </h3>
-            <ol className="relative ml-2 space-y-4 border-l border-white/10 pb-1">
+            <ol className="relative ml-2 legacy-space-y-4 border-l border-white/10 pb-1">
               {timelineEvents.map((e) => (
                 <li key={e.label} className="ml-4">
                   <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border border-white/20 bg-neutral-900" />
@@ -488,7 +488,7 @@ function DetailsDrawer({
         </div>
 
         {/* footer — ações */}
-        <div className="shrink-0 border-t border-white/10 px-6 py-4 space-y-3">
+        <div className="shrink-0 border-t border-white/10 px-6 py-4 legacy-space-y-3">
           {pendingAction === null ? (
             <div className="flex gap-3">
               <button
@@ -509,7 +509,7 @@ function DetailsDrawer({
               </button>
             </div>
           ) : (
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="legacy-space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xs font-semibold text-white">
                 {pendingAction === 'reprovado'
                   ? 'Comentário (obrigatório para reprovar)'
@@ -680,7 +680,7 @@ export function TeamReportsPage() {
   }
 
   return (
-    <div className="space-y-8 px-4 py-8 md:px-8">
+    <div className="legacy-space-y-8 px-4 py-8 md:px-8">
       {/* Drawer */}
       {selected && (
         <DetailsDrawer
@@ -734,7 +734,7 @@ export function TeamReportsPage() {
       </div>
 
       {/* Filtros */}
-      <Card className="space-y-4">
+      <Card className="legacy-space-y-4">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-amber-400" />
           <span className="text-sm font-semibold text-white">Filtros</span>

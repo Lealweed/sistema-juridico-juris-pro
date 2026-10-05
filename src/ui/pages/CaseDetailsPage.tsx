@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { DollarSign } from 'lucide-react';
+import { BRAND } from '@/lib/brand';
 
 import { Card } from '@/ui/widgets/Card';
 import { DocumentsSection } from '@/ui/widgets/DocumentsSection';
@@ -382,7 +383,7 @@ export function CaseDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Caso</h1>
@@ -423,7 +424,7 @@ export function CaseDetailsPage() {
                       'Para mais detalhes, entre em contato com o escritório.',
                       '',
                       'Atenciosamente,',
-                      'Lima, Lopes & Diógenes Advogados',
+                      BRAND.fullName,
                     ].join('\n'),
                   }),
                 });

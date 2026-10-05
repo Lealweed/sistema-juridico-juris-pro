@@ -315,7 +315,7 @@ function ClientSearch({
       {open && (matches.length > 0 || showNoResults) && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
           {/* counter header */}
-          <div className="sticky top-0 flex items-center justify-between border-b border-white/8 bg-neutral-900 px-4 py-2">
+          <div className="sticky top-0 flex items-center justify-between border-b  bg-neutral-900 px-4 py-2">
             <span className="text-[10px] text-white/35">
               {isEmptyQuery
                 ? `${clients.length} clientes — mostrando ${matches.length} primeiros`
@@ -498,7 +498,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
   const ready = Boolean(selectedClient && selectedTemplate);
 
   return (
-    <div className="min-h-screen space-y-8 px-4 py-8 md:px-6">
+    <div className="min-h-screen legacy-space-y-8 px-4 py-8 md:px-6">
       {/* header */}
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300/70">Escritório</div>
@@ -531,8 +531,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           className={cn(
             'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
             ready
-              ? 'border-white/20 bg-white/8 text-white hover:bg-white/15 active:scale-95'
-              : 'border-white/8 bg-white/4 text-white/40',
+              ? 'border-white/20  text-white hover:bg-white/15 active:scale-95'
+              : '  text-white/40',
           )}
         >
           <Printer className="h-4 w-4" />
@@ -545,8 +545,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           className={cn(
             'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
             ready
-              ? 'border-white/20 bg-white/8 text-white hover:bg-white/15 active:scale-95'
-              : 'border-white/8 bg-white/4 text-white/40',
+              ? 'border-white/20  text-white hover:bg-white/15 active:scale-95'
+              : '  text-white/40',
           )}
         >
           <ClipboardCopy className="h-4 w-4" />
@@ -557,7 +557,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
       {/* 2-column layout */}
       <div className="grid gap-8 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_480px]">
         {/* ── LEFT COLUMN: form ── */}
-        <div className="space-y-6">
+        <div className="legacy-space-y-6">
 
           {/* 1. Cliente */}
           <Card className="relative z-30">
@@ -608,7 +608,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
               <h2 className="text-sm font-semibold text-white">Modelo de Documento</h2>
             </div>
 
-            <div className="space-y-3">
+            <div className="legacy-space-y-3">
               {GROUPS.map((group) => {
                 const groupTemplates = TEMPLATES.filter((t) => t.group === group);
                 const isOpen = expandGroup === group;
@@ -667,7 +667,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                     </button>
 
                     {isOpen && (
-                      <div className="border-t border-white/10 px-3 pb-3 pt-2 space-y-2">
+                      <div className="border-t border-white/10 px-3 pb-3 pt-2 legacy-space-y-2">
                         {groupTemplates.map((t) => (
                           <button
                             key={t.id}
@@ -708,7 +708,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 <h2 className="text-sm font-semibold text-white">Campos do Documento</h2>
               </div>
 
-              <div className="space-y-4">
+              <div className="legacy-space-y-4">
                 {selectedTemplate.fields.map((f) => (
                   <div key={f.key}>
                     <label className="mb-1.5 block text-xs font-medium text-white/70">
@@ -748,7 +748,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         </div>
 
         {/* ── RIGHT COLUMN: preview ── */}
-        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <div className="legacy-space-y-4 lg:sticky lg:top-6 lg:self-start">
           <Card className="flex flex-col overflow-hidden">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-white">Preview em tempo real</h2>
@@ -796,8 +796,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
                   ready
-                    ? 'border-white/20 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95'
-                    : 'border-white/8 bg-white/4 text-white/40',
+                    ? 'border-white/20  text-white/80 hover:bg-white/15 active:scale-95'
+                    : '  text-white/40',
                 )}
               >
                 <Printer className="h-4 w-4" />
@@ -810,8 +810,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
                   ready
-                    ? 'border-white/20 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95'
-                    : 'border-white/8 bg-white/4 text-white/40',
+                    ? 'border-white/20  text-white/80 hover:bg-white/15 active:scale-95'
+                    : '  text-white/40',
                 )}
               >
                 <ClipboardCopy className="h-4 w-4" />
