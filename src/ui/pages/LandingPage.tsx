@@ -48,7 +48,6 @@ const partners = [
 
 const staff = [
   { name: 'Jeffeson Barroso', role: 'Advogado Associado', image: '' },
-  { name: 'Kewilla', role: 'Advogada Associada', image: '' },
   { name: 'Maria Eduarda', role: 'Secretária', image: '' },
   { name: 'Iasmin Rocha', role: 'Secretária', image: '' },
   { name: 'Mateus Diógenes', role: 'Estagiário', image: '' },
@@ -222,7 +221,7 @@ export function LandingPage() {
       </section>
 
       {/* ESCRITÓRIO */}
-      <section className="bg-neutral-50 border-y border-neutral-200/60" id="escritorio">
+      <section className="overflow-hidden bg-neutral-50 border-y border-neutral-200/60" id="escritorio">
         <div className="mx-auto max-w-7xl px-4 py-20 md:py-32">
           <div className="grid gap-16 md:grid-cols-2 md:items-center">
             <div>
