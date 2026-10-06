@@ -637,7 +637,7 @@ body {
 }
 
 /* ---- App light mode overrides ---- */
-html[data-app-theme='light'] .app-bg-dark:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .app-bg-dark:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: #f8fafc !important;
   background-image:
     radial-gradient(1200px 600px at 20% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
@@ -645,45 +645,45 @@ html[data-app-theme='light'] .app-bg-dark:not(:where(.workspace-reference, .work
     linear-gradient(to bottom, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.02)) !important;
 }
 
-html[data-app-theme='light'] .theme-dark:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .theme-dark:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   color-scheme: light;
 }
 
-html[data-app-theme='light'] .bg-neutral-950:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .bg-neutral-950\/70:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .bg-neutral-950\/80:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .bg-neutral-950\/45:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .bg-neutral-950:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/70:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/80:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/45:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(255, 255, 255, 0.78) !important;
 }
 
-html[data-app-theme='light'] .border-white\/10:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .border-white\/10:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   border-color: rgba(15, 23, 42, 0.12) !important;
 }
 
-html[data-app-theme='light'] .bg-white\/5:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .bg-white\/5:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(15, 23, 42, 0.04) !important;
 }
 
-html[data-app-theme='light'] .bg-white\/10:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .bg-white\/10:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
-html[data-app-theme='light'] .text-white:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .text-white\/80:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .text-white\/70:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .text-white\/60:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .text-white\/50:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .text-white\/40:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .text-white:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/80:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/70:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/60:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/50:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/40:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   color: #0f172a !important;
 }
 
-html[data-app-theme='light'] .btn-primary:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .btn-primary:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background: #0f172a !important;
   color: #fff !important;
 }
 
-html[data-app-theme='light'] .input:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
-html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
+html[data-app-theme='light'] .input:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .select:where(.workspace-classic, .workspace-classic *):not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background: rgba(255, 255, 255, 0.95) !important;
   color: #0f172a !important;
   border-color: rgba(15, 23, 42, 0.15) !important;
