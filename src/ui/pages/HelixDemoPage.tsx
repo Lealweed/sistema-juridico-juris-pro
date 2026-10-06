@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react';
+import { BRAND } from '@/lib/brand';
 
 const Hero = lazy(() => import('@/components/ui/helix-hero').then((m) => ({ default: m.Hero })));
 
@@ -12,7 +13,7 @@ export function HelixDemoPage() {
       }
     >
       <Hero
-        title="Castro de Oliveira Advocacia"
+        title={BRAND.fullName}
         description="CRM jurídico premium para clientes, casos, tarefas, agenda e documentos — com visual moderno e estável no celular."
       />
     </Suspense>

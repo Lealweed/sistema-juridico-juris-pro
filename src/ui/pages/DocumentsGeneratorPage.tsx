@@ -131,19 +131,19 @@ function buildPreview(
     const hasClient = Boolean(client);
     const hasTemplate = Boolean(template);
     const step = (n: number, label: string, done: boolean) =>
-      `<li style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1e293b">
-        <span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${done ? '#064e3b' : '#0f172a'};border:1.5px solid ${done ? '#34d399' : '#334155'};font-size:10px;font-weight:700;color:${done ? '#34d399' : '#475569'};flex-shrink:0">${done ? '✓' : n}</span>
-        <span style="color:${done ? '#34d399' : '#94a3b8'};font-size:13px">${label}</span>
+      `<li style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--workspace-preview-border, #1e293b)">
+        <span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${done ? 'var(--workspace-preview-success-bg, #064e3b)' : 'var(--workspace-preview-step-bg, #0f172a)'};border:1.5px solid ${done ? 'var(--workspace-preview-success, #34d399)' : 'var(--workspace-preview-border, #334155)'};font-size:10px;font-weight:700;color:${done ? 'var(--workspace-preview-success, #34d399)' : 'var(--workspace-preview-hint, #475569)'};flex-shrink:0">${done ? '✓' : n}</span>
+        <span style="color:${done ? 'var(--workspace-preview-success, #34d399)' : 'var(--workspace-preview-muted, #94a3b8)'};font-size:13px">${label}</span>
       </li>`;
     return {
       html: `<div style="font-family:system-ui,sans-serif">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:14px">Guia de preenchimento</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--workspace-preview-hint, #475569);margin-bottom:14px">Guia de preenchimento</div>
         <ul style="list-style:none;padding:0;margin:0">
           ${step(1, 'Selecione um cliente', hasClient)}
           ${step(2, 'Selecione um modelo de documento', hasTemplate)}
           ${step(3, 'Preencha os campos do modelo', false)}
         </ul>
-        <p style="margin-top:16px;font-size:11px;color:#334155;font-style:italic">O preview será gerado automaticamente conforme você preenche os dados.</p>
+        <p style="margin-top:16px;font-size:11px;color:var(--workspace-preview-hint, #334155);font-style:italic">O preview será gerado automaticamente conforme você preenche os dados.</p>
       </div>`,
       missing: [],
     };
@@ -168,24 +168,24 @@ function buildPreview(
     .map(
       (r) =>
         `<tr>
-          <td style="padding:8px 14px;color:#94a3b8;font-size:12px;white-space:nowrap">${r.label}</td>
-          <td style="padding:8px 14px;color:${r.value ? '#f1f5f9' : '#f59e0b'};font-weight:500">
-            ${r.value || '<em style="color:#f59e0b;font-size:11px">⚠ não preenchido</em>'}
+          <td style="padding:8px 14px;color:var(--workspace-preview-muted, #94a3b8);font-size:12px;white-space:nowrap">${r.label}</td>
+          <td style="padding:8px 14px;color:${r.value ? 'var(--workspace-preview-strong, #f1f5f9)' : 'var(--workspace-preview-pending, #f59e0b)'};font-weight:500">
+            ${r.value || '<em style="color:var(--workspace-preview-pending, #f59e0b);font-size:11px">⚠ não preenchido</em>'}
           </td>
         </tr>`,
     )
     .join('');
 
-  const html = `<div style="font-family:Georgia,serif;color:#cbd5e1">
-    <div style="border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:18px">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#64748b">Documento</div>
-      <div style="font-size:18px;font-weight:700;color:#f1f5f9;margin-top:4px">${template.label}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:2px">${template.description}</div>
+  const html = `<div style="font-family:Georgia,serif;color:var(--workspace-preview-text, #cbd5e1)">
+    <div style="border-bottom:1px solid var(--workspace-preview-border, #334155);padding-bottom:12px;margin-bottom:18px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--workspace-preview-subtle, #64748b)">Documento</div>
+      <div style="font-size:18px;font-weight:700;color:var(--workspace-preview-strong, #f1f5f9);margin-top:4px">${template.label}</div>
+      <div style="font-size:12px;color:var(--workspace-preview-subtle, #64748b);margin-top:2px">${template.description}</div>
     </div>
     <table style="width:100%;border-collapse:collapse">
       ${tableRows}
     </table>
-    <div style="margin-top:18px;padding-top:12px;border-top:1px solid #1e293b;font-size:11px;color:#475569">
+    <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--workspace-preview-border, #1e293b);font-size:11px;color:var(--workspace-preview-hint, #475569)">
       Preview gerado em ${new Date().toLocaleString('pt-BR')} · ${missing.length === 0 ? '✓ Todos os campos preenchidos' : `⚠ ${missing.length} campo(s) pendente(s)`}
     </div>
   </div>`;

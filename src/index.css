@@ -637,7 +637,7 @@ body {
 }
 
 /* ---- App light mode overrides ---- */
-html[data-app-theme='light'] .app-bg-dark:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .app-bg-dark:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: #f8fafc !important;
   background-image:
     radial-gradient(1200px 600px at 20% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
@@ -645,54 +645,53 @@ html[data-app-theme='light'] .app-bg-dark:not(:where(.workspace-reference, .work
     linear-gradient(to bottom, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.02)) !important;
 }
 
-html[data-app-theme='light'] .theme-dark:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .theme-dark:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   color-scheme: light;
 }
 
-html[data-app-theme='light'] .bg-neutral-950:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .bg-neutral-950\/70:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .bg-neutral-950\/80:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .bg-neutral-950\/45:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .bg-neutral-950:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/70:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/80:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/45:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(255, 255, 255, 0.78) !important;
 }
 
-html[data-app-theme='light'] .border-white\/10:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .border-white\/10:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   border-color: rgba(15, 23, 42, 0.12) !important;
 }
 
-html[data-app-theme='light'] .bg-white\/5:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .bg-white\/5:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(15, 23, 42, 0.04) !important;
 }
 
-html[data-app-theme='light'] .bg-white\/10:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .bg-white\/10:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
-html[data-app-theme='light'] .text-white:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .text-white\/80:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .text-white\/70:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .text-white\/60:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .text-white\/50:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .text-white\/40:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .text-white:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/80:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/70:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/60:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/50:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/40:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   color: #0f172a !important;
 }
 
-html[data-app-theme='light'] .btn-primary:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .btn-primary:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background: #0f172a !important;
   color: #fff !important;
 }
 
-html[data-app-theme='light'] .input:not(:where(.workspace-reference, .workspace-reference *)),
-html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace-reference *)){
+html[data-app-theme='light'] .input:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background: rgba(255, 255, 255, 0.95) !important;
   color: #0f172a !important;
   border-color: rgba(15, 23, 42, 0.15) !important;
 }
 
 
-/* Only explicitly adapted office pages receive the reference content palette.
-   These compatibility rules only reach the content surface: public, authentication,
-   portals and the mobile navigation retain their existing palette. */
+/* Shared reference palette for office pages, authentication and standalone portals.
+   The dark navigation and the classic fallback retain their own presentation. */
 .workspace-surface {
   color-scheme: light;
   color: #172026;
@@ -702,7 +701,7 @@ html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace
   --card-foreground: 200 25% 12%;
   --popover: 0 0% 100%;
   --popover-foreground: 200 25% 12%;
-  --primary: 38 38% 42%;
+  --primary: 38 37% 37%;
   --primary-foreground: 0 0% 100%;
   --secondary: 60 14% 95%;
   --secondary-foreground: 200 20% 18%;
@@ -716,14 +715,14 @@ html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace
 }
 .workspace-surface .text-white,
 .workspace-surface .text-neutral-100 { color: #172026; }
-.workspace-surface [class*="text-white/"] { color: #717778; }
+.workspace-surface [class*="text-white/"] { color: #59646a; }
 .workspace-surface :is(.text-white\/80, .text-white\/85, .text-white\/90) { color: #535d62; }
 .workspace-surface :is(.text-white\/20, .text-white\/30, .text-white\/35, .text-white\/40) { color: #969c9f; }
 .workspace-surface [class*="border-white/"] { border-color: #e2e2dc; }
 .workspace-surface :is(.bg-white\/5, .bg-white\/10, .bg-white\/15, .bg-white\/\[0\.02\], .bg-white\/\[0\.04\]) { background-color: #f5f5f1; }
 .workspace-surface :is(.bg-black\/10, .bg-black\/20, .bg-black\/30, .bg-black\/40, .bg-black\/50) { background-color: #f3f3ef; }
 .workspace-surface :is(.bg-neutral-800, .bg-neutral-900, .bg-neutral-950, .bg-neutral-950\/45, .bg-neutral-950\/70, .bg-neutral-950\/80, .bg-neutral-950\/90, .bg-neutral-950\/95) { background-color: #fff; }
-.workspace-surface [class*="bg-gradient-"] { background-image: none; background-color: #fff; }
+.workspace-surface section[class*="bg-gradient-"] { background-image: none; background-color: #fff; }
 .workspace-surface section[class*="shadow-"] { box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); }
 .workspace-surface section:hover { transform: none; }
 .workspace-surface :is(.text-amber-50, .text-amber-100, .text-amber-200, .text-amber-300, [class*="text-amber-200/"]) { color: #80673b; }
@@ -741,7 +740,7 @@ html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace
 .workspace-surface .badge-gold { background-color: #f5eddc; color: #80673b; border-color: #e7d6b4; }
 .workspace-surface .badge[class*="bg-red-"] { background-color: #fae7e3; color: #b44c44; border-color: #f0d0cb; }
 .workspace-surface .badge[class*="bg-green-"] { background-color: #e7f1e9; color: #3f795d; border-color: #cfe0d5; }
-.workspace-surface .link-accent { color: #927443; }
+.workspace-surface .link-accent { color: #80673b; }
 .workspace-surface :is(button, a, span):is(.bg-red-500, .bg-red-600, .bg-green-600, .bg-emerald-600, .bg-blue-600, .bg-sky-600).text-white { color: white; }
 .workspace-topbar { box-shadow: 0 1px 3px rgba(23, 32, 38, 0.03); }
 .workspace-topbar [class*="shadow-"] { box-shadow: 0 6px 24px rgba(23, 32, 38, 0.1); }
@@ -749,7 +748,7 @@ html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace
 .dashboard-reference .dashboard-card:hover { transform: none; box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); }
 .dashboard-reference .dashboard-metric > div:first-child { color: white; }
 .dashboard-reference .dashboard-action { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d5c7ac; border-radius: 5px; padding: 6px 10px; color: #927443; font-size: 11px; }
-.dashboard-reference .dashboard-tabs [role='tab'] { padding: 10px 14px; border-radius: 0; border-bottom: 2px solid transparent; color: #717778; font-size: 12px; box-shadow: none; }
+.dashboard-reference .dashboard-tabs [role='tab'] { padding: 10px 14px; border-radius: 0; border-bottom: 2px solid transparent; color: #59646a; font-size: 12px; box-shadow: none; }
 .dashboard-reference .dashboard-tabs [role='tab'][data-state='active'] { background: transparent; color: #80673b; border-bottom-color: #b49a68; }
 .dashboard-chart-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #8a8e91; font-size: 12px; }
 .workspace-sidebar nav { scrollbar-width: thin; scrollbar-color: #354046 transparent; }
@@ -769,8 +768,85 @@ html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace
 .workspace-surface .text-neutral-50 { color: #172026; }
 .workspace-surface [class*="bg-gradient-"][class*="shadow-"] { box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); }
 
-/* Keep operational pages on their original palette until each is adapted and verified. */
-.workspace-legacy-content { color-scheme: dark; }
+/* Operational surfaces share the same cards, fields, feedback and document preview. */
+.workspace-surface {
+  --workspace-preview-text: #535d62;
+  --workspace-preview-strong: #172026;
+  --workspace-preview-muted: #626d73;
+  --workspace-preview-subtle: #626d73;
+  --workspace-preview-hint: #626d73;
+  --workspace-preview-border: #deded8;
+  --workspace-preview-step-bg: #f3f3ef;
+  --workspace-preview-success-bg: #e7f1e9;
+  --workspace-preview-success: #3f795d;
+  --workspace-preview-pending: #80673b;
+}
+.workspace-auth,
+.workspace-portal { background: #f5f5f1; color: #172026; }
+.workspace-page > div > :is(section, header)[class*="bg-gradient-"],
+.workspace-page > div > div[class*="bg-gradient-"][class*="rounded-"] {
+  background-image: none;
+  background-color: #fff;
+}
+.workspace-surface :is(.text-white\/20, .text-white\/30, .text-white\/35, .text-white\/40, .text-white\/45, .text-white\/50, .text-white\/55, .text-white\/60) { color: #59646a; }
+.workspace-surface :is(.text-neutral-200, .text-neutral-300, .text-neutral-400, .text-gray-200, .text-gray-300, .text-gray-400, .text-slate-200, .text-slate-300, .text-slate-400) { color: #626d73; }
+.workspace-surface :is(.bg-neutral-700, .bg-neutral-800\/50, .bg-neutral-800\/60, .bg-neutral-900\/50, .bg-gray-800, .bg-gray-900, .bg-slate-800, .bg-slate-950) { background-color: #f3f3ef; }
+.workspace-surface :is(.bg-emerald-950, .bg-green-950) { background-color: #e7f1e9; }
+.workspace-surface .bg-red-950 { background-color: #fae7e3; }
+.workspace-surface :is(input, textarea)::placeholder { color: #697379; }
+.workspace-surface :is(input, textarea, select):not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']) { background-color: #fff; color: #172026; border-color: #deded8; }
+.workspace-surface :is(input, textarea, select):focus-visible { outline: 2px solid #927443; outline-offset: 2px; }
+.workspace-surface :is(button, a):focus-visible { outline: 2px solid #927443; outline-offset: 3px; }
+.workspace-surface :is(input[type='checkbox'], input[type='radio']) { accent-color: #80673b; --tw-ring-offset-color: #fff; }
+.workspace-surface [class*="divide-white/"] > :not(:last-child) { border-color: #e2e2dc; }
+.workspace-surface :is(.hover\:bg-white\/5, .hover\:bg-white\/10, .hover\:bg-white\/15):hover { background-color: #eeeee8; }
+.workspace-surface :is(.hover\:text-white, .hover\:text-white\/90):hover { color: #172026; }
+.workspace-surface .badge[class*="bg-amber-"] { background-color: #f5eddc; color: #80673b; border-color: #e7d6b4; }
+.workspace-surface .badge[class*="bg-emerald-"] { background-color: #e7f1e9; color: #3f795d; border-color: #cfe0d5; }
+.workspace-surface .badge[class*="bg-blue-"] { background-color: #e8edf2; color: #48647a; border-color: #d6e0e8; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-yellow-"] { background: #80673b; color: #fff; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-sky-"] { background: #48647a; color: #fff; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-yellow-"]:hover { background: #725b34; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-sky-"]:hover { background: #3b5367; }
+.workspace-surface :is(.bg-amber-500, .bg-amber-600, .bg-yellow-500, .bg-yellow-600).text-white { color: #172026; }
+.workspace-surface .bg-\[\#b49a68\].text-white { background-color: #80673b; color: #fff; }
+.workspace-surface :is(.shadow-2xl, .shadow-xl) { box-shadow: 0 8px 28px rgba(23, 32, 38, 0.12); }
+.workspace-surface section { backdrop-filter: none; }
+.workspace-surface :is(button, input, textarea, select):disabled { cursor: not-allowed; }
+/* Keep modal scrims dark; the panel and its fields inherit the reference palette. */
+.workspace-surface .fixed.inset-0[class*="bg-black/"] { background-color: rgba(23, 32, 38, 0.65); }
+.workspace-surface [role='tablist'] { background: #f3f3ef; border-color: #e2e2dc; }
+.workspace-surface [role='tab'][data-state='active'] { background: #fff; color: #80673b; }
+.workspace-surface [role='tab']:focus-visible { outline: 2px solid #927443; outline-offset: 2px; }
+/* Saturated status colors also need readable text on pale cards and badges. */
+.workspace-surface :is(.text-amber-50, .text-amber-100, .text-amber-200, .text-amber-300, .text-amber-400, .text-amber-500, .text-yellow-300, .text-yellow-400, .text-yellow-500, .text-\[\#87682f\], [class*="text-amber-100/"], [class*="text-amber-200/"], [class*="text-amber-300/"]) { color: #725b34; }
+.workspace-surface :is(.text-emerald-50, .text-emerald-100, .text-emerald-200, .text-emerald-300, .text-emerald-400, .text-emerald-500, .text-emerald-600, .text-green-100, .text-green-200, .text-green-300, .text-green-400, .text-green-500, [class*="text-emerald-100/"], [class*="text-emerald-200/"]) { color: #32664d; }
+.workspace-surface .badge[class*="bg-emerald-"] { color: #32664d; }
+.workspace-surface :is(.text-red-100, .text-red-200, .text-red-300, .text-red-400, .text-red-500, .text-rose-300, .text-rose-400, [class*="text-red-100/"], [class*="text-red-200/"]) { color: #a13e37; }
+.workspace-surface .badge[class*="bg-red-"] { color: #a13e37; }
+.workspace-surface :is(.text-neutral-500, .text-gray-500, .text-slate-500, .text-\[\#717778\]) { color: #626d73; }
+.workspace-surface :is(.hover\:text-amber-100, .hover\:text-amber-200, .hover\:text-amber-300):hover { color: #80673b; }
+.workspace-surface .btn-primary:hover,
+.workspace-surface .hover\:bg-primary\/90:hover { background-color: #725b34; }
+/* Important Tailwind utilities are layered; their scoped overrides share that layer. */
+@layer utilities {
+  .workspace-surface .\!text-amber-200 { color: #80673b !important; }
+  .workspace-surface .hover\:\!text-red-400:hover { color: #a13e37 !important; }
+}
+@media (max-width: 639px) {
+  .workspace-topbar > div { gap: 8px; }
+  .workspace-surface :is(h1, h2, h3) { overflow-wrap: anywhere; }
+  .workspace-page > div { min-width: 0; }
+  .workspace-page .grid > * { min-width: 0; }
+  .workspace-page .grid.grid-cols-3:has(> section) { grid-template-columns: minmax(0, 1fr); }
+  .workspace-page section { min-width: 0; overflow-wrap: anywhere; }
+  .workspace-page > div > .flex.justify-between,
+  .workspace-page > div > .flex.justify-between > .flex { flex-wrap: wrap; }
+  .workspace-page .flex > :is(input, select) { min-width: 0; }
+  .workspace-page .flex:has(> input):has(> select) { flex-wrap: wrap; }
+  .workspace-page .flex:has(> input):has(> select) > :is(input, select) { max-width: 100%; }
+  .workspace-page .overflow-x-auto > table { overflow-wrap: normal; }
+}
 
 
 .workspace-visual-switch { color: #d3d7d9; }

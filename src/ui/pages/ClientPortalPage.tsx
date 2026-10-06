@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BRAND } from '@/lib/brand';
+import { getWorkspaceVisual } from '@/lib/workspaceVisual';
 import {
   AlertTriangle,
   Bell,
@@ -48,6 +49,9 @@ type TabKey = 'home' | 'drive' | 'finance' | 'messages';
 type BrowserNotificationState = NotificationPermission | 'unsupported';
 
 export function ClientPortalPage() {
+  const referenceVisual = getWorkspaceVisual() === 'reference';
+  const portalSurfaceClass = referenceVisual ? 'workspace-surface workspace-portal ' : '';
+  const portalLogo = referenceVisual ? BRAND.logoLight : BRAND.logoDark;
   // Utilitários
   function onlyDigits(value: string) {
     return value.replace(/\D/g, '');
@@ -640,7 +644,10 @@ export function ClientPortalPage() {
     return (
       <>
         <AppToaster />
-        <div className="min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4">
+        <div className={`${portalSurfaceClass}min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4`}>
+          {referenceVisual ? (
+            <img src={BRAND.logoLight} alt={BRAND.fullName} className="h-16 w-auto" />
+          ) : null}
           <AlertTriangle className="size-12 text-red-400" />
           <h1 className="text-xl font-semibold text-white">Portal Indisponível</h1>
           <p className="text-sm text-white/50 text-center max-w-sm">
@@ -655,9 +662,9 @@ export function ClientPortalPage() {
     return (
       <>
         <AppToaster />
-        <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8">
+        <div className={`${portalSurfaceClass}min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-8`}>
           <img
-            src={BRAND.logoDark}
+            src={portalLogo}
             alt={BRAND.fullName}
             className="h-16 w-auto rounded-xl shadow-lg"
           />
@@ -736,10 +743,10 @@ export function ClientPortalPage() {
   return (
     <>
       <AppToaster />
-      <div className="min-h-screen w-full bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] px-3 py-4 sm:px-4 sm:py-6">
+      <div className={`${portalSurfaceClass}min-h-screen w-full bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] px-3 py-4 sm:px-4 sm:py-6`}>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
       <div className="mt-2 flex w-full items-start justify-between gap-3 sm:mt-4">
-        <img src={BRAND.logoDark} alt={BRAND.fullName} className="h-16 w-auto rounded-2xl border-2 border-white/10 shadow-2xl sm:h-20" />
+        <img src={portalLogo} alt={BRAND.fullName} className="h-16 w-auto rounded-2xl border-2 border-white/10 shadow-2xl sm:h-20" />
         <button
           type="button"
           onClick={handlePortalExit}

@@ -339,7 +339,7 @@ export function TeamPage() {
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400"
-                  placeholder="E-mail (ex: advogado@castro.adv.br)"
+                  placeholder="E-mail (ex: nome@exemplo.com)"
                   required
                 />
               </div>

@@ -1,11 +1,11 @@
 {
   "format": "local-preview-source-selection-v1",
-  "generatedAt": "2026-10-05T23:19:48.117Z",
+  "generatedAt": "2026-10-06T00:51:06.246Z",
   "branch": "codex/visual-producao-compat",
-  "gitHead": "2d8e607ec3ab4814bd1699280d65a4bc1a1fb121",
+  "gitHead": "40066ac0a7614239b6caa4db79698323339e3e50",
   "hasLocalSourceChanges": true,
-  "trackedSourceChangeCount": 3,
-  "newSourceFileCount": 2,
+  "trackedSourceChangeCount": 10,
+  "newSourceFileCount": 0,
   "localProject": {
     "projectId": "prj_RT4saSl2wdhp3yNFNlyxTzkDaHz7",
     "orgId": "team_y35fbHQP9VHZ6K0Ft02Swbds",
@@ -18,10 +18,10 @@
   },
   "requiredPathCases": 15,
   "excludedPathCases": 77,
-  "checkedLocalImports": 352,
+  "checkedLocalImports": 358,
   "fileCount": 161,
-  "totalBytes": 5393079,
-  "sourceSetSha256": "8c5d6e56f783cbcffec72f1eb2f28a080579a0cf4e560a25e0858122f7ef1961",
+  "totalBytes": 5402446,
+  "sourceSetSha256": "58c0d705b889f2229c596cf403c7e32867302bea03611d20a53107dd20b618e2",
   "files": [
     {
       "path": ".vercelignore",
@@ -205,8 +205,8 @@
     },
     {
       "path": "src/index.css",
-      "bytes": 26821,
-      "sha256": "62e19c2982120091d2ff2f5d1b8a33b85db2431e90fbc182ae6d06049a3990e6"
+      "bytes": 33973,
+      "sha256": "666bad3ff2043a77c70504f5a176fcac9ac26541335220cbd2d6076faa9a2b2e"
     },
     {
       "path": "src/lib/agendas.ts",
@@ -435,13 +435,13 @@
     },
     {
       "path": "src/ui/layouts/AppLayout.tsx",
-      "bytes": 1133,
-      "sha256": "00c830e01ba04ace17839cb40196756378aae98165bf5d4df20211d5de8dc796"
+      "bytes": 942,
+      "sha256": "46b3a7115fda7bcef7c1ffe2bb230aca9fb9f7a4a4e79d82621af0becf4b478c"
     },
     {
       "path": "src/ui/layouts/AuthLayout.tsx",
-      "bytes": 1989,
-      "sha256": "54a43613541ae433a21cbcac5dfb9a0e18de26f65662c6734ffb87a7fb85da74"
+      "bytes": 2199,
+      "sha256": "5eb86191667a34c1c78973d60e5d1b6ce91f913dc47496046db30f8f7ad51f26"
     },
     {
       "path": "src/ui/layouts/PublicLayout.tsx",
@@ -530,8 +530,8 @@
     },
     {
       "path": "src/ui/pages/ClientPortalPage.tsx",
-      "bytes": 48296,
-      "sha256": "9bb552ecedb60bba1a295763586093cb3a114f28803d98d079fbd838d9422828"
+      "bytes": 48790,
+      "sha256": "133cddd35003932b583f5473f14333bd7955ec05c9a8867400b2171722ba3c8e"
     },
     {
       "path": "src/ui/pages/ClientsPage.tsx",
@@ -545,8 +545,8 @@
     },
     {
       "path": "src/ui/pages/DocumentsGeneratorPage.tsx",
-      "bytes": 36132,
-      "sha256": "84c0c298f69ae80d97ab53f1e19796b7099baa993a7fcde92f2032c1c6b8caea"
+      "bytes": 36842,
+      "sha256": "013078fc01b417065cbed7c433ca7076b08df2c422efbc1f3d3b72b33940f6ff"
     },
     {
       "path": "src/ui/pages/DrivePage.tsx",
@@ -555,13 +555,13 @@
     },
     {
       "path": "src/ui/pages/FinancePage.tsx",
-      "bytes": 28278,
-      "sha256": "cecff644264c24efcd6a46ee94563dfc3c5c0442763ce4886f3524e5587d735b"
+      "bytes": 28303,
+      "sha256": "7c94bf33a4b39e1890d0d16ac14c0dcd844df5297efb4d33f93bf246b960f5ef"
     },
     {
       "path": "src/ui/pages/HelixDemoPage.tsx",
-      "bytes": 654,
-      "sha256": "765539dfacaf626e61394e30d36e56b198dcf20973a212b9353df8abcb1e0785"
+      "bytes": 675,
+      "sha256": "b94d1d4e76d933e06a61f167facc617053936006c00d7b2d93b1f550c8bf00d0"
     },
     {
       "path": "src/ui/pages/LandingPage.tsx",
@@ -575,8 +575,8 @@
     },
     {
       "path": "src/ui/pages/MemberPortalPage.tsx",
-      "bytes": 14234,
-      "sha256": "4ea219229d6783b8f81e92fc8e25ed62c7ec1c44411e1a7c75d02d71ec5fe9b7"
+      "bytes": 14722,
+      "sha256": "21797b57546ff8de2ac356ab4c3815a00558cefcef1e568ade58ac0c3981af1e"
     },
     {
       "path": "src/ui/pages/MembersSettingsPage.tsx",
@@ -645,8 +645,8 @@
     },
     {
       "path": "src/ui/pages/TeamPage.tsx",
-      "bytes": 24154,
-      "sha256": "b8a38a66202d0fe151e2fe6c0890b8b8c428252b7565f767563d32665179493a"
+      "bytes": 24147,
+      "sha256": "8e0248ee39274909ae768baa651c45f3fee8d7c0d93cefd3af831493fcf8910b"
     },
     {
       "path": "src/ui/pages/TeamReportsPage.tsx",
@@ -760,8 +760,8 @@
     },
     {
       "path": "src/ui/widgets/FinanceCharts.tsx",
-      "bytes": 9585,
-      "sha256": "2a2a392336b83b540bf06a9b43228b8c6a99669dcded2fc13b4ad80656c26c7c"
+      "bytes": 10050,
+      "sha256": "96daf09892bf68edacebae519b8c0a3665a508c424ba553fe6bbdd6f7e9d91b8"
     },
     {
       "path": "src/ui/widgets/LeadForm.tsx",

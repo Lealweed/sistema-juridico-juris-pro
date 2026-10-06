@@ -13,6 +13,29 @@ import {
 import { Card } from '@/ui/widgets/Card';
 import { centsToBRL, type FinanceTx, listFinanceTx } from '@/lib/finance';
 import { getErrorMessage } from '@/lib/errors';
+import { getWorkspaceVisual } from '@/lib/workspaceVisual';
+
+const CLASSIC_CHART_PALETTE = {
+  grid: 'rgba(255,255,255,0.08)',
+  axisStrong: 'rgba(255,255,255,0.55)',
+  axisMuted: 'rgba(255,255,255,0.35)',
+  income: 'rgba(212,175,55,0.85)',
+  expense: 'rgba(255,255,255,0.18)',
+  tooltip: { background: 'rgba(10,10,10,0.9)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12 },
+  tooltipLabel: { color: 'rgba(255,255,255,0.8)' },
+  legend: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+};
+
+const REFERENCE_CHART_PALETTE = {
+  grid: '#e2e2dc',
+  axisStrong: '#535d62',
+  axisMuted: '#717778',
+  income: '#b49a68',
+  expense: '#172026',
+  tooltip: { background: '#fff', border: '1px solid #e2e2dc', borderRadius: 6, color: '#172026' },
+  tooltipLabel: { color: '#535d62' },
+  legend: { color: '#535d62', fontSize: 12 },
+};
 
 function monthKey(d: Date) {
   const y = d.getFullYear();
@@ -39,6 +62,7 @@ function addMonths(d: Date, delta: number) {
 }
 
 export function FinanceCharts({ months = 6 }: { months?: number }) {
+  const palette = getWorkspaceVisual() === 'reference' ? REFERENCE_CHART_PALETTE : CLASSIC_CHART_PALETTE;
   const [rows, setRows] = useState<FinanceTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -150,21 +174,17 @@ export function FinanceCharts({ months = 6 }: { months?: number }) {
           <div className="mt-4 h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthly} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.55)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="rgba(255,255,255,0.35)" fontSize={12} tickLine={false} axisLine={false} />
+                <CartesianGrid stroke={palette.grid} vertical={false} />
+                <XAxis dataKey="name" stroke={palette.axisStrong} fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke={palette.axisMuted} fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{
-                    background: 'rgba(10,10,10,0.9)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 12,
-                  }}
-                  labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
+                  contentStyle={palette.tooltip}
+                  labelStyle={palette.tooltipLabel}
                   formatter={(value: number | string | undefined) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, '']}
                 />
-                <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }} />
-                <Bar name="Receitas pagas" dataKey="incomePaid" fill="rgba(212,175,55,0.85)" radius={[10, 10, 0, 0]} />
-                <Bar name="Despesas pagas" dataKey="expensePaid" fill="rgba(255,255,255,0.18)" radius={[10, 10, 0, 0]} />
+                <Legend wrapperStyle={palette.legend} />
+                <Bar name="Receitas pagas" dataKey="incomePaid" fill={palette.income} radius={[10, 10, 0, 0]} />
+                <Bar name="Despesas pagas" dataKey="expensePaid" fill={palette.expense} radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -208,19 +228,15 @@ export function FinanceCharts({ months = 6 }: { months?: number }) {
           <div className="mt-4 h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topCategories} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.08)" horizontal={false} />
-                <XAxis type="number" stroke="rgba(255,255,255,0.35)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.55)" fontSize={12} tickLine={false} axisLine={false} width={120} />
+                <CartesianGrid stroke={palette.grid} horizontal={false} />
+                <XAxis type="number" stroke={palette.axisMuted} fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" stroke={palette.axisStrong} fontSize={12} tickLine={false} axisLine={false} width={120} />
                 <Tooltip
-                  contentStyle={{
-                    background: 'rgba(10,10,10,0.9)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 12,
-                  }}
-                  labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
+                  contentStyle={palette.tooltip}
+                  labelStyle={palette.tooltipLabel}
                   formatter={(value: number | string | undefined) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, 'Total']}
                 />
-                <Bar dataKey="totalPaid" fill="rgba(212,175,55,0.85)" radius={[10, 10, 10, 10]} />
+                <Bar dataKey="totalPaid" fill={palette.income} radius={[10, 10, 10, 10]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
