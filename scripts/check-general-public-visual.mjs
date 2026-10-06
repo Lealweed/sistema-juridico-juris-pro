@@ -143,6 +143,22 @@ try {
           const submitButtons = [...document.querySelectorAll('form button, form input[type=submit]')]
             .filter(button => button.type === 'submit' && visible(button)).map(button => (button.textContent || button.value || '').trim().slice(0, 80));
           const publicInputs = [...document.querySelectorAll('input:not([type=hidden]), textarea')].filter(visible);
+          const loginForm = [...document.forms].find(form => visible(form)
+            && [...form.querySelectorAll('input[type=email]')].some(visible)
+            && [...form.querySelectorAll('input[type=password]')].some(visible));
+          const loginCard = loginForm?.parentElement;
+          const visibleCardText = text => Boolean(loginCard && [...loginCard.children]
+            .some(element => element.tagName !== 'FORM' && element.tagName !== 'BUTTON' && visible(element) && element.textContent.trim() === text));
+          const labeledInputVisible = (type, text) => Boolean(loginForm && [...loginForm.querySelectorAll(`input[type=${type}]`)]
+            .some(input => visible(input) && [...input.labels].some(label => visible(label) && label.textContent.trim().replace(/\s+/g, ' ') === text)));
+          const loginCardStructure = {
+            headingEntrarVisible: visibleCardText('Entrar'),
+            descriptionVisible: visibleCardText('Acesse a área do advogado.'),
+            emailWithLabelVisible: labeledInputVisible('email', 'E-mail'),
+            passwordWithLabelVisible: labeledInputVisible('password', 'Senha'),
+            enabledSubmitEntrarVisible: Boolean(loginForm && [...loginForm.querySelectorAll('button, input[type=submit]')]
+              .some(button => button.type === 'submit' && visible(button) && !button.disabled && (button.textContent || button.value || '').trim() === 'Entrar')),
+          };
           return {
             title: document.title, headings: [...document.querySelectorAll('h1,h2')].map(heading => heading.textContent.trim().slice(0, 140)).slice(0, 12),
             rootChildren: document.querySelector('#root')?.children.length ?? 0, bodyCharacters: document.body.innerText.length,
@@ -151,6 +167,7 @@ try {
             surfaceBackground: surfaceStyle?.backgroundColor ?? null, surfaceTextColor: surfaceStyle?.color ?? null, surfaceColorScheme: surfaceStyle?.colorScheme ?? null,
             emailInputs: document.querySelectorAll('input[type=email]').length, passwordInputs: document.querySelectorAll('input[type=password]').length,
             visibleFormCount: [...document.forms].filter(visible).length, submitButtons,
+            loginCardStructure,
             filledPublicInputCount: publicInputs.filter(input => input.value.length > 0).length,
             publicInputStyles: publicInputs.slice(0, 4).map(input => { const style = getComputedStyle(input); return { type: input.type ?? 'textarea', backgroundColor: style.backgroundColor, color: style.color, borderColor: style.borderColor }; }),
             imageCount: images.length, loadedImageCount: images.filter(image => image.complete && image.naturalWidth > 0).length,
@@ -193,7 +210,7 @@ const lightColor = color => {
 };
 report.results = report.results.map(result => {
   const definition = routes.find(route => route.name === result.routeName);
-  const common = result.status === 200 && !result.error && result.rootChildren > 0 && result.bodyCharacters > 100
+  const common = result.status === 200 && !result.error && result.rootChildren > 0
     && result.title === 'Lima e Diógenes | Advocacia' && result.newBrandPresent && !result.legacyBrandMention
     && result.overflowPixels === 0 && result.visibleBrokenImages === 0 && result.filledPublicInputCount === 0;
   const finalPathCorrect = result.finalUrl === origin + (definition.finalPath ?? definition.path);
@@ -204,8 +221,14 @@ report.results = report.results.map(result => {
     && (definition.name === 'portal' ? result.submitButtons?.includes('Acessar meu Portal')
       : result.emailInputs === 1 && result.submitButtons?.includes('Entrar'));
   const headingCorrect = !definition.heading || result.headings?.includes(definition.heading);
-  return { ...result, checks: { common: Boolean(common), finalPathCorrect, scopeCorrect: Boolean(scopeCorrect), anonymousFormCorrect: Boolean(formCorrect), headingCorrect: Boolean(headingCorrect) },
-    pass: Boolean(common && finalPathCorrect && scopeCorrect && formCorrect && headingCorrect) };
+  // Login marketing content is intentionally hidden on mobile. Its visible card,
+  // labeled fields and submit button establish content independently of text volume.
+  // Other routes retain their existing content threshold and all other criteria.
+  const contentCorrect = definition.scopeClass === 'workspace-auth'
+    ? Boolean(result.loginCardStructure && Object.values(result.loginCardStructure).every(value => value === true))
+    : result.bodyCharacters > 100;
+  return { ...result, checks: { common: Boolean(common), finalPathCorrect, scopeCorrect: Boolean(scopeCorrect), anonymousFormCorrect: Boolean(formCorrect), headingCorrect: Boolean(headingCorrect), routeContentCorrect: Boolean(contentCorrect) },
+    pass: Boolean(common && finalPathCorrect && scopeCorrect && formCorrect && headingCorrect && contentCorrect) };
 });
 const realRequestFailures = report.failedRequests.filter(failure => !failure.inducedByHarness && !failure.mediaAbortAfterSuccessfulResponse);
 const nonInducedConsole = report.consoleErrors.filter(error => !error.inducedByHarness);
