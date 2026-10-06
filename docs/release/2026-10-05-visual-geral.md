@@ -36,6 +36,7 @@ Nenhuma migração SQL, função Edge, configuração de Auth, permissão financ
 
 - Repositório: `Lealweed/sistema-juridico-juris-pro`.
 - Branch: `codex/visual-producao-compat`; PR existente: https://github.com/Lealweed/sistema-juridico-juris-pro/pull/4.
+- Cópia usada para a publicação: `D:/sistema-juridico-juris-pro/tmp/visual-producao-compat-20261005`. Os arquivos de evolução funcional pendentes no checkout principal não foram incluídos nesta implantação.
 - Projeto Vercel: `prj_RT4saSl2wdhp3yNFNlyxTzkDaHz7` — `sistema-juridico-juris-pro`.
 - Organização: `team_y35fbHQP9VHZ6K0Ft02Swbds` — `leals-projects-f521ffce`.
 - Domínio: https://www.diogeneslimaadv.com/.
@@ -67,6 +68,20 @@ A rodada pública final passou **10/10 contextos** em 06/10/2026 01:04:51 UTC (0
 O teste criou sessões anônimas novas, sem importar cookies ou credenciais, sem preencher/enviar formulários e sem permitir acesso a backend/Auth/provedores. Vinte bloqueios intencionais de fontes/telemetria e quatro abortos de mídia após HTTP 200/206 foram conservados e separados de falhas reais; não foram ocultados. Isso valida o carregamento público e os guards de acesso, sem declarar homologação autenticada das funções do escritório.
 
 Evidência final na cópia candidata: `tmp/general-public-visual-2026-10-06T01-04-28-260Z-91579280/report.json`, SHA-256 `a800162839311f7b4d78c07a84c92b110503722c54e008abe8aa11b646977d08`; resumo no mesmo diretório em `summary-sanitized.json`, SHA-256 `7e63017e908db5a208b9e6ac06ff4da32f489d1b9f99a5a46d6589c788d52864`.
+
+## Correção complementar do endereço sem www
+
+Após a publicação, uma verificação adicional encontrou dois registros A no apex `diogeneslimaadv.com`: `216.198.79.1` (Vercel) e `2.57.91.91` (estacionamento Hostinger). Os dois servidores autoritativos e os resolvedores Google/Cloudflare confirmaram o conflito. O destino Vercel foi testado com HTTPS/Host/SNI e TLS válido: HTTP 308 para `www`, preservando `/app` e `/app/agenda`. O segundo IP respondeu uma página de estacionamento, sem aplicação do escritório. Evidência anterior: `D:/sistema-juridico-juris-pro/tmp/apex-dns-readonly-2026-10-06T01-11-37-747Z/evidence-with-paths.json`, SHA-256 `642b12170b90bbc514fbd3e125ce3efa5cb6b1300fdf4e24b2ddfca2ffdde184`.
+
+O administrador confirmou a remoção manual **somente de A @ → 2.57.91.91**, mantendo A @ → 216.198.79.1. O controle automático do navegador falhou ao iniciar em duas tentativas, então a operação foi realizada pelo usuário no painel Hostinger, com orientação específica. Não houve mudança no banco nem atuação automatizada no painel DNS.
+
+A primeira leitura depois da remoção confirmou atualização parcial: Hermes passou a responder somente o IP Vercel, enquanto Artemis ainda conservava os dois; Google e Cloudflare também mantinham respostas antigas. AAAA permaneceu ausente e `www` conservou o CNAME `64fa862ec74f6496.vercel-dns-017.com` nas quatro fontes. Os registros antigos têm TTL de 14.400 segundos (4 horas), portanto algumas redes podem manter o destino anterior até a expiração de seu cache. Esta leitura não declara propagação global concluída. Evidência: `D:/sistema-juridico-juris-pro/tmp/apex-dns-after-removal-2026-10-06T01-15-12-707Z/evidence.json`, SHA-256 `3463675853c3ac99c10eb114e90a7347a4566e1c01284c6e2125888ced2a7880`.
+
+Durante a convergência, o endereço confirmado para uso é **https://www.diogeneslimaadv.com/app**. A configuração de DNS e seus registros podem ser localizados em Domínios → Gerenciar → DNS/Nameservers, conforme a [orientação oficial da Hostinger](https://www.hostinger.com/support/1583249-how-to-manage-dns-records-at-hostinger/). As verificações seguintes foram conservadas sem substituir as evidências anteriores.
+
+A conferência pontual às 01:16:12 UTC voltou a observar os dois A nos dois servidores autoritativos, com flags AA e consultas sem recursão. O serial SOA subiu de `2026100308` para `2026100601`. A resposta anterior com somente o IP Vercel não foi estável, portanto o estado registrado é **publicação DNS variável/convergindo**, com propagação ainda incompleta. Nenhum apontamento adicional foi alterado. Evidência preservada em `authoritative-followup.json` no diretório da leitura após a remoção, SHA-256 `897b57affb38e7a7eac7408c8f7ddc924e9daeecf7b71de5be353c6e0f201604`.
+
+O administrador conferiu novamente o painel e confirmou que **restou somente A @ → 216.198.79.1**. Essa confirmação foi registrada separadamente da publicação DNS observada. A última conferência pontual, após 60 segundos em duas esperas de 30, ainda encontrou respostas variáveis: Artemis retornou um IP em uma consulta e os dois em outra; Hermes conservou os dois. `www` permaneceu correto. Uma conferência independente pelo resolvedor nativo do Windows também observou Artemis com somente Vercel e Hermes com os dois IPs. O estado final desta entrega é **visual publicado e validado em www; configuração do apex corrigida no painel pelo administrador; publicação autoritativa e caches ainda convergindo**. A evidência final está em `D:/sistema-juridico-juris-pro/tmp/apex-dns-final-point-check-2026-10-06T01-19-47-877Z/evidence.json`, SHA-256 `c5b819c10ae46c1c8047401b56bd21faf30cd746ae4de288a19eb549c7ee41e5`.
 
 ## Uso e continuidade
 
