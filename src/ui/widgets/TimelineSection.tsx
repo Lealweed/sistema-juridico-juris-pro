@@ -67,7 +67,7 @@ export function TimelineSection({
   }, [rows, filter]);
 
   return (
-    <div className="space-y-3">
+    <div className="legacy-space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-white">Timeline</div>
@@ -111,7 +111,7 @@ export function TimelineSection({
                   <div className="mt-1 text-sm text-white/80">{h.title}</div>
 
                   {h.changes.length ? (
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-white/60">
+                    <ul className="mt-2 list-disc legacy-space-y-1 pl-5 text-xs text-white/60">
                       {h.changes.map((c) => (
                         <li key={c}>{c}</li>
                       ))}

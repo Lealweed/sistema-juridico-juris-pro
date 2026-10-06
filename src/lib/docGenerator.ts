@@ -49,8 +49,17 @@ export function buildProcuracaoData(client: {
   };
 }
 
+export function resolveTemplateAssetName(templateName: string): string {
+  // ASCII asset aliases preserve the existing choices across Windows deployments.
+  return templateName === 'PROCURAÇÃO.docx'
+    ? 'PROCURACAO.docx'
+    : templateName === 'CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx'
+      ? 'CONTRATO_MODELO_RECLAMACAO_TRABALHISTA.docx'
+      : templateName;
+}
+
 export async function generateDocumentDocx(data: ProcuracaoData | Record<string, string>, templateName: string): Promise<void> {
-  const resp = await fetch(`/templates/${templateName}`);
+  const resp = await fetch(`/templates/${resolveTemplateAssetName(templateName)}`);
   if (!resp.ok) {
     throw new Error(
       `Template não encontrado. Verifique se o arquivo ${templateName} existe na pasta public/templates/.`,

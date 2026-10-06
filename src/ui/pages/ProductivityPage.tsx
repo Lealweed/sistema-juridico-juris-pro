@@ -619,7 +619,7 @@ export function ProductivityPage() {
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_0.9fr]">
-          <div className="space-y-4">
+          <div className="legacy-space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <MetricInputCard
                 icon={ShieldCheck}
@@ -703,10 +703,10 @@ export function ProductivityPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="legacy-space-y-4">
             <Card className="border-white/10 bg-white/5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">Checklist antes do envio</div>
-              <div className="mt-3 space-y-3">
+              <div className="mt-3 legacy-space-y-3">
                 <ChecklistItem done={form.deadlinesMet > 0} title="Prazos registrados" hint="Confirme os prazos realmente cumpridos na semana." />
                 <ChecklistItem done={form.attendancesPerformed > 0} title="Atendimentos contabilizados" hint="Lance os retornos e reunioes concluidos." />
                 <ChecklistItem done={form.piecesDrafted > 0} title="Pecas documentadas" hint="Informe a producao juridica realizada." />
@@ -920,7 +920,7 @@ export function ProductivityPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(560px_220px_at_0%_0%,rgba(251,191,36,0.18),transparent_60%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
@@ -1003,7 +1003,7 @@ export function ProductivityPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="team" className="mt-4 space-y-6">
+          <TabsContent value="team" className="mt-4 legacy-space-y-6">
             {teamLoading ? (
               <Card>
                 <div className="text-sm text-white/70">Carregando visao gerencial da equipe...</div>
@@ -1013,7 +1013,7 @@ export function ProductivityPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="mine" className="mt-4 space-y-6">
+          <TabsContent value="mine" className="mt-4 legacy-space-y-6">
             {myLoading ? (
               <Card>
                 <div className="text-sm text-white/70">Carregando seu checklist semanal...</div>

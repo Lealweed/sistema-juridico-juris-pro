@@ -92,7 +92,7 @@ export function TaskAttachmentsSection({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="legacy-space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-white">Anexos da tarefa</div>

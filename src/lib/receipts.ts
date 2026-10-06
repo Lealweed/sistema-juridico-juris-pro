@@ -29,6 +29,23 @@ function normalizeReceiptClient(client: ReceiptQueryRow['client']): Receipt['cli
   return row?.name ? { name: String(row.name), cpf: row.cpf ?? null } : null;
 }
 
+function getCreatedReceiptId(result: unknown): string {
+  const row = Array.isArray(result)
+    ? result.length === 1 && result[0] && typeof result[0] === 'object' && !Array.isArray(result[0])
+      ? result[0]
+      : null
+    : result;
+  const id = typeof row === 'string'
+    ? row
+    : row && typeof row === 'object' && !Array.isArray(row)
+      ? (row as { id?: unknown }).id
+      : null;
+  if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error('Não foi possível confirmar o número do recibo. Ele pode já estar salvo; confira a lista de recibos antes de uma nova emissão.');
+  }
+  return id.toLowerCase();
+}
+
 export async function listReceipts(limit = 100): Promise<Receipt[]> {
   const sb = requireSupabase();
   await getAuthedUser();
@@ -112,7 +129,7 @@ export async function createReceiptSecure(input: {
   });
 
   if (error) throw new Error(error.message);
-  const receiptId = String(data || '');
+  const receiptId = getCreatedReceiptId(data);
 
   // Persist extra fields that are not in the RPC signature
   const extras: Record<string, string | null> = {};

@@ -95,7 +95,7 @@ export function PublicationsPage() {
   const selectedItem = rows.find(r => r.id === selectedId) || null;
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white flex items-center gap-2">
@@ -114,7 +114,7 @@ export function PublicationsPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Lista Inbox */}
         <Card className="lg:col-span-1 p-0 overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-          <div className="p-4 border-b border-white/5 space-y-3">
+          <div className="p-4 border-b border-white/5 legacy-space-y-3">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />

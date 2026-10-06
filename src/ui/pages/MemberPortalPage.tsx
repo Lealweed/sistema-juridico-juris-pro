@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { BRAND } from '@/lib/brand';
+import { getWorkspaceVisual } from '@/lib/workspaceVisual';
 import {
   Eye,
   EyeOff,
@@ -24,6 +26,9 @@ type MemberProfile = {
 // ─── Página principal ───────────────────────────────────────────────────────
 
 export function MemberPortalPage() {
+  const referenceVisual = getWorkspaceVisual() === 'reference';
+  const portalSurfaceClass = referenceVisual ? 'workspace-surface workspace-portal ' : '';
+  const portalLogo = referenceVisual ? BRAND.logoLight : BRAND.logoDark;
   // ── Estado de auth ──
   const [authed, setAuthed] = useState(false);
   const [emailInput, setEmailInput] = useState('');
@@ -170,7 +175,10 @@ export function MemberPortalPage() {
 
   if (!hasSupabaseEnv || !supabase) {
     return (
-      <div className="min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4">
+      <div className={`${portalSurfaceClass}min-h-screen bg-[#08090b] flex flex-col items-center justify-center gap-4 px-4`}>
+        {referenceVisual ? (
+          <img src={BRAND.logoLight} alt={BRAND.fullName} className="h-16 w-auto" />
+        ) : null}
         <h1 className="text-xl font-semibold text-white">Portal Indisponível</h1>
         <p className="text-sm text-white/50 text-center max-w-sm">
           Configuração de ambiente não encontrada.
@@ -183,10 +191,10 @@ export function MemberPortalPage() {
 
   if (!authed) {
     return (
-      <div className="min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-10">
+      <div className={`${portalSurfaceClass}min-h-screen bg-[#08090b] flex flex-col items-center px-4 py-10`}>
         <img
-          src="/brand/logo.jpg"
-          alt="Logo"
+          src={portalLogo}
+          alt={BRAND.fullName}
           className="h-16 w-auto rounded-xl shadow-lg"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
@@ -255,12 +263,12 @@ export function MemberPortalPage() {
   // ─── Tela Autenticada ────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] flex flex-col items-center px-4 py-10">
+    <div className={`${portalSurfaceClass}min-h-screen bg-gradient-to-br from-[#0a0c10] via-[#10131a] to-[#181c24] flex flex-col items-center px-4 py-10`}>
       {/* Cabeçalho */}
       <div className="w-full max-w-xl flex items-center justify-between mb-8">
         <img
-          src="/brand/logo.jpg"
-          alt="Logo"
+          src={portalLogo}
+          alt={BRAND.fullName}
           className="h-14 w-auto rounded-xl border border-white/10 shadow-xl"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
@@ -278,7 +286,7 @@ export function MemberPortalPage() {
       {loadingProfile ? (
         <div className="text-white/50 text-sm mt-10">Carregando perfil...</div>
       ) : profile ? (
-        <div className="w-full max-w-xl space-y-4">
+        <div className="w-full max-w-xl legacy-space-y-4">
           {/* Identificação */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex items-center gap-4">
             <div className="size-14 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center shrink-0">

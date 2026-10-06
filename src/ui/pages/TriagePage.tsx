@@ -188,8 +188,8 @@ function LeadDetailsModal({
           </button>
         </div>
 
-        <div className="space-y-6 p-5 sm:p-6">
-          <section className="space-y-3">
+        <div className="legacy-space-y-6 p-5 sm:p-6">
+          <section className="legacy-space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
               <UserRound className="h-4 w-4 text-amber-300" />
               Informações de Contato
@@ -399,7 +399,7 @@ export function TriagePage() {
   }, [rows]);
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <Card className="overflow-hidden border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">

@@ -1,14 +1,19 @@
 import { Outlet } from 'react-router-dom';
+import { BRAND } from '@/lib/brand';
+import { getWorkspaceVisual } from '@/lib/workspaceVisual';
 
 export default function AuthLayout() {
+  const reference = getWorkspaceVisual() === 'reference';
+  const logo = reference ? BRAND.logoLight : BRAND.logoDark;
   return (
-    <div className="min-h-dvh bg-neutral-950 text-neutral-100 app-bg-dark theme-dark">
+    <div className={`${reference ? 'workspace-surface workspace-auth' : 'bg-neutral-950 text-neutral-100 app-bg-dark theme-dark'} min-h-dvh`}>
       <div className="mx-auto flex min-h-dvh max-w-[1100px] items-center px-4 py-10">
         <div className="grid w-full gap-6 lg:grid-cols-2 lg:items-center">
           <div className="hidden lg:block">
+            <img src={logo} alt={BRAND.fullName} className="mb-6 h-auto w-64 max-w-full object-contain" />
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
               <span className="size-1.5 rounded-full bg-amber-300" />
-              Lima, Lopes & Diógenes Advocacia
+              {BRAND.fullName}
             </div>
             <h1 className="mt-5 text-3xl font-semibold tracking-tight">CRM Jurídico</h1>
             <p className="mt-3 max-w-md text-sm text-white/70">
@@ -29,6 +34,7 @@ export default function AuthLayout() {
           </div>
 
           <div>
+            <img src={logo} alt={BRAND.fullName} className="mx-auto mb-6 h-auto w-64 max-w-full object-contain lg:hidden" />
             <Outlet />
           </div>
         </div>

@@ -13,8 +13,9 @@ import { supabase } from '@/lib/supabaseClient';
 import type { ClientLite } from '@/lib/types';
 import { Card } from '@/ui/widgets/Card';
 import { cn } from '@/ui/utils/cn';
+import { BRAND } from '@/lib/brand';
 
-const OFFICE_NAME = 'Lima, Lopes & Diógenes Advogados';
+const OFFICE_NAME = BRAND.fullName;
 
 const PAYMENT_METHODS = ['Pix', 'Dinheiro', 'Transferência bancária', 'Cheque', 'Cartão de crédito', 'Boleto'];
 
@@ -506,7 +507,7 @@ export function ReceiptsPage() {
   }
 
   return (
-    <div className="min-h-screen space-y-6 px-4 py-8 md:px-6">
+    <div className="min-h-screen legacy-space-y-6 px-4 py-8 md:px-6">
       {/* Header */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(500px_180px_at_0%_0%,rgba(56,189,248,0.12),transparent_60%)]" />
@@ -529,15 +530,15 @@ export function ReceiptsPage() {
       {/* Resumo financeiro */}
       {!isCollaborator && (
         <div className="grid gap-3 md:grid-cols-3">
-          <Card className="border-cyan-400/20 bg-gradient-to-b from-cyan-400/8 to-white/3">
+          <Card className="border-cyan-400/20 bg-gradient-to-b  ">
             <div className="text-xs text-white/50">Este mês</div>
             <div className="mt-1.5 text-2xl font-semibold text-cyan-100">{centsToBRL(summary.monthly)}</div>
           </Card>
-          <Card className="border-emerald-400/20 bg-gradient-to-b from-emerald-400/8 to-white/3">
+          <Card className="border-emerald-400/20 bg-gradient-to-b  ">
             <div className="text-xs text-white/50">Este ano</div>
             <div className="mt-1.5 text-2xl font-semibold text-emerald-100">{centsToBRL(summary.yearly)}</div>
           </Card>
-          <Card className="border-amber-400/20 bg-gradient-to-b from-amber-400/8 to-white/3">
+          <Card className="border-amber-400/20 bg-gradient-to-b  ">
             <div className="text-xs text-white/50">Total geral</div>
             <div className="mt-1.5 text-2xl font-semibold text-amber-100">{centsToBRL(summary.total)}</div>
           </Card>
@@ -552,7 +553,7 @@ export function ReceiptsPage() {
             <FileText className="h-4 w-4 text-amber-400" />
             <h2 className="text-sm font-semibold text-white">Novo recibo</h2>
           </div>
-          <div className="space-y-4">
+          <div className="legacy-space-y-4">
             {/* Cliente */}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-white/70">
@@ -772,7 +773,7 @@ export function ReceiptsPage() {
         {!loading && rows.length === 0 && (
           <div className="text-sm text-white/40">Nenhum recibo encontrado.</div>
         )}
-        <div className="space-y-2">
+        <div className="legacy-space-y-2">
           {rows.map(r => (
             <div key={r.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">

@@ -519,7 +519,7 @@ export function ClientDetailsPage() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Cliente</h1>
@@ -856,7 +856,7 @@ export function ClientDetailsPage() {
             ) : null}
           </div>
 
-          <div ref={portalMessagesWrapRef} className="mt-4 max-h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div ref={portalMessagesWrapRef} className="mt-4 max-h-[420px] legacy-space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-4">
             {portalMessagesLoading ? <div className="text-sm text-white/60">Carregando mensagens...</div> : null}
             {!portalMessagesLoading && portalMessages.length === 0 ? (
               <div className="text-sm text-white/60">Nenhuma mensagem trocada pelo portal ainda.</div>
@@ -987,7 +987,7 @@ export function ClientDetailsPage() {
           </button>
         </div>
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 legacy-space-y-2">
           {txLoading ? <div className="text-sm text-white/60">Carregando honorários...</div> : null}
           {!txLoading && clientTransactions.length === 0 ? <div className="text-sm text-white/60">Nenhum lançamento financeiro para este cliente.</div> : null}
           {!txLoading && clientTransactions.map((tx) => {

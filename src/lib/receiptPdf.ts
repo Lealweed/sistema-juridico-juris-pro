@@ -4,8 +4,9 @@ import jsPDF from 'jspdf';
 
 import type { Receipt } from '@/lib/receipts';
 import type { ClientLite } from './types';
+import { BRAND } from './brand';
 
-const BRAND_LOGO_URL = '/brand/logo.jpg';
+const BRAND_LOGO_URL = BRAND.logoLight;
 
 function onlyDigits(v: string | null | undefined) {
   return (v || '').replace(/\D/g, '');
@@ -132,7 +133,7 @@ export function buildReceiptHtml({
             align-items: center;
             justify-content: center;
           }
-          .header img { width: 260px; height: auto; object-fit: contain; }
+          .header img { width: 260px; max-height: 140px; height: auto; object-fit: contain; }
           .title {
             text-align: center;
             font-size: 48px;
@@ -222,7 +223,7 @@ export function buildReceiptHtml({
       </head>
       <body>
         <div class="page">
-          <div class="header"><img src="${BRAND_LOGO_URL}" alt="Logo" /></div>
+          <div class="header"><img src="${BRAND_LOGO_URL}" alt="${escapeHtml(BRAND.name)}" /></div>
           <div class="content">
             <div class="watermark"></div>
             <h1 class="title-bar">RECIBO</h1>
@@ -244,8 +245,8 @@ export function buildReceiptHtml({
 
           <div class="footer">
             <div>
-              <div>JOSÉ LOPES DA SILVA FILHO</div>
-              <small>OAB/PA n° 36.029</small>
+              <div>${escapeHtml(BRAND.name)}</div>
+              <small>${escapeHtml(BRAND.tagline)}</small>
             </div>
             <div>
               <div>${escapeHtml(n.advogadoNome.toUpperCase())}</div>
@@ -299,7 +300,10 @@ export async function buildReceiptPdfBlob({
   // Header com logo
   const logoDataUrl = await urlToDataUrl(BRAND_LOGO_URL);
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'JPEG', 58, 10, 94, 24);
+    const logo = doc.getImageProperties(logoDataUrl);
+    const scale = Math.min(94 / logo.width, 24 / logo.height);
+    const logoWidth = logo.width * scale;
+    doc.addImage(logoDataUrl, 'PNG', (pageW - logoWidth) / 2, 10, logoWidth, logo.height * scale, undefined, 'FAST');
   }
 
   // Caixa principal
@@ -347,8 +351,8 @@ export async function buildReceiptPdfBlob({
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text('JOSÉ LOPES DA SILVA FILHO', 21, 288.8);
-  doc.text('OAB/PA n° 36.029', 21, 292.1);
+  doc.text(BRAND.name, 21, 288.8);
+  doc.text(BRAND.tagline, 21, 292.1);
   doc.text(n.advogadoNome.toUpperCase(), 75, 288.8);
   doc.text(receipt.lawyer_oab ? `OAB/PA n° ${receipt.lawyer_oab}` : '', 75, 292.1);
   doc.text('@bldadvogados', 145, 288.8);

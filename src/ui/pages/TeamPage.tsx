@@ -294,7 +294,7 @@ export function TeamPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Gestão de Equipe & Desempenho</h1>
         <p className="text-sm text-white/60">Controle de acessos (RBAC) e produtividade dos colaboradores.</p>
@@ -302,7 +302,7 @@ export function TeamPage() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         {/* Coluna Esquerda: Lista e Convite */}
-        <div className="xl:col-span-1 space-y-4">
+        <div className="xl:col-span-1 legacy-space-y-4">
           <Card className="p-0 overflow-hidden">
             <div className="px-5 py-4 border-b border-white/5 font-semibold flex justify-between items-center">
               Membros Ativos
@@ -332,14 +332,14 @@ export function TeamPage() {
 
           <Card className="p-5">
             <h3 className="font-semibold mb-3">Convidar Novo Membro</h3>
-            <form onSubmit={handleInvite} className="space-y-3">
+            <form onSubmit={handleInvite} className="legacy-space-y-3">
               <div>
                 <input 
                   type="email" 
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400"
-                  placeholder="E-mail (ex: advogado@castro.adv.br)"
+                  placeholder="E-mail (ex: nome@exemplo.com)"
                   required
                 />
               </div>
@@ -369,7 +369,7 @@ export function TeamPage() {
         </div>
 
         {/* Coluna Direita: Dashboard do Membro Selecionado */}
-        <div className="xl:col-span-2 space-y-4">
+        <div className="xl:col-span-2 legacy-space-y-4">
           {selectedMember ? (
             <>
               {/* Resumo do Membro */}

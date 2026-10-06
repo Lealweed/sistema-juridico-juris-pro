@@ -427,7 +427,7 @@ export function TasksKanbanPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Tarefas</h1>
@@ -588,7 +588,7 @@ export function TasksKanbanPage() {
 
                               {involvedUserIds.length ? (
                                 <div className="mt-3 flex items-center gap-2">
-                                  <div className="flex -space-x-2">
+                                  <div className="flex -legacy-space-x-2">
                                     {involvedUserIds.slice(0, 5).map((userId) => {
                                       const profile = profileMap.get(userId);
                                       const label = profile ? profileLabel(profile) : userId.slice(0, 8);

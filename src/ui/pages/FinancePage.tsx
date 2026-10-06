@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Card } from '@/ui/widgets/Card';
 import { getMyOfficeRole } from '@/lib/roles';
 import { getAuthedUser } from '@/lib/supabaseDb';
+import { BRAND } from '@/lib/brand';
 import {
   brlToCents,
   centsToBRL,
@@ -365,12 +366,12 @@ export function FinancePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-5 shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(500px_180px_at_0%_0%,rgba(251,191,36,0.15),transparent_60%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">Castro de Oliveira Adv</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">{BRAND.name}</p>
             <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Financeiro executivo</h1>
             <p className="mt-1 text-sm text-white/60">
               Conciliação de receitas/despesas, previsões e visão operacional por status.

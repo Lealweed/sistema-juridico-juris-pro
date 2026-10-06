@@ -2,16 +2,22 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/ui/navigation/Sidebar';
 import { Topbar } from '@/ui/navigation/Topbar';
 import { AppToaster } from '@/ui/widgets/AppToaster';
+import { getWorkspaceVisual } from '@/lib/workspaceVisual';
+import { ClassicAppLayout } from '@/ui/legacy/ClassicAppLayout';
 
 export function AppLayout() {
+  return getWorkspaceVisual() === 'reference' ? <ReferenceAppLayout /> : <ClassicAppLayout />;
+}
+
+function ReferenceAppLayout() {
   return (
-    <div className="min-h-dvh bg-neutral-950 text-neutral-100 app-bg-dark theme-dark">
+    <div className="workspace-reference workspace-light min-h-dvh bg-[#f5f5f4] text-[#172026]">
       <AppToaster />
-      <div className="mx-auto flex min-h-dvh max-w-[1400px]">
+      <div className="flex min-h-dvh">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
-          <main className="min-w-0 flex-1 px-4 pb-10 pt-6 sm:px-6">
+          <main className="workspace-surface workspace-page min-w-0 flex-1 px-4 pb-10 pt-6 sm:px-6 lg:px-7">
             <Outlet />
           </main>
         </div>
@@ -19,4 +25,3 @@ export function AppLayout() {
     </div>
   );
 }
-

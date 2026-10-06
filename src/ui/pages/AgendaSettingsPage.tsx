@@ -75,7 +75,7 @@ export function AgendaSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Configurações da Agenda</h1>

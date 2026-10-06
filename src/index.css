@@ -1,6 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@config "../tailwind.config.cjs";
+@source ".";
+@source "../index.html";
 
 :root {
   /* Brand Gold accent */
@@ -9,11 +10,32 @@
   --accent-soft: 120 100 30; /* gold deep */
 }
 
+/* Tailwind 4 requires a registered utility for the existing @apply btn. */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60;
+}
+
+@theme {
+  --default-ring-width: 3px;
+  --default-ring-color: #3b82f6;
+}
+
+@layer base {
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
+    border-color: #e5e7eb;
+  }
+  button, [type="button"], [type="reset"], [type="submit"], [role="button"] {
+    cursor: pointer;
+  }
+}
+
+@utility legacy-outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
 @layer components {
   /* Buttons */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60;
-  }
   .btn-primary {
     @apply btn bg-white text-neutral-950 hover:bg-white/90;
   }
@@ -30,11 +52,11 @@
 
   /* Inputs */
   .input {
-    @apply mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none placeholder:text-white/40;
+    @apply mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white legacy-outline-none placeholder:text-white/40;
     @apply focus:border-amber-300/40;
   }
   .select {
-    @apply mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none;
+    @apply mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white legacy-outline-none;
     @apply focus:border-amber-300/40;
   }
 
@@ -615,7 +637,7 @@ body {
 }
 
 /* ---- App light mode overrides ---- */
-html[data-app-theme='light'] .app-bg-dark {
+html[data-app-theme='light'] .app-bg-dark:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: #f8fafc !important;
   background-image:
     radial-gradient(1200px 600px at 20% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
@@ -623,46 +645,279 @@ html[data-app-theme='light'] .app-bg-dark {
     linear-gradient(to bottom, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.02)) !important;
 }
 
-html[data-app-theme='light'] .theme-dark {
+html[data-app-theme='light'] .theme-dark:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   color-scheme: light;
 }
 
-html[data-app-theme='light'] .bg-neutral-950,
-html[data-app-theme='light'] .bg-neutral-950\/70,
-html[data-app-theme='light'] .bg-neutral-950\/80,
-html[data-app-theme='light'] .bg-neutral-950\/45 {
+html[data-app-theme='light'] .bg-neutral-950:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/70:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/80:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .bg-neutral-950\/45:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(255, 255, 255, 0.78) !important;
 }
 
-html[data-app-theme='light'] .border-white\/10 {
+html[data-app-theme='light'] .border-white\/10:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   border-color: rgba(15, 23, 42, 0.12) !important;
 }
 
-html[data-app-theme='light'] .bg-white\/5 {
+html[data-app-theme='light'] .bg-white\/5:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(15, 23, 42, 0.04) !important;
 }
 
-html[data-app-theme='light'] .bg-white\/10 {
+html[data-app-theme='light'] .bg-white\/10:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
-html[data-app-theme='light'] .text-white,
-html[data-app-theme='light'] .text-white\/80,
-html[data-app-theme='light'] .text-white\/70,
-html[data-app-theme='light'] .text-white\/60,
-html[data-app-theme='light'] .text-white\/50,
-html[data-app-theme='light'] .text-white\/40 {
+html[data-app-theme='light'] .text-white:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/80:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/70:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/60:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/50:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .text-white\/40:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   color: #0f172a !important;
 }
 
-html[data-app-theme='light'] .btn-primary {
+html[data-app-theme='light'] .btn-primary:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background: #0f172a !important;
   color: #fff !important;
 }
 
-html[data-app-theme='light'] .input,
-html[data-app-theme='light'] .select {
+html[data-app-theme='light'] .input:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)),
+html[data-app-theme='light'] .select:not(:where(.workspace-reference, .workspace-reference *, .workspace-surface, .workspace-surface *)){
   background: rgba(255, 255, 255, 0.95) !important;
   color: #0f172a !important;
   border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+
+/* Shared reference palette for office pages, authentication and standalone portals.
+   The dark navigation and the classic fallback retain their own presentation. */
+.workspace-surface {
+  color-scheme: light;
+  color: #172026;
+  --background: 0 0% 100%;
+  --foreground: 200 25% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 200 25% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 200 25% 12%;
+  --primary: 38 37% 37%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 60 14% 95%;
+  --secondary-foreground: 200 20% 18%;
+  --muted: 60 14% 95%;
+  --muted-foreground: 190 3% 46%;
+  --accent: 40 41% 90%;
+  --accent-foreground: 38 37% 37%;
+  --border: 60 9% 87%;
+  --input: 60 8% 86%;
+  --ring: 40 34% 56%;
+}
+.workspace-surface .text-white,
+.workspace-surface .text-neutral-100 { color: #172026; }
+.workspace-surface [class*="text-white/"] { color: #59646a; }
+.workspace-surface :is(.text-white\/80, .text-white\/85, .text-white\/90) { color: #535d62; }
+.workspace-surface :is(.text-white\/20, .text-white\/30, .text-white\/35, .text-white\/40) { color: #969c9f; }
+.workspace-surface [class*="border-white/"] { border-color: #e2e2dc; }
+.workspace-surface :is(.bg-white\/5, .bg-white\/10, .bg-white\/15, .bg-white\/\[0\.02\], .bg-white\/\[0\.04\]) { background-color: #f5f5f1; }
+.workspace-surface :is(.bg-black\/10, .bg-black\/20, .bg-black\/30, .bg-black\/40, .bg-black\/50) { background-color: #f3f3ef; }
+.workspace-surface :is(.bg-neutral-800, .bg-neutral-900, .bg-neutral-950, .bg-neutral-950\/45, .bg-neutral-950\/70, .bg-neutral-950\/80, .bg-neutral-950\/90, .bg-neutral-950\/95) { background-color: #fff; }
+.workspace-surface section[class*="bg-gradient-"] { background-image: none; background-color: #fff; }
+.workspace-surface section[class*="shadow-"] { box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); }
+.workspace-surface section:hover { transform: none; }
+.workspace-surface :is(.text-amber-50, .text-amber-100, .text-amber-200, .text-amber-300, [class*="text-amber-200/"]) { color: #80673b; }
+.workspace-surface :is(.text-red-100, .text-red-200, .text-red-300) { color: #b44c44; }
+.workspace-surface :is(.text-green-100, .text-green-200, .text-green-300, .text-emerald-200, .text-emerald-300) { color: #3f795d; }
+.workspace-surface :is(.text-blue-200, .text-blue-300, .text-sky-200, .text-sky-300) { color: #48647a; }
+.workspace-surface .btn-primary { background: #927443; color: white; border-radius: 6px; }
+.workspace-surface .btn-primary:hover { background: #80673b; }
+.workspace-surface :is(.btn-ghost, .btn-icon) { background: #fff; border-color: #deded8; color: #535d62; border-radius: 6px; }
+.workspace-surface :is(.btn-ghost, .btn-icon):hover { background: #f3f3ef; }
+.workspace-surface :is(.input, .select) { background: #fff; color: #172026; border-color: #deded8; border-radius: 6px; }
+.workspace-surface :is(input, textarea)::placeholder { color: #969c9f; opacity: 1; }
+.workspace-surface :is(input, textarea, select):focus { border-color: #b49a68; }
+.workspace-surface .badge { background-color: #f3f3ef; color: #535d62; border-color: #e2e2dc; }
+.workspace-surface .badge-gold { background-color: #f5eddc; color: #80673b; border-color: #e7d6b4; }
+.workspace-surface .badge[class*="bg-red-"] { background-color: #fae7e3; color: #b44c44; border-color: #f0d0cb; }
+.workspace-surface .badge[class*="bg-green-"] { background-color: #e7f1e9; color: #3f795d; border-color: #cfe0d5; }
+.workspace-surface .link-accent { color: #80673b; }
+.workspace-surface :is(button, a, span):is(.bg-red-500, .bg-red-600, .bg-green-600, .bg-emerald-600, .bg-blue-600, .bg-sky-600).text-white { color: white; }
+.workspace-topbar { box-shadow: 0 1px 3px rgba(23, 32, 38, 0.03); }
+.workspace-topbar [class*="shadow-"] { box-shadow: 0 6px 24px rgba(23, 32, 38, 0.1); }
+.dashboard-reference .dashboard-card { border-radius: 8px; padding: 16px; background: white; border-color: #e5e5e0; box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); backdrop-filter: none; }
+.dashboard-reference .dashboard-card:hover { transform: none; box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); }
+.dashboard-reference .dashboard-metric > div:first-child { color: white; }
+.dashboard-reference .dashboard-action { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d5c7ac; border-radius: 5px; padding: 6px 10px; color: #927443; font-size: 11px; }
+.dashboard-reference .dashboard-tabs [role='tab'] { padding: 10px 14px; border-radius: 0; border-bottom: 2px solid transparent; color: #59646a; font-size: 12px; box-shadow: none; }
+.dashboard-reference .dashboard-tabs [role='tab'][data-state='active'] { background: transparent; color: #80673b; border-bottom-color: #b49a68; }
+.dashboard-chart-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #8a8e91; font-size: 12px; }
+.workspace-sidebar nav { scrollbar-width: thin; scrollbar-color: #354046 transparent; }
+@media (max-width: 639px) {
+  .workspace-topbar [class*="w-[22rem]"] { width: min(22rem, calc(100vw - 32px)); right: -64px; }
+}
+.workspace-surface .bg-\[\#b49a6a\].text-white { color: white; }
+/* Existing office editors use these dark surfaces for forms and preview panels. */
+.workspace-surface :is(.bg-neutral-900\/30, .bg-neutral-900\/60, .bg-neutral-950\/50, .bg-slate-900, .bg-\[\#0d1117\], .bg-\[\#0f1115\], .bg-\[\#11151c\]) { background-color: #fff; }
+.workspace-surface section[class*="rounded-2xl"] { border-radius: 8px; backdrop-filter: none; }
+.workspace-surface :is(.text-cyan-100, .text-blue-100, [class*="text-cyan-200/"]) { color: #48647a; }
+.workspace-surface :is(.text-emerald-50, .text-emerald-100, [class*="text-emerald-100/"], [class*="text-emerald-200/"]) { color: #3f795d; }
+.workspace-surface :is([class*="text-amber-100/"], [class*="text-amber-300/"]) { color: #80673b; }
+.workspace-surface :is([class*="text-red-100/"], .text-rose-200) { color: #b44c44; }
+.workspace-surface .text-violet-300 { color: #766187; }
+.workspace-surface .text-orange-300 { color: #9a6038; }
+.workspace-surface .text-neutral-50 { color: #172026; }
+.workspace-surface [class*="bg-gradient-"][class*="shadow-"] { box-shadow: 0 1px 2px rgba(23, 32, 38, 0.03); }
+
+/* Operational surfaces share the same cards, fields, feedback and document preview. */
+.workspace-surface {
+  --workspace-preview-text: #535d62;
+  --workspace-preview-strong: #172026;
+  --workspace-preview-muted: #626d73;
+  --workspace-preview-subtle: #626d73;
+  --workspace-preview-hint: #626d73;
+  --workspace-preview-border: #deded8;
+  --workspace-preview-step-bg: #f3f3ef;
+  --workspace-preview-success-bg: #e7f1e9;
+  --workspace-preview-success: #3f795d;
+  --workspace-preview-pending: #80673b;
+}
+.workspace-auth,
+.workspace-portal { background: #f5f5f1; color: #172026; }
+.workspace-page > div > :is(section, header)[class*="bg-gradient-"],
+.workspace-page > div > div[class*="bg-gradient-"][class*="rounded-"] {
+  background-image: none;
+  background-color: #fff;
+}
+.workspace-surface :is(.text-white\/20, .text-white\/30, .text-white\/35, .text-white\/40, .text-white\/45, .text-white\/50, .text-white\/55, .text-white\/60) { color: #59646a; }
+.workspace-surface :is(.text-neutral-200, .text-neutral-300, .text-neutral-400, .text-gray-200, .text-gray-300, .text-gray-400, .text-slate-200, .text-slate-300, .text-slate-400) { color: #626d73; }
+.workspace-surface :is(.bg-neutral-700, .bg-neutral-800\/50, .bg-neutral-800\/60, .bg-neutral-900\/50, .bg-gray-800, .bg-gray-900, .bg-slate-800, .bg-slate-950) { background-color: #f3f3ef; }
+.workspace-surface :is(.bg-emerald-950, .bg-green-950) { background-color: #e7f1e9; }
+.workspace-surface .bg-red-950 { background-color: #fae7e3; }
+.workspace-surface :is(input, textarea)::placeholder { color: #697379; }
+.workspace-surface :is(input, textarea, select):not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']) { background-color: #fff; color: #172026; border-color: #deded8; }
+.workspace-surface :is(input, textarea, select):focus-visible { outline: 2px solid #927443; outline-offset: 2px; }
+.workspace-surface :is(button, a):focus-visible { outline: 2px solid #927443; outline-offset: 3px; }
+.workspace-surface :is(input[type='checkbox'], input[type='radio']) { accent-color: #80673b; --tw-ring-offset-color: #fff; }
+.workspace-surface [class*="divide-white/"] > :not(:last-child) { border-color: #e2e2dc; }
+.workspace-surface :is(.hover\:bg-white\/5, .hover\:bg-white\/10, .hover\:bg-white\/15):hover { background-color: #eeeee8; }
+.workspace-surface :is(.hover\:text-white, .hover\:text-white\/90):hover { color: #172026; }
+.workspace-surface .badge[class*="bg-amber-"] { background-color: #f5eddc; color: #80673b; border-color: #e7d6b4; }
+.workspace-surface .badge[class*="bg-emerald-"] { background-color: #e7f1e9; color: #3f795d; border-color: #cfe0d5; }
+.workspace-surface .badge[class*="bg-blue-"] { background-color: #e8edf2; color: #48647a; border-color: #d6e0e8; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-yellow-"] { background: #80673b; color: #fff; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-sky-"] { background: #48647a; color: #fff; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-yellow-"]:hover { background: #725b34; }
+.workspace-surface :is(button, a)[class*="bg-gradient-to-"][class*="from-sky-"]:hover { background: #3b5367; }
+.workspace-surface :is(.bg-amber-500, .bg-amber-600, .bg-yellow-500, .bg-yellow-600).text-white { color: #172026; }
+.workspace-surface .bg-\[\#b49a68\].text-white { background-color: #80673b; color: #fff; }
+.workspace-surface :is(.shadow-2xl, .shadow-xl) { box-shadow: 0 8px 28px rgba(23, 32, 38, 0.12); }
+.workspace-surface section { backdrop-filter: none; }
+.workspace-surface :is(button, input, textarea, select):disabled { cursor: not-allowed; }
+/* Keep modal scrims dark; the panel and its fields inherit the reference palette. */
+.workspace-surface .fixed.inset-0[class*="bg-black/"] { background-color: rgba(23, 32, 38, 0.65); }
+.workspace-surface [role='tablist'] { background: #f3f3ef; border-color: #e2e2dc; }
+.workspace-surface [role='tab'][data-state='active'] { background: #fff; color: #80673b; }
+.workspace-surface [role='tab']:focus-visible { outline: 2px solid #927443; outline-offset: 2px; }
+/* Saturated status colors also need readable text on pale cards and badges. */
+.workspace-surface :is(.text-amber-50, .text-amber-100, .text-amber-200, .text-amber-300, .text-amber-400, .text-amber-500, .text-yellow-300, .text-yellow-400, .text-yellow-500, .text-\[\#87682f\], [class*="text-amber-100/"], [class*="text-amber-200/"], [class*="text-amber-300/"]) { color: #725b34; }
+.workspace-surface :is(.text-emerald-50, .text-emerald-100, .text-emerald-200, .text-emerald-300, .text-emerald-400, .text-emerald-500, .text-emerald-600, .text-green-100, .text-green-200, .text-green-300, .text-green-400, .text-green-500, [class*="text-emerald-100/"], [class*="text-emerald-200/"]) { color: #32664d; }
+.workspace-surface .badge[class*="bg-emerald-"] { color: #32664d; }
+.workspace-surface :is(.text-red-100, .text-red-200, .text-red-300, .text-red-400, .text-red-500, .text-rose-300, .text-rose-400, [class*="text-red-100/"], [class*="text-red-200/"]) { color: #a13e37; }
+.workspace-surface .badge[class*="bg-red-"] { color: #a13e37; }
+.workspace-surface :is(.text-neutral-500, .text-gray-500, .text-slate-500, .text-\[\#717778\]) { color: #626d73; }
+.workspace-surface :is(.hover\:text-amber-100, .hover\:text-amber-200, .hover\:text-amber-300):hover { color: #80673b; }
+.workspace-surface .btn-primary:hover,
+.workspace-surface .hover\:bg-primary\/90:hover { background-color: #725b34; }
+/* Important Tailwind utilities are layered; their scoped overrides share that layer. */
+@layer utilities {
+  .workspace-surface .\!text-amber-200 { color: #80673b !important; }
+  .workspace-surface .hover\:\!text-red-400:hover { color: #a13e37 !important; }
+}
+@media (max-width: 639px) {
+  .workspace-topbar > div { gap: 8px; }
+  .workspace-surface :is(h1, h2, h3) { overflow-wrap: anywhere; }
+  .workspace-page > div { min-width: 0; }
+  .workspace-page .grid > * { min-width: 0; }
+  .workspace-page .grid.grid-cols-3:has(> section) { grid-template-columns: minmax(0, 1fr); }
+  .workspace-page section { min-width: 0; overflow-wrap: anywhere; }
+  .workspace-page > div > .flex.justify-between,
+  .workspace-page > div > .flex.justify-between > .flex { flex-wrap: wrap; }
+  .workspace-page .flex > :is(input, select) { min-width: 0; }
+  .workspace-page .flex:has(> input):has(> select) { flex-wrap: wrap; }
+  .workspace-page .flex:has(> input):has(> select) > :is(input, select) { max-width: 100%; }
+  .workspace-page .overflow-x-auto > table { overflow-wrap: normal; }
+}
+
+
+.workspace-visual-switch { color: #d3d7d9; }
+.workspace-visual-switch select { border-color: #5b6266; }
+.workspace-visual-switch option { color: #172026; background: white; }
+.workspace-topbar .workspace-visual-switch { color: #535d62; }
+.workspace-topbar .workspace-visual-switch select { border-color: #deded8; }
+html[data-app-theme='light'] .workspace-classic .workspace-visual-switch { color: #0f172a; }
+/* Keep secondary text and chart legends readable on white dashboard cards. */
+.dashboard-reference .text-\[\#8a8e91\] { color: #656b70; }
+.dashboard-reference .recharts-legend-item-text { color: #535d62 !important; }
+.workspace-sidebar a[aria-current='page'],
+.workspace-navigation-dark a[aria-current='page'] { color: #172026; }
+.workspace-surface .btn-primary { background-color: #80673b; }
+.workspace-surface .text-\[\#927443\],
+.dashboard-reference .dashboard-action { color: #80673b; }
+
+/* Preserve the v3 transparent outline for existing tokens and forced colors. */
+@layer utilities {
+  .outline-none {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  .focus\:outline-none:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  .focus-visible\:outline-none:focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+/* v3 did not override these native datetime pseudo-parts. */
+@layer base {
+  ::-webkit-date-and-time-value { min-height: revert-layer; text-align: revert-layer; }
+  ::-webkit-datetime-edit { display: revert-layer; }
+  ::-webkit-datetime-edit-fields-wrapper { padding: revert-layer; }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field { padding-block: revert-layer; }
+  ::-webkit-calendar-picker-indicator { line-height: revert-layer; }
+}
+
+/* Existing forms rely on the v3 sibling selector and physical margins. */
+@utility legacy-space-y-* {
+  & > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(--spacing(--value(number)) * (1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(--spacing(--value(number)) * var(--tw-space-y-reverse));
+  }
+}
+@utility legacy-space-x-* {
+  & > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-x-reverse: 0;
+    margin-right: calc(--spacing(--value(number)) * var(--tw-space-x-reverse));
+    margin-left: calc(--spacing(--value(number)) * (1 - var(--tw-space-x-reverse)));
+  }
+}
+@utility -legacy-space-x-* {
+  & > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-x-reverse: 0;
+    margin-right: calc(--spacing(--value(number)) * -1 * var(--tw-space-x-reverse));
+    margin-left: calc(--spacing(--value(number)) * -1 * (1 - var(--tw-space-x-reverse)));
+  }
+}
+@utility legacy-space-y-reverse { & > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 1; } }
+@utility legacy-space-x-reverse { & > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; } }
+
+/* Existing bg-gradient-to-* aliases used sRGB interpolation in Tailwind 3. */
+@layer utilities {
+  .bg-gradient-to-b { --tw-gradient-position: to bottom in srgb; }
+  .bg-gradient-to-br { --tw-gradient-position: to bottom right in srgb; }
+  .bg-gradient-to-l { --tw-gradient-position: to left in srgb; }
+  .bg-gradient-to-r { --tw-gradient-position: to right in srgb; }
 }

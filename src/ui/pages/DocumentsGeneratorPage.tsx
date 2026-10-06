@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { generateDocumentDocx } from '@/lib/docGenerator';
+import { generateDocumentDocx, resolveTemplateAssetName } from '@/lib/docGenerator';
 import { loadClientsLite } from '@/lib/loadClientsLite';
 import { getAuthedUser } from '@/lib/supabaseDb';
 import type { ClientLite } from '@/lib/types';
@@ -131,19 +131,19 @@ function buildPreview(
     const hasClient = Boolean(client);
     const hasTemplate = Boolean(template);
     const step = (n: number, label: string, done: boolean) =>
-      `<li style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1e293b">
-        <span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${done ? '#064e3b' : '#0f172a'};border:1.5px solid ${done ? '#34d399' : '#334155'};font-size:10px;font-weight:700;color:${done ? '#34d399' : '#475569'};flex-shrink:0">${done ? '✓' : n}</span>
-        <span style="color:${done ? '#34d399' : '#94a3b8'};font-size:13px">${label}</span>
+      `<li style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--workspace-preview-border, #1e293b)">
+        <span style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${done ? 'var(--workspace-preview-success-bg, #064e3b)' : 'var(--workspace-preview-step-bg, #0f172a)'};border:1.5px solid ${done ? 'var(--workspace-preview-success, #34d399)' : 'var(--workspace-preview-border, #334155)'};font-size:10px;font-weight:700;color:${done ? 'var(--workspace-preview-success, #34d399)' : 'var(--workspace-preview-hint, #475569)'};flex-shrink:0">${done ? '✓' : n}</span>
+        <span style="color:${done ? 'var(--workspace-preview-success, #34d399)' : 'var(--workspace-preview-muted, #94a3b8)'};font-size:13px">${label}</span>
       </li>`;
     return {
       html: `<div style="font-family:system-ui,sans-serif">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:14px">Guia de preenchimento</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--workspace-preview-hint, #475569);margin-bottom:14px">Guia de preenchimento</div>
         <ul style="list-style:none;padding:0;margin:0">
           ${step(1, 'Selecione um cliente', hasClient)}
           ${step(2, 'Selecione um modelo de documento', hasTemplate)}
           ${step(3, 'Preencha os campos do modelo', false)}
         </ul>
-        <p style="margin-top:16px;font-size:11px;color:#334155;font-style:italic">O preview será gerado automaticamente conforme você preenche os dados.</p>
+        <p style="margin-top:16px;font-size:11px;color:var(--workspace-preview-hint, #334155);font-style:italic">O preview será gerado automaticamente conforme você preenche os dados.</p>
       </div>`,
       missing: [],
     };
@@ -168,24 +168,24 @@ function buildPreview(
     .map(
       (r) =>
         `<tr>
-          <td style="padding:8px 14px;color:#94a3b8;font-size:12px;white-space:nowrap">${r.label}</td>
-          <td style="padding:8px 14px;color:${r.value ? '#f1f5f9' : '#f59e0b'};font-weight:500">
-            ${r.value || '<em style="color:#f59e0b;font-size:11px">⚠ não preenchido</em>'}
+          <td style="padding:8px 14px;color:var(--workspace-preview-muted, #94a3b8);font-size:12px;white-space:nowrap">${r.label}</td>
+          <td style="padding:8px 14px;color:${r.value ? 'var(--workspace-preview-strong, #f1f5f9)' : 'var(--workspace-preview-pending, #f59e0b)'};font-weight:500">
+            ${r.value || '<em style="color:var(--workspace-preview-pending, #f59e0b);font-size:11px">⚠ não preenchido</em>'}
           </td>
         </tr>`,
     )
     .join('');
 
-  const html = `<div style="font-family:Georgia,serif;color:#cbd5e1">
-    <div style="border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:18px">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#64748b">Documento</div>
-      <div style="font-size:18px;font-weight:700;color:#f1f5f9;margin-top:4px">${template.label}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:2px">${template.description}</div>
+  const html = `<div style="font-family:Georgia,serif;color:var(--workspace-preview-text, #cbd5e1)">
+    <div style="border-bottom:1px solid var(--workspace-preview-border, #334155);padding-bottom:12px;margin-bottom:18px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--workspace-preview-subtle, #64748b)">Documento</div>
+      <div style="font-size:18px;font-weight:700;color:var(--workspace-preview-strong, #f1f5f9);margin-top:4px">${template.label}</div>
+      <div style="font-size:12px;color:var(--workspace-preview-subtle, #64748b);margin-top:2px">${template.description}</div>
     </div>
     <table style="width:100%;border-collapse:collapse">
       ${tableRows}
     </table>
-    <div style="margin-top:18px;padding-top:12px;border-top:1px solid #1e293b;font-size:11px;color:#475569">
+    <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--workspace-preview-border, #1e293b);font-size:11px;color:var(--workspace-preview-hint, #475569)">
       Preview gerado em ${new Date().toLocaleString('pt-BR')} · ${missing.length === 0 ? '✓ Todos os campos preenchidos' : `⚠ ${missing.length} campo(s) pendente(s)`}
     </div>
   </div>`;
@@ -315,7 +315,7 @@ function ClientSearch({
       {open && (matches.length > 0 || showNoResults) && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
           {/* counter header */}
-          <div className="sticky top-0 flex items-center justify-between border-b border-white/8 bg-neutral-900 px-4 py-2">
+          <div className="sticky top-0 flex items-center justify-between border-b  bg-neutral-900 px-4 py-2">
             <span className="text-[10px] text-white/35">
               {isEmptyQuery
                 ? `${clients.length} clientes — mostrando ${matches.length} primeiros`
@@ -487,7 +487,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
 
   async function handleRegenerate(entry: HistoryEntry) {
     try {
-      const resp = await fetch(`/templates/${entry.templateFile}`);
+      const resp = await fetch(`/templates/${resolveTemplateAssetName(entry.templateFile)}`);
       if (!resp.ok) throw new Error('Template indisponível.');
       showToast(`Abra o template "${entry.templateLabel}" e preencha os dados novamente.`, 'success');
     } catch (err: unknown) {
@@ -498,7 +498,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
   const ready = Boolean(selectedClient && selectedTemplate);
 
   return (
-    <div className="min-h-screen space-y-8 px-4 py-8 md:px-6">
+    <div className="min-h-screen legacy-space-y-8 px-4 py-8 md:px-6">
       {/* header */}
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300/70">Escritório</div>
@@ -531,8 +531,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           className={cn(
             'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
             ready
-              ? 'border-white/20 bg-white/8 text-white hover:bg-white/15 active:scale-95'
-              : 'border-white/8 bg-white/4 text-white/40',
+              ? 'border-white/20  text-white hover:bg-white/15 active:scale-95'
+              : '  text-white/40',
           )}
         >
           <Printer className="h-4 w-4" />
@@ -545,8 +545,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           className={cn(
             'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
             ready
-              ? 'border-white/20 bg-white/8 text-white hover:bg-white/15 active:scale-95'
-              : 'border-white/8 bg-white/4 text-white/40',
+              ? 'border-white/20  text-white hover:bg-white/15 active:scale-95'
+              : '  text-white/40',
           )}
         >
           <ClipboardCopy className="h-4 w-4" />
@@ -557,7 +557,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
       {/* 2-column layout */}
       <div className="grid gap-8 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_480px]">
         {/* ── LEFT COLUMN: form ── */}
-        <div className="space-y-6">
+        <div className="legacy-space-y-6">
 
           {/* 1. Cliente */}
           <Card className="relative z-30">
@@ -608,7 +608,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
               <h2 className="text-sm font-semibold text-white">Modelo de Documento</h2>
             </div>
 
-            <div className="space-y-3">
+            <div className="legacy-space-y-3">
               {GROUPS.map((group) => {
                 const groupTemplates = TEMPLATES.filter((t) => t.group === group);
                 const isOpen = expandGroup === group;
@@ -667,7 +667,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                     </button>
 
                     {isOpen && (
-                      <div className="border-t border-white/10 px-3 pb-3 pt-2 space-y-2">
+                      <div className="border-t border-white/10 px-3 pb-3 pt-2 legacy-space-y-2">
                         {groupTemplates.map((t) => (
                           <button
                             key={t.id}
@@ -708,7 +708,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 <h2 className="text-sm font-semibold text-white">Campos do Documento</h2>
               </div>
 
-              <div className="space-y-4">
+              <div className="legacy-space-y-4">
                 {selectedTemplate.fields.map((f) => (
                   <div key={f.key}>
                     <label className="mb-1.5 block text-xs font-medium text-white/70">
@@ -748,7 +748,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         </div>
 
         {/* ── RIGHT COLUMN: preview ── */}
-        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <div className="legacy-space-y-4 lg:sticky lg:top-6 lg:self-start">
           <Card className="flex flex-col overflow-hidden">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-white">Preview em tempo real</h2>
@@ -796,8 +796,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
                   ready
-                    ? 'border-white/20 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95'
-                    : 'border-white/8 bg-white/4 text-white/40',
+                    ? 'border-white/20  text-white/80 hover:bg-white/15 active:scale-95'
+                    : '  text-white/40',
                 )}
               >
                 <Printer className="h-4 w-4" />
@@ -810,8 +810,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
                   ready
-                    ? 'border-white/20 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95'
-                    : 'border-white/8 bg-white/4 text-white/40',
+                    ? 'border-white/20  text-white/80 hover:bg-white/15 active:scale-95'
+                    : '  text-white/40',
                 )}
               >
                 <ClipboardCopy className="h-4 w-4" />

@@ -5,7 +5,7 @@ import { clientsMock } from '@/ui/state/mocks';
 
 export function DemoClientsPage() {
   return (
-    <div className="space-y-6">
+    <div className="legacy-space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs text-amber-200">
