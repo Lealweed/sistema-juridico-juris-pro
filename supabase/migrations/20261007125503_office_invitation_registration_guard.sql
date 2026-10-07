@@ -60,9 +60,23 @@ begin
        join pg_attribute a on a.attrelid=indrelid and a.attnum=k.attnum where k.pos<=indnkeyatts)=array['office_id','user_id']) then
     raise exception 'office_invitation: membership_unique_contract_changed';
   end if;
-  if exists(select 1 from pg_index where indrelid='public.office_invites'::regclass and indisunique and not indisprimary) then
-    raise exception 'office_invitation: invite_unique_index_not_reviewed';
-  end if;
+  -- The actual legacy table has an expression UNIQUE index, including accepted
+  -- and revoked histories. Preserve its exact contract; never drop/reopen it.
+  if (select count(*) from pg_index where indrelid='public.office_invites'::regclass)<>4 or exists(
+    select 1 from (values
+      ('office_invites_pkey',true,true,1,'CREATE UNIQUE INDEX office_invites_pkey ON public.office_invites USING btree (id)'),
+      ('office_invites_email_idx',false,false,1,'CREATE INDEX office_invites_email_idx ON public.office_invites USING btree (lower(email))'),
+      ('office_invites_office_created_idx',false,false,2,'CREATE INDEX office_invites_office_created_idx ON public.office_invites USING btree (office_id, created_at DESC)'),
+      ('office_invites_office_email_uniq',true,false,2,'CREATE UNIQUE INDEX office_invites_office_email_uniq ON public.office_invites USING btree (office_id, lower(email))')
+    ) e(name,is_unique,is_primary,key_count,definition)
+    left join pg_class c on c.relnamespace='public'::regnamespace and c.relname=e.name
+    left join pg_index i on i.indexrelid=c.oid and i.indrelid='public.office_invites'::regclass
+    left join pg_am am on am.oid=c.relam
+    where i.indexrelid is null or c.relkind<>'i' or am.amname<>'btree' or c.relowner is distinct from (select oid from pg_roles where rolname=current_user)
+      or i.indisunique is distinct from e.is_unique or i.indisprimary is distinct from e.is_primary
+      or not i.indisvalid or not i.indisready or i.indisexclusion or i.indpred is not null
+      or i.indnkeyatts<>e.key_count or i.indnatts<>e.key_count or pg_get_indexdef(i.indexrelid) is distinct from e.definition
+  ) then raise exception 'office_invitation: invite_index_contract_changed'; end if;
   if exists(select 1 from pg_class where oid in ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)
      and (not relrowsecurity or relforcerowsecurity)) then
     raise exception 'office_invitation: rls_contract_changed';
@@ -105,6 +119,8 @@ select
   (select md5(coalesce(jsonb_agg(to_jsonb(t) order by user_id)::text,'[]')) from public.user_profiles t) profiles,
   (select jsonb_agg(to_jsonb(c) order by c.oid) from pg_constraint c where c.conrelid in
       ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)) constraints,
+  (select jsonb_agg(to_jsonb(i) order by i.indexrelid) from pg_index i where i.indrelid in
+      ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)) indexes,
   (select jsonb_agg(to_jsonb(p) order by p.oid) from pg_policy p where p.polrelid in
       ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)
       and not(p.polrelid='public.office_members'::regclass and p.polname='office_members_admin_office')) policies;
@@ -163,6 +179,11 @@ begin
   if exists(select 1 from auth.users u join public.office_members m on m.user_id=u.id
       where m.office_id=p_office_id and lower(btrim(u.email))=v_email) then
     raise exception 'office_invitation: already_member';
+  end if;
+  if exists(select 1 from public.office_invites i where i.office_id=p_office_id and lower(btrim(i.email))=v_email) then
+    -- The immutable expression UNIQUE index also covers past invitations.
+    -- Existing-account linkage is explicit; do not reopen or overwrite history.
+    raise exception 'office_invitation: invite_history_requires_existing_account';
   end if;
   insert into public.office_invites(office_id,email,role,created_by_user_id)
     values(p_office_id,v_email,v_role,v_actor) returning * into v_invite;
@@ -373,6 +394,8 @@ begin
     b.members is distinct from (select md5(coalesce(jsonb_agg(to_jsonb(t) order by id)::text,'[]')) from public.office_members t) or
     b.profiles is distinct from (select md5(coalesce(jsonb_agg(to_jsonb(t) order by user_id)::text,'[]')) from public.user_profiles t) or
     b.constraints is distinct from (select jsonb_agg(to_jsonb(c) order by c.oid) from pg_constraint c where c.conrelid in
+      ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)) or
+    b.indexes is distinct from (select jsonb_agg(to_jsonb(i) order by i.indexrelid) from pg_index i where i.indrelid in
       ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)) or
     b.policies is distinct from (select jsonb_agg(to_jsonb(p) order by p.oid) from pg_policy p where p.polrelid in
       ('public.office_members'::regclass,'public.office_invites'::regclass,'public.user_profiles'::regclass)

@@ -69,6 +69,9 @@ try{
     CREATE TABLE public.office_invites(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),office_id uuid NOT NULL REFERENCES public.offices(id),email text NOT NULL,role text NOT NULL DEFAULT 'member',
       created_by_user_id uuid REFERENCES auth.users(id),created_at timestamptz NOT NULL DEFAULT now(),accepted_by_user_id uuid REFERENCES auth.users(id),accepted_at timestamptz,
       revoked_at timestamptz,revoked_by_user_id uuid REFERENCES auth.users(id));
+    CREATE INDEX office_invites_email_idx ON public.office_invites USING btree(lower(email));
+    CREATE INDEX office_invites_office_created_idx ON public.office_invites USING btree(office_id,created_at DESC);
+    CREATE UNIQUE INDEX office_invites_office_email_uniq ON public.office_invites USING btree(office_id,lower(email));
     CREATE TABLE public.user_profiles(user_id uuid PRIMARY KEY REFERENCES auth.users(id),email text,display_name text,oab text,phone text,whatsapp text,created_at timestamptz NOT NULL DEFAULT now(),office_id uuid REFERENCES public.offices(id));
     CREATE FUNCTION public._ensure_office_id() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$BEGIN IF new.office_id IS NULL THEN SELECT id INTO new.office_id FROM public.offices ORDER BY created_at,id LIMIT 1;END IF;RETURN new;END$$;
     CREATE TRIGGER tr_user_profiles_ensure_office_id BEFORE INSERT ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION public._ensure_office_id();
@@ -96,12 +99,12 @@ try{
     INSERT INTO public.user_profiles(user_id,office_id,email,display_name) VALUES
       (${q(existing)},${q(officeB)},'historical-profile@example.invalid','Historical name'),(${q(staff)},${q(officeB)},'guest@example.invalid','Spoofed profile');
     INSERT INTO public.office_invites(id,office_id,email,role,created_by_user_id,accepted_at,accepted_by_user_id,revoked_at,revoked_by_user_id) VALUES
-      (${q(id(30))},${q(officeA)},'historical@example.invalid','member',${q(adminA)},now(),${q(guest)},null,null),
-      (${q(id(31))},${q(officeA)},'historical@example.invalid','member',${q(adminA)},null,null,now(),${q(adminA)}),
+      (${q(id(30))},${q(officeA)},'historical-accepted@example.invalid','member',${q(adminA)},now(),${q(guest)},null,null),
+      (${q(id(31))},${q(officeA)},'historical-revoked@example.invalid','member',${q(adminA)},null,null,now(),${q(adminA)}),
       (${q(id(32))},${q(officeA)},'  GUEST@example.invalid ','member',${q(adminA)},null,null,null,null);
     RESET ROLE;`);
   const original=await digest();
-  await check('Migration owner is non-superuser BYPASSRLS; historical rows/policies/constraints preserved and exact reapply safe',async()=>{
+  await check('Migration owner non-superuser BYPASSRLS; rows/constraints/indexes/three policies preserved, one policy narrowed and reapply safe',async()=>{
     await sql('SET ROLE postgres;'+migration.toString());assert.deepEqual(await digest(),original);
     await sql('SET ROLE postgres;'+migration.toString());assert.deepEqual(await digest(),original);
     evidence.version=(await sql('SHOW server_version;')).output.trim();
@@ -110,6 +113,21 @@ try{
     await sql("ALTER TABLE public.office_members DROP CONSTRAINT office_members_role_check;ALTER TABLE public.office_members ADD CONSTRAINT office_members_role_check CHECK(role IN('admin','user','owner'));");
     const r=await sql('SET ROLE postgres;'+migration.toString(),true);assert.notEqual(r.code,0);assert.match(r.error,/legacy_role_constraint_changed/);assert.deepEqual(await digest(),original);
     await sql("ALTER TABLE public.office_members DROP CONSTRAINT office_members_role_check;ALTER TABLE public.office_members ADD CONSTRAINT office_members_role_check CHECK(role IN('admin','user'));");
+  });
+  await check('Actual four invite indexes match production and drifted partial/extra/not-ready/expression contracts fail closed without data changes',async()=>{
+    const indexRows=await sql("SELECT jsonb_agg(jsonb_build_object('name',c.relname,'definition',pg_get_indexdef(i.indexrelid),'valid',i.indisvalid,'ready',i.indisready,'partial',i.indpred IS NOT NULL) ORDER BY c.relname) FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE i.indrelid='public.office_invites'::regclass;");
+    evidence.inviteIndexContract=object(indexRows);assert.equal(evidence.inviteIndexContract.length,4);
+    const before=await digest();
+    const fails=async()=>{const r=await sql('SET ROLE postgres;'+migration.toString(),true);assert.notEqual(r.code,0);assert.match(r.error,/invite_index_contract_changed/);assert.deepEqual(await digest(),before);};
+    await sql("CREATE INDEX fixture_extra_invite_index ON public.office_invites(office_id);");await fails();await sql('DROP INDEX public.fixture_extra_invite_index;');
+    for(const flag of ['indisvalid','indisready']){
+      await sql('UPDATE pg_index SET '+flag+"=false WHERE indexrelid='public.office_invites_office_email_uniq'::regclass;");await fails();
+      await sql('UPDATE pg_index SET '+flag+"=true WHERE indexrelid='public.office_invites_office_email_uniq'::regclass;");
+    }
+    await sql('DROP INDEX public.office_invites_office_email_uniq;CREATE UNIQUE INDEX office_invites_office_email_uniq ON public.office_invites(office_id,lower(email)) WHERE accepted_at IS NULL AND revoked_at IS NULL;');
+    await fails();await sql('DROP INDEX public.office_invites_office_email_uniq;CREATE UNIQUE INDEX office_invites_office_email_uniq ON public.office_invites(office_id,lower(btrim(email)));');
+    await fails();await sql('DROP INDEX public.office_invites_office_email_uniq;CREATE UNIQUE INDEX office_invites_office_email_uniq ON public.office_invites(office_id,lower(email));');
+    await sql('SET ROLE postgres;'+migration.toString());assert.deepEqual(await digest(),before);
   });
   await check('RPC ACL denies anonymous calls, owner-only helpers and authenticated send reservation; direct insert/update invitation bypass denied',async()=>{
     for(const fn of ['office_invitation_create','office_invitation_add_existing'])await denied(fn,q(officeA)+",'new@example.invalid','user'",null,/permission denied/,'anon');
@@ -154,10 +172,15 @@ try{
     for(const email of ['a@b','bad@x\n.invalid',' ', 'x'.repeat(255)+'@x.invalid'])await denied('office_invitation_create',q(officeA)+','+q(email)+",'user'",adminA,/invalid_email/);
     const finance=await create('finance-job@example.invalid','financeiro');assert.equal(finance.role,'user');
   });
-  await check('Historical accepted/revoked invites stay intact when a new invitation uses the same email',async()=>{
+  await check('Real unique index is retained; historical accepted/revoked invites reject reissue explicitly without touching history',async()=>{
     const before=(await sql('SELECT md5(jsonb_agg(to_jsonb(t) ORDER BY id)::text) FROM public.office_invites t WHERE id IN('+q(id(30))+','+q(id(31))+');')).output.trim();
-    const fresh=await create('historical@example.invalid');assert.notEqual(fresh.id,id(30));assert.notEqual(fresh.id,id(31));
+    const allBefore=await digest();
+    for(const email of ['historical-accepted@example.invalid',' HISTORICAL-ACCEPTED@example.invalid ','historical-revoked@example.invalid']){
+      await denied('office_invitation_create',q(officeA)+','+q(email)+",'user'",adminA,/invite_history_requires_existing_account/);
+    }
+    assert.deepEqual(await digest(),allBefore);
     const after=(await sql('SELECT md5(jsonb_agg(to_jsonb(t) ORDER BY id)::text) FROM public.office_invites t WHERE id IN('+q(id(30))+','+q(id(31))+');')).output.trim();assert.equal(after,before);
+    const other=await create('historical-accepted@example.invalid','user',adminB,officeB);assert.equal(other.office_id,officeB);
   });
   await check('Confirmed recipient identity comes from Auth; profile spoof and SQL wildcard emails never match',async()=>{
     assert.equal((await rpc('office_invitation_list_mine','',guest))[0].id,id(32));
@@ -230,7 +253,7 @@ try{
     await denied('office_invitation_revoke',q(officeB)+','+q(invitation.id),adminB,/invite_unavailable/);
     await denied('office_invitation_revoke',q(officeA)+','+q(id(32)),adminA,/invite_unavailable/);
     await denied('office_invitation_accept',q(invitation.id),guest,/invite_unavailable/);
-    const fresh=await create('revoked@example.invalid');assert.notEqual(fresh.id,invitation.id);
+    await denied('office_invitation_create',q(officeA)+",'revoked@example.invalid','user'",adminA,/invite_history_requires_existing_account/);
   });
   await check('Reservation is service-only, per invite sixty seconds, validates actor/creator/current pending state and leaks no recipient',async()=>{
     const invitation=await create('delivery@example.invalid');const args=q(invitation.id)+','+q(adminA);

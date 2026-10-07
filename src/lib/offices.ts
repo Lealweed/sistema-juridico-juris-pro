@@ -15,6 +15,7 @@ export type OfficeInviteRow = {
 };
 
 function invitationError(message: string) {
+  if (message.includes('office_invitation: invite_history_requires_existing_account')) return new Error('Este e-mail já tem um convite encerrado no histórico. Preserve o registro e use “Vincular conta existente” após criar a conta no Supabase.');
   if (/account_required/.test(message)) return new Error('A conta ainda não existe. Cadastre a pessoa em Authentication → Users no Supabase e depois volte aqui para vinculá-la.');
   if (/confirmed_email_required/.test(message)) return new Error('O e-mail da conta ainda não está confirmado. Confira a conta no Supabase antes de vinculá-la.');
   if (/account_identity_conflict/.test(message)) return new Error('Não foi possível confirmar uma única conta para esse e-mail. Confira a identidade no Supabase antes de vinculá-la.');
