@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { env } from '@/env';
+import { readPasswordAction } from '@/lib/authPasswordAction';
+
+export let initialPasswordAction = typeof window === 'undefined' ? null : readPasswordAction(window.location);
+export function clearInitialPasswordAction() { initialPasswordAction = null; }
 
 export const hasSupabaseEnv = Boolean(env.supabaseUrl && env.supabaseAnonKey);
 

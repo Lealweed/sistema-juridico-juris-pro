@@ -1,4 +1,6 @@
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
+import { captureTeamRequestIdentity } from '@/lib/teamRequestIdentityData';
+import { normalizeInvitationRole } from '@/lib/officeInvitationRole';
 
 export type OfficeInviteRow = {
   id: string;
@@ -12,88 +14,92 @@ export type OfficeInviteRow = {
   revoked_by_user_id: string | null;
 };
 
-export async function listMyOfficeInvites() {
-  const sb = requireSupabase();
-  const user = await getAuthedUser();
-
-  const { data, error } = await sb
-    .from('office_invites')
-    .select('id,office_id,email,role,created_at,accepted_at,accepted_by_user_id,revoked_at,revoked_by_user_id')
-    .ilike('email', String(user.email || '').toLowerCase())
-    .is('accepted_at', null)
-    .is('revoked_at', null)
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) throw new Error(error.message);
-  return (data || []) as OfficeInviteRow[];
+function invitationError(message: string) {
+  if (/account_required/.test(message)) return new Error('A conta ainda não existe. Cadastre a pessoa em Authentication → Users no Supabase e depois volte aqui para vinculá-la.');
+  if (/confirmed_email_required/.test(message)) return new Error('O e-mail da conta ainda não está confirmado. Confira a conta no Supabase antes de vinculá-la.');
+  if (/account_identity_conflict/.test(message)) return new Error('Não foi possível confirmar uma única conta para esse e-mail. Confira a identidade no Supabase antes de vinculá-la.');
+  if (/membership_role_conflict/.test(message)) return new Error('A conta já está vinculada com outro papel. O acesso existente foi preservado; confira o papel na equipe.');
+  if (/pending_role_conflict/.test(message)) return new Error('Já existe um convite pendente com outro papel. Confira os convites da equipe antes de criar outro.');
+  if (/already_member/.test(message)) return new Error('Este e-mail já pertence a um membro do escritório.');
+  if (/invite_conflict|invitation_conflict/.test(message)) return new Error('Já existe um convite pendente com outro papel. Confira os convites da equipe antes de criar outro.');
+  if (/forbidden|management_required|administrator_required/.test(message)) return new Error('Somente a administração do escritório pode gerenciar os convites.');
+  if (/invite_not_found|invitation_not_found|invite_unavailable/.test(message)) return new Error('Convite indisponível, revogado ou destinado a outro e-mail.');
+  if (/invalid.*role/.test(message)) return new Error('Escolha Colaborador ou Administrador.');
+  if (/invalid.*email/.test(message)) return new Error('Informe um e-mail válido.');
+  if (/schema cache|does not exist|Could not find the function/i.test(message)) return new Error('O cadastro da equipe está aguardando a atualização do serviço. Tente novamente após a implantação.');
+  return new Error('Não foi possível confirmar a alteração do convite. Atualize a lista antes de tentar novamente.');
 }
 
-export async function acceptOfficeInvite(inviteId: string) {
+async function invitationRpc(name: string, args: Record<string, unknown>, expectedUserId?: string) {
   const sb = requireSupabase();
-  const user = await getAuthedUser();
+  const actor = await captureTeamRequestIdentity(sb.auth, getAuthedUser, expectedUserId);
+  const { data, error } = await actor.bind(sb.rpc(name, args));
+  await actor.assertCurrent();
+  if (error) throw invitationError(error.message);
+  return data as unknown;
+}
 
-  // Get invite
-  const { data: inv, error: invErr } = await sb
-    .from('office_invites')
-    .select('id,office_id,role,accepted_at,revoked_at')
-    .eq('id', inviteId)
-    .maybeSingle();
+function invitationRows(data: unknown): OfficeInviteRow[] {
+  if (!Array.isArray(data)) throw new Error('O serviço não confirmou a lista de convites.');
+  for (const row of data) confirmedInvitation(row);
+  return (data as OfficeInviteRow[]).filter(row => row.accepted_at === null && row.revoked_at === null);
+}
 
-  if (invErr) throw new Error(invErr.message);
-  if (!inv) throw new Error('Convite não encontrado.');
-  if (inv.revoked_at) throw new Error('Convite revogado.');
-  if (inv.accepted_at) throw new Error('Convite já aceito.');
+function invitationObject<T extends object>(data: unknown): T {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('O serviço não confirmou a alteração. Atualize a lista antes de tentar novamente.');
+  return data as T;
+}
 
-  // Join office (idempotent: if already member, continue)
-  const { error: mErr } = await sb
-    .from('office_members')
-    .insert({ office_id: inv.office_id, user_id: user.id, role: inv.role });
+const isUuid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-  if (mErr && !String(mErr.message || '').toLowerCase().includes('duplicate')) {
-    throw new Error(mErr.message);
+function confirmedInvitation(data: unknown): OfficeInviteRow {
+  const row = invitationObject<OfficeInviteRow>(data);
+  if (!isUuid(row.id) || !isUuid(row.office_id) || typeof row.email !== 'string' || typeof row.role !== 'string' || typeof row.created_at !== 'string' || !('accepted_at' in row) || !('revoked_at' in row)) {
+    throw new Error('O serviço não confirmou os dados do convite. Atualize a lista antes de continuar.');
   }
-
-  // Mark invite as accepted (even if membership already existed)
-  const { error: upErr } = await sb
-    .from('office_invites')
-    .update({ accepted_at: new Date().toISOString(), accepted_by_user_id: user.id })
-    .eq('id', inviteId)
-    .is('accepted_at', null);
-
-  if (upErr) throw new Error(upErr.message);
-
-  return { ok: true };
+  return row;
 }
 
-export async function createOfficeInvite(args: { officeId: string; email: string; role: string }) {
-  const sb = requireSupabase();
-  const user = await getAuthedUser();
+function confirmedMembership(data: unknown, expectedOfficeId?: string) {
+  const row = invitationObject<{ id: string; office_id: string; user_id: string; role: string }>(data);
+  if (!isUuid(row.id) || !isUuid(row.office_id) || !isUuid(row.user_id) || !['admin', 'user'].includes(row.role) || (expectedOfficeId && row.office_id !== expectedOfficeId)) {
+    throw new Error('O serviço não confirmou o vínculo com o escritório. Atualize a equipe antes de tentar novamente.');
+  }
+  return row;
+}
 
+export async function listMyOfficeInvites(expectedUserId?: string) {
+  return invitationRows(await invitationRpc('office_invitation_list_mine', {}, expectedUserId));
+}
+
+export async function listOfficeInvites(officeId: string, expectedUserId: string) {
+  return invitationRows(await invitationRpc('office_invitation_list', { p_office_id: officeId }, expectedUserId));
+}
+
+export async function acceptOfficeInvite(inviteId: string, expectedUserId?: string) {
+  return confirmedMembership(await invitationRpc('office_invitation_accept', { p_invite_id: inviteId }, expectedUserId));
+}
+
+export async function createOfficeInvite(args: { officeId: string; email: string; role: string }, expectedUserId?: string): Promise<OfficeInviteRow> {
   const email = args.email.trim().toLowerCase();
-  if (!email) throw new Error('E-mail inválido.');
-
-  const { error } = await sb.from('office_invites').insert({
-    office_id: args.officeId,
-    email,
-    role: args.role,
-    created_by_user_id: user.id,
-  });
-
-  if (error) throw new Error(error.message);
-  return { ok: true };
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail válido.');
+  const row = confirmedInvitation(await invitationRpc('office_invitation_create', {
+    p_office_id: args.officeId, p_email: email, p_role: normalizeInvitationRole(args.role),
+  }, expectedUserId));
+  if (row.office_id !== args.officeId || row.email.trim().toLowerCase() !== email || normalizeInvitationRole(row.role) !== normalizeInvitationRole(args.role)) throw new Error('O serviço não confirmou o convite solicitado. Confira a lista antes de tentar novamente.');
+  return row;
 }
 
-export async function revokeOfficeInvite(inviteId: string, officeId: string) {
-  const sb = requireSupabase();
-  const user = await getAuthedUser();
+export async function addExistingOfficeMember(args: { officeId: string; email: string; role: string }, expectedUserId: string) {
+  const email = args.email.trim().toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail válido.');
+  const row = confirmedMembership(await invitationRpc('office_invitation_add_existing', {
+    p_office_id: args.officeId, p_email: email, p_role: normalizeInvitationRole(args.role),
+  }, expectedUserId), args.officeId);
+  if (row.role !== normalizeInvitationRole(args.role)) throw new Error('O serviço não confirmou o papel solicitado. Confira a equipe antes de tentar novamente.');
+  return row;
+}
 
-  const { error } = await sb
-    .from('office_invites')
-    .update({ revoked_at: new Date().toISOString(), revoked_by_user_id: user.id })
-    .eq('id', inviteId)
-    .eq('office_id', officeId);
-
-  if (error) throw new Error(error.message);
-  return { ok: true };
+export async function revokeOfficeInvite(inviteId: string, officeId: string, expectedUserId: string) {
+  return confirmedInvitation(await invitationRpc('office_invitation_revoke', { p_office_id: officeId, p_invite_id: inviteId }, expectedUserId));
 }
