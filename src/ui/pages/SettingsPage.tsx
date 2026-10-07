@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Card } from '@/ui/widgets/Card';
 import { acceptOfficeInvite, createOfficeInvite, listMyOfficeInvites } from '@/lib/offices';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { getErrorMessage } from '@/lib/errors';
+import { invitationRoleLabel } from '@/lib/officeInvitationRole';
 
 type Office = {
   id: string;
@@ -43,26 +44,12 @@ type OfficeInviteRow = {
   revoked_at: string | null;
 };
 
-function roleLabel(role: string) {
-  switch (role) {
-    case 'admin':
-      return 'Admin';
-    case 'finance':
-      return 'Financeiro';
-    case 'staff':
-      return 'Operacional';
-    default:
-      return 'Membro';
-  }
-}
+const roleLabel = invitationRoleLabel;
 
 function isOfficeMembersPolicyError(msg: string) {
   return msg.toLowerCase().includes('infinite recursion detected in policy for relation "office_members"');
 }
 
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
-}
 
 export function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -75,16 +62,13 @@ export function SettingsPage() {
   const [members, setMembers] = useState<OfficeMemberRow[]>([]);
   const [invites, setInvites] = useState<OfficeInviteRow[]>([]);
 
-  // legacy manual add
-  const [addEmail, setAddEmail] = useState('');
-  const [addUserId, setAddUserId] = useState('');
-  const [addRole, setAddRole] = useState<'member' | 'admin' | 'finance' | 'staff'>('member');
-
   // new invite flow
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'member' | 'admin' | 'finance' | 'staff'>('member');
+  const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
 
   const [saving, setSaving] = useState(false);
+  const invitationLock = useRef(false);
+  const [invitationNotice, setInvitationNotice] = useState<string | null>(null);
   const [myWhatsapp, setMyWhatsapp] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileNotice, setProfileNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -104,7 +88,7 @@ export function SettingsPage() {
       setMeId(user.id);
 
       // load invites even when office query fails
-      const myInvites = await listMyOfficeInvites().catch(() => [] as OfficeInviteRow[]);
+      const myInvites = await listMyOfficeInvites(user.id);
       setInvites((myInvites || []) as OfficeInviteRow[]);
 
       // Carrega WhatsApp do próprio perfil
@@ -194,114 +178,48 @@ export function SettingsPage() {
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function addMember() {
-    // legacy/manual add (kept) — requires user to have logged in once
-    if (!isAdmin) {
-      setError('Apenas admin pode adicionar membros.');
-      return;
-    }
-    const email = addEmail.trim().toLowerCase();
-    if (!email) return;
-    if (!office) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const sb = requireSupabase();
-      await getAuthedUser();
-
-      const { data: prof, error: pErr } = await sb
-        .from('user_profiles')
-        .select('user_id,email')
-        .ilike('email', email)
-        .limit(1)
-        .maybeSingle();
-
-      if (pErr) throw new Error(pErr.message);
-      const userId = prof?.user_id as string | undefined;
-      if (!userId) throw new Error('Usuário não encontrado.');
-
-      const { error: iErr } = await sb.from('office_members').insert({ office_id: office.id, user_id: userId, role: addRole });
-      if (iErr) throw new Error(iErr.message);
-
-      setAddEmail('');
-      setAddRole('member');
-      await load();
-    } catch (e: unknown) {
-      setError(getErrorMessage(e, String(e)));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function addMemberByUserId() {
-    if (!isAdmin) {
-      setError('Apenas admin pode adicionar membros.');
-      return;
-    }
-    const userId = addUserId.trim();
-    if (!office) return;
-    if (!isUuid(userId)) {
-      setError('Informe um user_id UUID válido.');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const sb = requireSupabase();
-      await getAuthedUser();
-
-      const { error: iErr } = await sb.from('office_members').insert({ office_id: office.id, user_id: userId, role: addRole });
-      if (iErr && !String(iErr.message || '').toLowerCase().includes('duplicate')) throw new Error(iErr.message);
-
-      setAddUserId('');
-      setAddRole('member');
-      await load();
-    } catch (e: unknown) {
-      setError(getErrorMessage(e, String(e)));
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function createInvite() {
     if (!isAdmin) {
       setError('Apenas admin pode criar convites.');
       return;
     }
-    if (!office) return;
+    if (!office || !meId || loading || invitationLock.current) return;
 
+    invitationLock.current = true;
     setSaving(true);
     setError(null);
+    setInvitationNotice(null);
 
     try {
-      await createOfficeInvite({ officeId: office.id, email: inviteEmail, role: inviteRole });
+      await createOfficeInvite({ officeId: office.id, email: inviteEmail, role: inviteRole }, meId);
+      setInvitationNotice('Convite registrado. A pessoa com conta confirmada pode aceitar em Configurações. Para vincular uma conta criada no Supabase, abra Equipe e acessos. Registrar não envia e-mail.');
       setInviteEmail('');
-      setInviteRole('member');
+      setInviteRole('user');
       await load();
     } catch (e: unknown) {
       setError(getErrorMessage(e, String(e)));
     } finally {
+      invitationLock.current = false;
       setSaving(false);
     }
   }
 
   async function acceptInvite(inviteId: string) {
+    if (!meId || loading || invitationLock.current) return;
+    invitationLock.current = true;
     setSaving(true);
     setError(null);
 
     try {
-      await acceptOfficeInvite(inviteId);
+      await acceptOfficeInvite(inviteId, meId);
+      setInvitationNotice('Convite aceito. Seu vínculo com o escritório foi confirmado.');
       await load();
     } catch (e: unknown) {
       setError(getErrorMessage(e, String(e)));
     } finally {
+      invitationLock.current = false;
       setSaving(false);
     }
   }
@@ -337,6 +255,7 @@ export function SettingsPage() {
   // (revogar convite) será adicionado quando listarmos convites do escritório para admin
 
   async function setRole(memberId: string, role: string) {
+    if (loading || members.find(member => member.id === memberId)?.user_id === meId) return;
     if (!isAdmin) {
       setError('Apenas admin pode alterar permissões.');
       return;
@@ -360,6 +279,7 @@ export function SettingsPage() {
   }
 
   async function removeMember(memberId: string) {
+    if (loading || members.find(member => member.id === memberId)?.user_id === meId) return;
     if (!isAdmin) {
       setError('Apenas admin pode remover membros.');
       return;
@@ -418,7 +338,8 @@ export function SettingsPage() {
         <p className="text-sm text-white/60">Escritório, membros e permissões.</p>
       </div>
 
-      {error ? <div className="text-sm text-red-200">{error}</div> : null}
+      {error ? <div role="alert" className="text-sm text-red-200">{error}</div> : null}
+      {invitationNotice && <div role="status" className="text-sm text-emerald-200">{invitationNotice}</div>}
       {policyBlocked ? (
         <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
           A política RLS de <strong>office_members</strong> está com recursão infinita. A tela continua acessível,
@@ -508,7 +429,7 @@ export function SettingsPage() {
                       <div className="text-sm font-semibold text-white">{inv.email}</div>
                       <div className="mt-1 text-xs text-white/60">Papel: {roleLabel(inv.role)}</div>
                     </div>
-                    <button className="btn-primary !rounded-lg !px-3 !py-2 !text-xs" disabled={saving} onClick={() => void acceptInvite(inv.id)}>
+                    <button className="btn-primary !rounded-lg !px-3 !py-2 !text-xs" disabled={saving || loading} onClick={() => void acceptInvite(inv.id)}>
                       Aceitar
                     </button>
                   </div>
@@ -521,7 +442,7 @@ export function SettingsPage() {
             <div className="mt-4 grid gap-6">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-sm font-semibold text-white">Criar convite (por e-mail)</div>
-                <div className="mt-2 text-xs text-white/60">A pessoa precisa fazer login com esse e-mail para conseguir aceitar.</div>
+                <div className="mt-2 text-xs text-white/60">A pessoa com uma conta confirmada poderá aceitar o convite em Configurações. Para vincular a conta criada no Supabase, abra Equipe e acessos.</div>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <label className="text-sm text-white/80">
@@ -536,64 +457,21 @@ export function SettingsPage() {
 
                   <label className="text-sm text-white/80">
                     Papel
-                    <select className="select" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'member' | 'admin' | 'finance' | 'staff')}>
-                      <option value="member">Membro</option>
-                      <option value="staff">Operacional</option>
-                      <option value="finance">Financeiro</option>
-                      <option value="admin">Admin</option>
+                    <select className="select" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'user' | 'admin')}>
+                      <option value="user">Colaborador</option>
+                      <option value="admin">Administrador</option>
                     </select>
                   </label>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-primary" disabled={saving} onClick={() => void createInvite()}>
+                  <button className="btn-primary" disabled={saving || loading} onClick={() => void createInvite()}>
                     {saving ? 'Salvando…' : 'Criar convite'}
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold text-white">Adicionar membro direto</div>
-                <div className="mt-2 text-xs text-white/60">Você pode adicionar por e-mail (usuário já logado) ou por user_id UUID.</div>
-
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <label className="text-sm text-white/80">
-                    E-mail do usuário
-                    <input className="input" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="email@dominio.com" />
-                  </label>
-
-                  <label className="text-sm text-white/80">
-                    Papel
-                    <select className="select" value={addRole} onChange={(e) => setAddRole(e.target.value as 'member' | 'admin' | 'finance' | 'staff')}>
-                      <option value="member">Membro</option>
-                      <option value="staff">Operacional</option>
-                      <option value="finance">Financeiro</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </label>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-ghost" disabled={saving} onClick={() => void addMember()}>
-                    {saving ? 'Salvando…' : 'Adicionar por e-mail'}
-                  </button>
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-                  <label className="text-sm text-white/80">
-                    User ID (UUID)
-                    <input
-                      className="input"
-                      value={addUserId}
-                      onChange={(e) => setAddUserId(e.target.value)}
-                      placeholder="ex: c3dbb1b9-bd1f-4320-95ce-0df6a7e4f5f1"
-                    />
-                  </label>
-                  <button className="btn-primary self-end" disabled={saving} onClick={() => void addMemberByUserId()}>
-                    {saving ? 'Salvando…' : 'Adicionar por ID'}
-                  </button>
-                </div>
-              </div>
+              <Link className="btn-primary text-center" to="/app/configuracoes/membros">Equipe e acessos: vincular contas e acompanhar convites</Link>
             </div>
           ) : null}
 
@@ -619,10 +497,8 @@ export function SettingsPage() {
                           value={m.role}
                           onChange={(e) => void setRole(m.id, e.target.value)}
                         >
-                          <option value="member">Membro</option>
-                          <option value="staff">Operacional</option>
-                          <option value="finance">Financeiro</option>
-                          <option value="admin">Admin</option>
+                          <option value="user">Colaborador</option>
+                          <option value="admin">Administrador</option>
                         </select>
 
                         <button

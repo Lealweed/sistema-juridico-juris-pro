@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/auth/authStore';
+import { setRole, setTokens } from '@/lib/apiClient';
 import { Eye, EyeOff } from 'lucide-react';
 
-import { useAuth } from '@/auth/authStore';
 import { signInWithPassword } from '@/auth/supabaseAuth';
 import { env } from '@/env';
-import { setRole, setTokens } from '@/lib/apiClient';
 import { getErrorMessage } from '@/lib/errors';
+import { readPasswordAction, type PasswordAction } from '@/lib/authPasswordAction';
+import { clearInitialPasswordAction, initialPasswordAction } from '@/lib/supabaseClient';
+import { updatePasswordForConfirmedSession, type ConfirmedPasswordSession } from '@/lib/authPasswordUpdate';
+
 
 type LoginResponse = {
   accessToken: string;
@@ -21,6 +25,7 @@ export function LoginPage() {
   const loc = useLocation();
   const auth = useAuth();
 
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,27 +33,83 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [passwordAction, setPasswordAction] = useState<PasswordAction>(initialPasswordAction);
+  const [confirmedPassword, setConfirmedPassword] = useState('');
+  const confirmedSession = useRef<ConfirmedPasswordSession | null>(null);
+  const boundUserId = useRef<string | null>(null);
+  const actionBlocked = useRef(false);
+  const sessionEpoch = useRef(0);
+  const passwordAttempt = useRef(0);
 
   useEffect(() => {
-    // Check if URL has hash fragment with access_token (successful recovery)
-    // or if the Supabase event fires.
-    const checkRecovery = async () => {
-      if (typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
-        setIsRecoveryMode(true);
-      }
-      
-      try {
-        const { onAuthStateChange } = await import('@/auth/supabaseAuth');
-        onAuthStateChange(() => {
-          // You could also check event types here if exported, 
-          // but we rely on the URL hash mostly.
-        });
-      } catch {
-        // ignore
-      }
+    let alive = true;
+    let unsubscribe: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let verification = 0;
+    const action = readPasswordAction({ search: loc.search, hash: loc.hash }) || initialPasswordAction;
+    const invalidatePending = () => { sessionEpoch.current++; passwordAttempt.current++; confirmedSession.current = null; };
+    const invalidateAction = () => {
+      verification++; invalidatePending(); actionBlocked.current = true;
+      clearInitialPasswordAction();
+      if (timer) clearTimeout(timer);
+      setIsRecoveryMode(false); setPasswordAction(null);
+      setPassword(''); setConfirmedPassword(''); setShowPassword(false); setLoading(false);
+      setError('A conta mudou durante a confirmação. Abra novamente o link de acesso para definir a senha da conta correta.');
     };
-    checkRecovery();
-  }, [loc]);
+    void (async () => {
+      const { supabase } = await import('@/lib/supabaseClient');
+      if (!alive || !supabase) return;
+      const verifyAction = async (nextAction: Exclude<PasswordAction, null>) => {
+        if (actionBlocked.current) return;
+        const attempt = ++verification;
+        const epoch = sessionEpoch.current;
+        try {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          if (!alive || attempt !== verification || epoch !== sessionEpoch.current || actionBlocked.current) return;
+          const session = sessionData.session;
+          if (sessionError || !session?.user.id || !session.access_token) {
+            setIsRecoveryMode(false);
+            setError('O link de acesso não confirmou uma sessão. Abra o link recebido por e-mail; se estiver vencido, solicite outro à administração.');
+            return;
+          }
+          if (boundUserId.current && boundUserId.current !== session.user.id) { invalidateAction(); return; }
+          boundUserId.current = session.user.id;
+          const candidate = Object.freeze({ userId: session.user.id, accessToken: session.access_token });
+          const { data: userData, error: userError } = await supabase.auth.getUser(candidate.accessToken);
+          if (!alive || attempt !== verification || epoch !== sessionEpoch.current || actionBlocked.current) return;
+          if (!userError && userData.user?.id === candidate.userId) {
+            confirmedSession.current = candidate;
+            setPasswordAction(nextAction); setIsRecoveryMode(true); setError(null);
+          } else {
+            setIsRecoveryMode(false);
+            setError('O link de acesso não confirmou uma sessão. Abra o link recebido por e-mail; se estiver vencido, solicite outro à administração.');
+          }
+        } catch {
+          // This action also runs from a deferred Auth callback, outside the initialization promise.
+          if (!alive || attempt !== verification || epoch !== sessionEpoch.current || actionBlocked.current) return;
+          setIsRecoveryMode(false);
+          setError('Não foi possível validar o link de acesso.');
+        }
+      };
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (!alive) return;
+        if ((event === 'SIGNED_OUT' && (action || boundUserId.current)) || (boundUserId.current && session?.user.id !== boundUserId.current)) {
+          invalidateAction(); return;
+        }
+        if (actionBlocked.current) return;
+        if (session && (event === 'PASSWORD_RECOVERY' || action)) {
+          boundUserId.current = session.user.id;
+          if (confirmedSession.current) return;
+          if (timer) clearTimeout(timer);
+          // Auth callbacks hold the SDK lock. Verify with the server after the callback returns.
+          timer = setTimeout(() => { void verifyAction(event === 'PASSWORD_RECOVERY' ? 'recovery' : action!); }, 0);
+        }
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+      if (action) await verifyAction(action);
+    })().catch(() => { if (alive && action) setError('Não foi possível validar o link de acesso.'); });
+    return () => { alive = false; verification++; invalidatePending(); if (timer) clearTimeout(timer); unsubscribe?.(); };
+  }, [loc.search, loc.hash]);
 
   async function loginWithBackend(emailValue: string, passwordValue: string) {
     const res = await fetch(`${env.apiBaseUrl}/auth/login`, {
@@ -82,23 +143,40 @@ export function LoginPage() {
 
   async function onUpdatePassword(e: React.FormEvent) {
     e.preventDefault();
+    const session = confirmedSession.current;
+    const epoch = sessionEpoch.current;
+    const attempt = ++passwordAttempt.current;
+    const isCurrent = () => confirmedSession.current === session && !!session && epoch === sessionEpoch.current && attempt === passwordAttempt.current && !actionBlocked.current;
+    if (!session || !isCurrent()) {
+      setError('Abra novamente o link de acesso para confirmar a conta antes de definir a senha.');
+      return;
+    }
+    if (password.length < 8 || password !== confirmedPassword) {
+      setError('Use pelo menos 8 caracteres e confirme a mesma senha.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const { supabase } = await import('@/lib/supabaseClient');
-      if (!supabase) throw new Error('Supabase Client not found');
-      
-      const { error: updateErr } = await supabase.auth.updateUser({ password });
-      if (updateErr) throw updateErr;
-      
+      if (!isCurrent()) return;
+      if (!supabase || !env.supabaseUrl || !env.supabaseAnonKey) throw new Error('Autenticação indisponível: Supabase não configurado.');
+      const verification = await supabase.auth.getUser(session.accessToken).catch(() => null);
+      if (!isCurrent()) return;
+      if (!verification || verification.error || verification.data.user?.id !== session.userId) throw new Error('Não foi possível confirmar a conta. Abra novamente o link de acesso.');
+      await updatePasswordForConfirmedSession({ supabaseUrl: env.supabaseUrl, anonKey: env.supabaseAnonKey, session, password });
+      if (!isCurrent()) return;
       alert('Senha atualizada com sucesso! Você já pode entrar.');
+      if (!isCurrent()) return;
       setIsRecoveryMode(false);
       setPassword('');
-      nav('/app');
+      setConfirmedPassword('');
+      clearInitialPasswordAction();
+      nav(passwordAction === 'invite' ? '/app/configuracoes' : '/app');
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Falha ao atualizar senha.'));
+      if (isCurrent()) setError(getErrorMessage(err, 'Falha ao atualizar senha.'));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }
 
@@ -168,10 +246,13 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  minLength={8}
                   required
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80"
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -179,6 +260,12 @@ export function LoginPage() {
                 </button>
               </div>
             </label>
+
+            <label className="text-sm text-white/80">Confirmar nova senha
+              <input className="input" value={confirmedPassword} onChange={event => setConfirmedPassword(event.target.value)} type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} required />
+            </label>
+
+            {passwordAction === 'invite' && <p className="text-sm text-white/60">Depois de criar sua senha, aceite o convite do escritório em Configurações para acessar a agenda e os clientes autorizados.</p>}
 
             <button disabled={loading} className="btn-primary">
               {loading ? 'Salvando…' : 'Salvar Nova Senha'}
@@ -223,7 +310,8 @@ export function LoginPage() {
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80"
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
