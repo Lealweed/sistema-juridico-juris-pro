@@ -50,15 +50,23 @@ export function buildProcuracaoData(client: {
 }
 
 export function resolveTemplateAssetName(templateName: string): string {
-  // ASCII asset aliases preserve the existing choices across Windows deployments.
-  return templateName === 'PROCURAÇÃO.docx'
-    ? 'PROCURACAO.docx'
-    : templateName === 'CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx'
-      ? 'CONTRATO_MODELO_RECLAMACAO_TRABALHISTA.docx'
-      : templateName;
+  // New clients use dated models; canonical assets remain compatible with open old tabs.
+  const datedAssets: Record<string, string> = {
+    'CONTRATO_MODELO_AUX_POR_INCAP_TEMPORARIA.docx': 'CONTRATO_MODELO_AUX_POR_INCAP_TEMPORARIA_v2.docx',
+    'CONTRATO_MODELO_BPC-LOAS.docx': 'CONTRATO_MODELO_BPC-LOAS_v2.docx',
+    'CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx': 'CONTRATO_MODELO_RECLAMACAO_TRABALHISTA_v2.docx',
+    'CONTRATO_MODELO_RECLAMACAO_TRABALHISTA.docx': 'CONTRATO_MODELO_RECLAMACAO_TRABALHISTA_v2.docx',
+    'PROCURAÇÃO.docx': 'PROCURACAO_v2.docx',
+    'PROCURACAO.docx': 'PROCURACAO_v2.docx',
+  };
+  return datedAssets[templateName] || templateName;
 }
 
-export async function generateDocumentDocx(data: ProcuracaoData | Record<string, string>, templateName: string): Promise<void> {
+export async function generateDocumentDocx(
+  data: ProcuracaoData | Record<string, string>,
+  templateName: string,
+  beforeDownload?: () => void | Promise<void>,
+): Promise<void> {
   const resp = await fetch(`/templates/${resolveTemplateAssetName(templateName)}`);
   if (!resp.ok) {
     throw new Error(
@@ -76,7 +84,7 @@ export async function generateDocumentDocx(data: ProcuracaoData | Record<string,
 
   // Build render context: support both ProcuracaoData (legacy) and flat Record<string,string> (new)
   const isProcuracaoData = 'nome' in data;
-  const renderCtx = isProcuracaoData
+  const renderCtx: Record<string, string> = isProcuracaoData
     ? {
         NOME: (data as ProcuracaoData).nome,
         NACIONALIDADE: (data as ProcuracaoData).nacionalidade,
@@ -86,7 +94,11 @@ export async function generateDocumentDocx(data: ProcuracaoData | Record<string,
         RG: (data as ProcuracaoData).rg,
         ENDERECO_COMPLETO: (data as ProcuracaoData).enderecoCompleto,
       }
-    : (data as Record<string, string>);
+    : { ...(data as Record<string, string>) };
+
+  renderCtx.DATA_ATUAL = renderCtx.DATA_ATUAL?.trim() || new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
 
   doc.render(renderCtx);
 
@@ -99,5 +111,6 @@ export async function generateDocumentDocx(data: ProcuracaoData | Record<string,
     ? (data as ProcuracaoData).nome.replace(/[^a-zA-Z0-9À-ÿ ]/g, '').replace(/\s+/g, '_')
     : ((data as Record<string, string>)['NOME'] || 'documento').replace(/[^a-zA-Z0-9À-ÿ ]/g, '').replace(/\s+/g, '_');
   const docTitle = templateName.replace('.docx', '');
+  await beforeDownload?.();
   saveAs(out, `${docTitle}_${safeName}.docx`);
 }

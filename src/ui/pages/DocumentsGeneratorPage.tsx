@@ -1,5 +1,7 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { escapeHtml } from '@/lib/documentSafeHtml';
+import { letterheadBodyStart, letterheadBodyEnd, letterheadPrintStyles } from '@/lib/documentPrintLayout';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -14,110 +16,24 @@ import {
   X,
 } from 'lucide-react';
 
-import { generateDocumentDocx, resolveTemplateAssetName } from '@/lib/docGenerator';
-import { loadClientsLite } from '@/lib/loadClientsLite';
-import { getAuthedUser } from '@/lib/supabaseDb';
+import { generateDocumentDocx, resolveTemplateAssetName } from '@/lib/documentDocxGenerator';
+import { DOCUMENT_TEMPLATES as TEMPLATES, assertDocumentTemplateAvailable, getMissingDocumentFields, initialDocumentFields, isDocumentTemplateAvailable, prepareDocumentData, type DocumentTemplate as Template } from '@/lib/documentData';
+import { findRequestedDocumentClient } from '@/lib/documentClientSelection';
+import { requireSupabase } from '@/lib/supabaseDb';
+import { getDocumentOfficeContext, loadDocumentClients } from '@/lib/documentScopedAccess';
+import { appendDocumentHistory, documentHistoryKey, readDocumentHistory, type DocumentHistoryContext, type DocumentHistoryEntry as HistoryEntry } from '@/lib/documentHistory';
 import type { ClientLite } from '@/lib/types';
 import { cn } from '@/ui/utils/cn';
 import { Card } from '@/ui/widgets/Card';
 
 /* ─── template catalogue ─── */
 
-type TemplateField = { key: string; label: string; placeholder: string; mask?: 'money' | 'cpf' | 'date' };
-
-type Template = {
-  id: string;
-  file: string;
-  label: string;
-  group: 'Contratos' | 'Procurações' | 'Recibos';
-  description: string;
-  fields: TemplateField[];
-};
-
-const TEMPLATES: Template[] = [
-  {
-    id: 'contrato-incap',
-    file: 'CONTRATO_MODELO_AUX_POR_INCAP_TEMPORARIA.docx',
-    label: 'Aux. por Incapacidade Temporária',
-    group: 'Contratos',
-    description: 'Contrato de honorários para ações de auxílio por incapacidade temporária.',
-    fields: [
-      { key: 'VALOR', label: 'Valor dos honorários', placeholder: '0,00', mask: 'money' },
-      { key: 'DESCRICAO', label: 'Descrição do serviço', placeholder: 'Patrocínio de ação previdenciária…' },
-      { key: 'CLAUSULA', label: 'Cláusula adicional', placeholder: '(opcional)' },
-    ],
-  },
-  {
-    id: 'contrato-bpc',
-    file: 'CONTRATO_MODELO_BPC-LOAS.docx',
-    label: 'BPC-LOAS',
-    group: 'Contratos',
-    description: 'Contrato de honorários para ações de BPC/LOAS junto ao INSS.',
-    fields: [
-      { key: 'VALOR', label: 'Valor dos honorários', placeholder: '0,00', mask: 'money' },
-      { key: 'DESCRICAO', label: 'Descrição do serviço', placeholder: 'Patrocínio de ação de BPC-LOAS…' },
-      { key: 'CLAUSULA', label: 'Cláusula adicional', placeholder: '(opcional)' },
-    ],
-  },
-  {
-    id: 'contrato-trabalhista',
-    file: 'CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx',
-    label: 'Reclamação Trabalhista',
-    group: 'Contratos',
-    description: 'Contrato de honorários para reclamatória trabalhista.',
-    fields: [
-      { key: 'VALOR', label: 'Valor dos honorários', placeholder: '0,00', mask: 'money' },
-      { key: 'DESCRICAO', label: 'Descrição do serviço', placeholder: 'Patrocínio de reclamação trabalhista…' },
-      { key: 'CLAUSULA', label: 'Cláusula adicional', placeholder: '(opcional)' },
-    ],
-  },
-  {
-    id: 'procuracao',
-    file: 'PROCURAÇÃO.docx',
-    label: 'Procuração',
-    group: 'Procurações',
-    description: 'Procuração geral com dados completos do outorgante.',
-    fields: [
-      { key: 'CLAUSULA', label: 'Poderes específicos', placeholder: 'representar em juízo, assinar contratos…' },
-    ],
-  },
-];
-
 const GROUPS = ['Contratos', 'Procurações', 'Recibos'] as const;
 
 /* ─── history (localStorage) ─── */
 
-type HistoryEntry = {
-  id: string;
-  date: string;
-  clientName: string;
-  templateLabel: string;
-  templateFile: string;
-};
-
-const HISTORY_KEY = 'docgen_history_v1';
-
-function loadHistory(): HistoryEntry[] {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as HistoryEntry[];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(entry: HistoryEntry, prev: HistoryEntry[]): HistoryEntry[] {
-  const next = [entry, ...prev].slice(0, 20);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-  return next;
-}
-
-/* ─── money mask ─── */
-
-function applyMoneyMask(value: string): string {
-  const digits = value.replace(/\D/g, '');
-  if (!digits) return '';
-  const n = Number(digits) / 100;
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+function getHistoryStorage(): Storage | null {
+  try { return window.localStorage; } catch { return null; }
 }
 
 /* ─── placeholder preview builder ─── */
@@ -143,7 +59,7 @@ function buildPreview(
           ${step(2, 'Selecione um modelo de documento', hasTemplate)}
           ${step(3, 'Preencha os campos do modelo', false)}
         </ul>
-        <p style="margin-top:16px;font-size:11px;color:var(--workspace-preview-hint, #334155);font-style:italic">O preview será gerado automaticamente conforme você preenche os dados.</p>
+        <p style="margin-top:16px;font-size:11px;color:var(--workspace-preview-hint, #334155);font-style:italic">O resumo será gerado automaticamente conforme você preenche os dados.</p>
       </div>`,
       missing: [],
     };
@@ -153,24 +69,21 @@ function buildPreview(
 
   const rows = [
     { label: 'Cliente', value: client.name },
-    { label: 'CPF', value: client.cpf || '' },
-    { label: 'Telefone', value: client.phone || '' },
+    ...(client.phone ? [{ label: 'Telefone', value: client.phone }] : []),
     { label: 'Modelo', value: template.label },
     { label: 'Grupo', value: template.group },
     ...template.fields.map((f) => ({ label: f.label, value: fields[f.key] || '' })),
   ];
 
-  for (const f of template.fields) {
-    if (!fields[f.key]?.trim()) missing.push(f.label);
-  }
+  missing.push(...getMissingDocumentFields({ NOME: client.name, ...fields }, template.file));
 
   const tableRows = rows
     .map(
       (r) =>
         `<tr>
-          <td style="padding:8px 14px;color:var(--workspace-preview-muted, #94a3b8);font-size:12px;white-space:nowrap">${r.label}</td>
+          <td style="padding:8px 14px;color:var(--workspace-preview-muted, #94a3b8);font-size:12px;white-space:nowrap">${escapeHtml(r.label)}</td>
           <td style="padding:8px 14px;color:${r.value ? 'var(--workspace-preview-strong, #f1f5f9)' : 'var(--workspace-preview-pending, #f59e0b)'};font-weight:500">
-            ${r.value || '<em style="color:var(--workspace-preview-pending, #f59e0b);font-size:11px">⚠ não preenchido</em>'}
+            ${r.value ? escapeHtml(r.value) : '<em style="color:var(--workspace-preview-pending, #f59e0b);font-size:11px">⚠ não preenchido</em>'}
           </td>
         </tr>`,
     )
@@ -179,14 +92,14 @@ function buildPreview(
   const html = `<div style="font-family:Georgia,serif;color:var(--workspace-preview-text, #cbd5e1)">
     <div style="border-bottom:1px solid var(--workspace-preview-border, #334155);padding-bottom:12px;margin-bottom:18px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--workspace-preview-subtle, #64748b)">Documento</div>
-      <div style="font-size:18px;font-weight:700;color:var(--workspace-preview-strong, #f1f5f9);margin-top:4px">${template.label}</div>
-      <div style="font-size:12px;color:var(--workspace-preview-subtle, #64748b);margin-top:2px">${template.description}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--workspace-preview-strong, #f1f5f9);margin-top:4px">${escapeHtml(template.label)}</div>
+      <div style="font-size:12px;color:var(--workspace-preview-subtle, #64748b);margin-top:2px">${escapeHtml(template.description)}</div>
     </div>
     <table style="width:100%;border-collapse:collapse">
       ${tableRows}
     </table>
     <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--workspace-preview-border, #1e293b);font-size:11px;color:var(--workspace-preview-hint, #475569)">
-      Preview gerado em ${new Date().toLocaleString('pt-BR')} · ${missing.length === 0 ? '✓ Todos os campos preenchidos' : `⚠ ${missing.length} campo(s) pendente(s)`}
+      Resumo gerado em ${new Date().toLocaleString('pt-BR')} · ${missing.length === 0 ? '✓ Todos os campos preenchidos' : `⚠ ${missing.length} campo(s) pendente(s)`}
     </div>
   </div>`;
 
@@ -298,7 +211,7 @@ function ClientSearch({
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
-            if (!e.target.value) onSelect(null);
+            if (selected && e.target.value !== selected.name) onSelect(null);
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 180)}
@@ -315,7 +228,7 @@ function ClientSearch({
       {open && (matches.length > 0 || showNoResults) && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
           {/* counter header */}
-          <div className="sticky top-0 flex items-center justify-between border-b  bg-neutral-900 px-4 py-2">
+          <div className="sticky top-0 flex items-center justify-between border-b bg-neutral-900 px-4 py-2">
             <span className="text-[10px] text-white/35">
               {isEmptyQuery
                 ? `${clients.length} clientes — mostrando ${matches.length} primeiros`
@@ -355,6 +268,46 @@ function ClientSearch({
 /* ─── Main page ─── */
 
 export function DocumentsGeneratorPage() {
+  const [searchParams] = useSearchParams();
+  const requestedClientId = searchParams.get('client');
+  const [context, setContext] = useState<DocumentHistoryContext | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const current = useRef<DocumentHistoryContext | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let latestRequest = 0;
+    async function refreshContext() {
+      const request = ++latestRequest;
+      try {
+        const scope = await getDocumentOfficeContext();
+        const { officeId, userId } = scope;
+        if (!alive || request !== latestRequest) return;
+        if (current.current?.officeId === officeId && current.current?.userId === userId) return;
+        current.current = scope; setContext(scope); setError(null);
+      } catch (err) {
+        if (!alive || request !== latestRequest) return;
+        current.current = null; setContext(null);
+        setError(err instanceof Error ? err.message : 'Não foi possível confirmar o acesso aos documentos.');
+      }
+    }
+    void refreshContext();
+    const onFocus = () => { void refreshContext(); };
+    window.addEventListener('focus', onFocus);
+    const auth = requireSupabase().auth?.onAuthStateChange((_event, session) => {
+      if (session?.user.id !== current.current?.userId) {
+        latestRequest++;
+        current.current = null; setContext(null);
+      }
+      // Avoid awaiting Supabase calls inside its Auth callback.
+      window.setTimeout(() => { if (alive) void refreshContext(); }, 0);
+    });
+    return () => { alive = false; window.removeEventListener('focus', onFocus); auth?.data.subscription.unsubscribe(); };
+  }, []);
+  if (!context) return <div className="p-4 text-sm text-white/70" role={error ? 'alert' : 'status'}>{error || 'Verificando acesso aos documentos…'}</div>;
+  return <ScopedDocumentsGeneratorPage key={`${documentHistoryKey(context)}:client:${encodeURIComponent(requestedClientId || '')}`} context={context} requestedClientId={requestedClientId} isActiveContext={() => current.current?.officeId === context.officeId && current.current?.userId === context.userId} />;
+}
+
+function ScopedDocumentsGeneratorPage({ context, requestedClientId, isActiveContext }: { context: DocumentHistoryContext; requestedClientId: string | null; isActiveContext: () => boolean }) {
   const navigate = useNavigate();
   const [clients, setClients] = useState<ClientLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -365,68 +318,106 @@ export function DocumentsGeneratorPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [expandGroup, setExpandGroup] = useState<string>('Contratos');
-  const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
+  const [history, setHistory] = useState<HistoryEntry[]>(() => readDocumentHistory(getHistoryStorage(), context));
+  const alive = useRef(true);
+  const downloadAttempt = useRef(0);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
   }, []);
 
   useEffect(() => {
+    let active = true;
+    alive.current = true;
     (async () => {
       try {
-        await getAuthedUser();
-        const data = await loadClientsLite();
-        setClients(data);
-      } catch {
-        // auth guard handles redirect
+        const data = await loadDocumentClients(context);
+        if (active) {
+          setClients(data);
+          if (requestedClientId) {
+            const requested = findRequestedDocumentClient(data, requestedClientId);
+            if (requested) {
+              setSelectedClient(requested);
+              setFields(initialDocumentFields(requested, null));
+            } else {
+              showToast('O cliente solicitado não está disponível neste escritório. Selecione um cliente autorizado.', 'error');
+            }
+          }
+        }
+      } catch (err) {
+        if (active) showToast(err instanceof Error ? err.message : 'Não foi possível carregar os clientes.', 'error');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-  }, []);
+    return () => { active = false; alive.current = false; };
+  }, [showToast, requestedClientId, context]);
 
-  // Reset fields when template changes
-  useEffect(() => {
-    setFields({});
-  }, [selectedTemplate?.id]);
+  function selectClient(client: ClientLite | null) {
+    downloadAttempt.current++;
+    setGenerating(false);
+    setSelectedClient(client);
+    setFields(initialDocumentFields(client, selectedTemplate));
+  }
+
+  function selectTemplate(template: Template) {
+    if (!isDocumentTemplateAvailable(template)) {
+      showToast('Este modelo está em conferência e ainda não pode ser gerado.', 'error');
+      return;
+    }
+    downloadAttempt.current++;
+    setGenerating(false);
+    setSelectedTemplate(template);
+    setFields(initialDocumentFields(selectedClient, template));
+  }
 
   const { html: previewHtml, missing } = useMemo(
     () => buildPreview(selectedTemplate, selectedClient, fields),
     [selectedTemplate, selectedClient, fields],
   );
 
-  function setField(key: string, raw: string, mask?: 'money' | 'cpf' | 'date') {
-    const value = mask === 'money' ? applyMoneyMask(raw) : raw;
+  function setField(key: string, value: string) {
+    downloadAttempt.current++;
+    setGenerating(false);
     setFields((prev) => ({ ...prev, [key]: value }));
   }
 
   function buildDocxData() {
     if (!selectedClient || !selectedTemplate) return null;
-    return {
-      NOME: selectedClient.name,
-      NACIONALIDADE: 'Brasileiro(a)',
-      ESTADO_CIVIL: '________',
-      PROFISSAO: '________',
-      CPF: selectedClient.cpf || '________',
-      RG: '________',
-      ENDERECO_COMPLETO: '________',
-      VALOR: fields['VALOR'] || '________',
-      DESCRICAO: fields['DESCRICAO'] || '________',
-      CLAUSULA: fields['CLAUSULA'] || '________',
-      DATA_ATUAL: new Date().toLocaleDateString('pt-BR'),
-    };
+    return prepareDocumentData({ NOME: selectedClient.name, ...fields });
   }
 
   async function handleGenerateDocx() {
+    if (generating) return;
     if (!selectedClient || !selectedTemplate) return showToast('Selecione cliente e modelo.', 'error');
+    if (missing.length) return showToast(`Preencha antes de gerar: ${missing.join(', ')}.`, 'error');
     const data = buildDocxData();
     if (!data) return;
+    const attempt = ++downloadAttempt.current;
+    async function validateDownloadAccess() {
+      if (!alive.current || !isActiveContext() || attempt !== downloadAttempt.current) throw new Error('O acesso mudou. Reabra o gerador antes de gerar este documento.');
+      const live = await getDocumentOfficeContext(context);
+      if (!alive.current || !isActiveContext() || attempt !== downloadAttempt.current
+        || live.userId !== context.userId || live.officeId !== context.officeId) {
+        throw new Error('O acesso mudou. Reabra o gerador antes de gerar este documento.');
+      }
+    }
     setGenerating(true);
     try {
+      await validateDownloadAccess();
       await generateDocumentDocx(
-        data as Parameters<typeof generateDocumentDocx>[0],
+        data,
         selectedTemplate.file,
+        validateDownloadAccess,
       );
+      try {
+        await validateDownloadAccess();
+      } catch {
+        if (alive.current && isActiveContext() && attempt === downloadAttempt.current) {
+          showToast('Documento baixado. O acesso mudou antes do registro do histórico.', 'success');
+        }
+        return;
+      }
       const entry: HistoryEntry = {
         id: crypto.randomUUID(),
         date: new Date().toISOString(),
@@ -434,45 +425,54 @@ export function DocumentsGeneratorPage() {
         templateLabel: selectedTemplate.label,
         templateFile: selectedTemplate.file,
       };
-      setHistory((prev) => saveHistory(entry, prev));
-      showToast('Documento DOCX gerado e baixado!', 'success');
+      const storage = getHistoryStorage();
+      const result = appendDocumentHistory(storage, context, entry, history);
+      if (alive.current && isActiveContext() && attempt === downloadAttempt.current) {
+        setHistory(result.entries);
+        showToast(result.persisted ? 'Documento DOCX gerado e baixado!' : 'Documento DOCX gerado e baixado! O histórico local não pôde ser salvo neste navegador.', 'success');
+      }
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Falha ao gerar DOCX.', 'error');
+      if (alive.current && isActiveContext() && attempt === downloadAttempt.current) showToast(err instanceof Error ? err.message : 'Falha ao gerar DOCX.', 'error');
     } finally {
-      setGenerating(false);
+      if (alive.current && attempt === downloadAttempt.current) setGenerating(false);
     }
   }
 
   function handlePrint() {
+    if (!isActiveContext()) return showToast('O acesso mudou. Reabra o gerador antes de continuar.', 'error');
     if (!selectedClient || !selectedTemplate) return showToast('Selecione cliente e modelo.', 'error');
     const data = buildDocxData();
     if (!data) return;
 
     const rows = Object.entries(data)
-      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+      .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`)
       .join('');
 
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${selectedTemplate.label}</title>
-<style>body{font-family:Arial,sans-serif;max-width:720px;margin:40px auto;color:#111}
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(selectedTemplate.label)}</title>
+<style>${letterheadPrintStyles}
 h1{font-size:1.3rem;margin-bottom:18px}table{width:100%;border-collapse:collapse;margin-bottom:24px}
 td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4f4}
 @media print{button{display:none}}</style></head>
-<body><h1>${selectedTemplate.label} — ${selectedClient.name}</h1>
+<body>${letterheadBodyStart}<h1>${escapeHtml(selectedTemplate.label)} — ${escapeHtml(selectedClient.name)}</h1>
 <table><tr><th>Campo</th><th>Valor</th></tr>${rows}</table>
 <p style="color:#666;font-size:.8rem">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
 <button onclick="window.print()" style="padding:8px 18px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer">Imprimir / Salvar PDF</button>
-</body></html>`;
+${letterheadBodyEnd}</body></html>`;
 
     const win = window.open('', '_blank', 'width=800,height=900');
     if (win) {
       win.document.write(html);
       win.document.close();
       win.focus();
-      win.print();
+      const image = win.document.querySelector('img');
+      if (image) {
+        void image.decode().then(() => win.print(),() => showToast('Não foi possível carregar o timbrado para impressão.','error'));
+      }
     }
   }
 
   function handleCopyText() {
+    if (!isActiveContext()) return showToast('O acesso mudou. Reabra o gerador antes de continuar.', 'error');
     if (!selectedClient || !selectedTemplate) return showToast('Selecione cliente e modelo.', 'error');
     const data = buildDocxData();
     if (!data) return;
@@ -487,6 +487,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
 
   async function handleRegenerate(entry: HistoryEntry) {
     try {
+      assertDocumentTemplateAvailable(entry.templateFile);
       const resp = await fetch(`/templates/${resolveTemplateAssetName(entry.templateFile)}`);
       if (!resp.ok) throw new Error('Template indisponível.');
       showToast(`Abra o template "${entry.templateLabel}" e preencha os dados novamente.`, 'success');
@@ -512,7 +513,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={() => void handleGenerateDocx()}
-          disabled={!ready || generating}
+          disabled={!ready || missing.length > 0 || generating}
           title={!ready ? 'Selecione cliente e modelo' : undefined}
           className={cn(
             'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
@@ -522,7 +523,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           )}
         >
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Gerar DOC
+          Gerar DOCX
         </button>
         <button
           onClick={handlePrint}
@@ -531,12 +532,12 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           className={cn(
             'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
             ready
-              ? 'border-white/20  text-white hover:bg-white/15 active:scale-95'
-              : '  text-white/40',
+              ? 'border-white/20 text-white hover:bg-white/15 active:scale-95'
+              : 'text-white/40',
           )}
         >
           <Printer className="h-4 w-4" />
-          Imprimir / PDF
+          Imprimir resumo
         </button>
         <button
           onClick={handleCopyText}
@@ -545,8 +546,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
           className={cn(
             'flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
             ready
-              ? 'border-white/20  text-white hover:bg-white/15 active:scale-95'
-              : '  text-white/40',
+              ? 'border-white/20 text-white hover:bg-white/15 active:scale-95'
+              : 'text-white/40',
           )}
         >
           <ClipboardCopy className="h-4 w-4" />
@@ -574,7 +575,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 Carregando clientes…
               </div>
             ) : (
-              <ClientSearch clients={clients} selected={selectedClient} onSelect={setSelectedClient} />
+              <ClientSearch clients={clients} selected={selectedClient} onSelect={selectClient} />
             )}
 
             {selectedClient && (
@@ -671,9 +672,11 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                         {groupTemplates.map((t) => (
                           <button
                             key={t.id}
-                            onClick={() => setSelectedTemplate(t)}
+                            disabled={!isDocumentTemplateAvailable(t)}
+                            title={!isDocumentTemplateAvailable(t) ? 'Modelo aguardando conferência do documento.' : undefined}
+                            onClick={() => selectTemplate(t)}
                             className={cn(
-                              'w-full rounded-xl border px-4 py-3 text-left transition',
+                              'w-full rounded-xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50',
                               selectedTemplate?.id === t.id
                                 ? 'border-amber-400/40 bg-amber-400/10'
                                 : 'border-white/10 bg-white/5 hover:bg-white/10',
@@ -683,6 +686,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                               <div>
                                 <div className="text-sm font-medium text-white">{t.label}</div>
                                 <div className="mt-0.5 text-[11px] text-white/45">{t.description}</div>
+                                {!isDocumentTemplateAvailable(t) && <div className="mt-1 text-[11px] text-amber-200">Modelo em conferência</div>}
                               </div>
                               {selectedTemplate?.id === t.id && (
                                 <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-400" />
@@ -708,26 +712,26 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 <h2 className="text-sm font-semibold text-white">Campos do Documento</h2>
               </div>
 
+              <p className="mb-4 text-xs leading-relaxed text-white/50">
+                Estes dados preenchem o Word e valem apenas para esta emissão. A data é a de hoje.
+                As cláusulas e os honorários seguem o texto do modelo selecionado. Revise o DOCX antes de assinar.
+              </p>
               <div className="legacy-space-y-4">
                 {selectedTemplate.fields.map((f) => (
                   <div key={f.key}>
-                    <label className="mb-1.5 block text-xs font-medium text-white/70">
+                    <label htmlFor={`document-${f.key}`} className="mb-1.5 block text-xs font-medium text-white/70">
                       {f.label}
                     </label>
                     <div className="relative">
-                      {f.mask === 'money' && (
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">
-                          R$
-                        </span>
-                      )}
                       <input
+                        id={`document-${f.key}`}
                         type="text"
                         value={fields[f.key] || ''}
                         placeholder={f.placeholder}
-                        onChange={(e) => setField(f.key, e.target.value, f.mask)}
+                        onChange={(e) => setField(f.key, e.target.value)}
                         className={cn(
                           'w-full rounded-xl border border-white/10 bg-neutral-900 py-2.5 text-sm text-white placeholder-white/25 outline-none transition focus:border-amber-400/40',
-                          f.mask === 'money' ? 'pl-9 pr-3' : 'px-3',
+                          'px-3',
                         )}
                       />
                     </div>
@@ -751,7 +755,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
         <div className="legacy-space-y-4 lg:sticky lg:top-6 lg:self-start">
           <Card className="flex flex-col overflow-hidden">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Preview em tempo real</h2>
+              <h2 className="text-sm font-semibold text-white">Resumo dos dados</h2>
               {ready && missing.length === 0 && (
                 <span className="flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
                   <CheckCircle2 className="h-3 w-3" />
@@ -772,11 +776,14 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
             />
           </Card>
 
+          <p className="text-xs leading-relaxed text-white/40">
+            A impressão contém o resumo dos dados. O documento completo com as cláusulas é o arquivo Word.
+          </p>
           {/* quick actions repeat */}
           <div className="flex flex-col gap-2">
             <button
               onClick={() => void handleGenerateDocx()}
-              disabled={!ready || generating}
+              disabled={!ready || missing.length > 0 || generating}
               title={!ready ? 'Selecione cliente e modelo' : undefined}
               className={cn(
                 'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
@@ -786,7 +793,7 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
               )}
             >
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {generating ? 'Gerando…' : 'Gerar DOC'}
+              {generating ? 'Gerando…' : 'Gerar DOCX'}
             </button>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -796,12 +803,12 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
                   ready
-                    ? 'border-white/20  text-white/80 hover:bg-white/15 active:scale-95'
-                    : '  text-white/40',
+                    ? 'border-white/20 text-white/80 hover:bg-white/15 active:scale-95'
+                    : 'text-white/40',
                 )}
               >
                 <Printer className="h-4 w-4" />
-                Imprimir
+                Imprimir resumo
               </button>
               <button
                 onClick={handleCopyText}
@@ -810,8 +817,8 @@ td,th{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f4f4
                 className={cn(
                   'flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50',
                   ready
-                    ? 'border-white/20  text-white/80 hover:bg-white/15 active:scale-95'
-                    : '  text-white/40',
+                    ? 'border-white/20 text-white/80 hover:bg-white/15 active:scale-95'
+                    : 'text-white/40',
                 )}
               >
                 <ClipboardCopy className="h-4 w-4" />
