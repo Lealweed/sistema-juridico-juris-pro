@@ -9,6 +9,7 @@ import { TimelineSection } from '@/ui/widgets/TimelineSection';
 import { getAuthedUser, requireSupabase } from '@/lib/supabaseDb';
 import { generateClientDossier } from '@/lib/pdfGenerator';
 import { buildProcuracaoData, generateDocumentDocx } from '@/lib/docGenerator';
+import { getDocumentOfficeContext } from '@/lib/documentScopedAccess';
 import { apiFetch } from '@/lib/apiClient';
 import { subscribeToPortalMessages } from '@/lib/clientPortal';
 import { brlToCents, centsToBRL, loadClientTransactions, type FinanceTx } from '@/lib/finance';
@@ -90,6 +91,15 @@ type ClientMessageRow = {
 
 export function ClientDetailsPage() {
   const { clientId } = useParams();
+  const documentRoute = useRef({ clientId, active: true });
+  const documentLoadedUserId = useRef('');
+  const documentAttempt = useRef(0);
+  documentRoute.current.clientId = clientId;
+  useEffect(() => {
+    const route = documentRoute.current;
+    route.active = true;
+    return () => { route.active = false; };
+  }, []);
   const [row, setRow] = useState<ClientRow | null>(null);
   const [cases, setCases] = useState<CaseLite[]>([]);
   const [clientTransactions, setClientTransactions] = useState<FinanceTx[]>([]);
@@ -144,6 +154,9 @@ export function ClientDetailsPage() {
 
   useEffect(() => {
     let alive = true;
+    documentLoadedUserId.current = '';
+    documentAttempt.current++;
+    setGeneratingDocx(false);
 
     (async () => {
       try {
@@ -154,7 +167,7 @@ export function ClientDetailsPage() {
         if (!clientId) throw new Error('Cliente inválido.');
 
         const sb = requireSupabase();
-        await getAuthedUser();
+        const documentLoadingUser = await getAuthedUser();
 
         const [c1, c2, tx, messagesRes] = await Promise.all([
           sb.from('clients').select('id,name,birth_date,phone,whatsapp,email,notes,user_id,created_at,cpf,rg,profession,civil_status,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_cep,portal_pin,office_id').eq('id', clientId).maybeSingle(),
@@ -177,6 +190,7 @@ export function ClientDetailsPage() {
 
         if (!alive) return;
         const client = c1.data || null;
+        documentLoadedUserId.current = documentLoadingUser.id;
         setRow(client);
         setName(client?.name || '');
         setPhone(client?.phone || '');
@@ -556,30 +570,46 @@ export function ClientDetailsPage() {
             </button>
           )}
           {row && (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <select 
-                className="input !py-2 !px-3 !text-sm bg-neutral-900 border-white/10"
+                className="input min-w-0 max-w-full !py-2 !px-3 !text-sm bg-neutral-900 border-white/10"
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
                 disabled={generatingDocx}
               >
                 <option value="PROCURAÇÃO.docx">Procuração Ad Judicia</option>
                 <option value="CONTRATO_MODELO_AUX_POR_INCAP_TEMPORARIA.docx">Contrato - Auxílio Doença</option>
-                <option value="CONTRATO_MODELO_BPC-LOAS.docx">Contrato - BPC / LOAS</option>
+                <option value="CONTRATO_MODELO_BPC-LOAS.docx">Contrato - BPC/Deficiência</option>
                 <option value="CONTRATO_MODELO_RECLAMAÇÃO_TRABALHISTA.docx">Contrato - Trabalhista</option>
               </select>
               <button
                 disabled={generatingDocx}
                 onClick={async () => {
-                  if (!row) return;
+                  if (!row || generatingDocx) return;
+                  const expectedUserId = documentLoadedUserId.current;
+                  const expectedClientId = row.id;
+                  const attempt = ++documentAttempt.current;
                   setGeneratingDocx(true);
                   try {
+                    const expected = { userId: expectedUserId, officeId: row.office_id || '' };
+                    const validateDownload = async () => {
+                      if (!expectedUserId || !documentRoute.current.active || documentRoute.current.clientId !== expectedClientId
+                        || documentLoadedUserId.current !== expectedUserId || documentAttempt.current !== attempt) {
+                        throw new Error('O acesso mudou. Reabra o cliente antes de gerar o documento.');
+                      }
+                      await getDocumentOfficeContext(expected);
+                      if (!documentRoute.current.active || documentRoute.current.clientId !== expectedClientId
+                        || documentLoadedUserId.current !== expectedUserId || documentAttempt.current !== attempt) {
+                        throw new Error('O acesso mudou. Reabra o cliente antes de gerar o documento.');
+                      }
+                    };
+                    await validateDownload();
                     const data = buildProcuracaoData(row);
-                    await generateDocumentDocx(data, selectedTemplate);
+                    await generateDocumentDocx(data, selectedTemplate, validateDownload);
                   } catch (err: unknown) {
-                    alert(getErrorMessage(err, 'Falha ao gerar documento.'));
+                    if (documentRoute.current.active && documentAttempt.current === attempt) alert(getErrorMessage(err, 'Falha ao gerar documento.'));
                   } finally {
-                    setGeneratingDocx(false);
+                    if (documentRoute.current.active && documentAttempt.current === attempt) setGeneratingDocx(false);
                   }
                 }}
                 className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
@@ -591,6 +621,11 @@ export function ClientDetailsPage() {
                 {generatingDocx ? 'Gerando…' : 'Gerar'}
               </button>
             </div>
+          )}
+          {row && (
+            <Link to={`/app/documentos/gerar?client=${encodeURIComponent(row.id)}`} className="btn-ghost">
+              Abrir gerador de contratos
+            </Link>
           )}
           <Link to="/app/clientes" className="btn-ghost">
             Voltar
